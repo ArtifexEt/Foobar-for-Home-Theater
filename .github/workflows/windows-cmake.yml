@@ -9,6 +9,9 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build Windows experiment
@@ -24,8 +27,37 @@ jobs:
       - name: Build
         run: cmake --build build --config Release
 
-      - name: Upload executable
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item build/Release/AtmosHomeTheaterExperiment.exe dist/
+          Copy-Item config/atmos_profile.ini dist/
+          Copy-Item README.md dist/
+          Compress-Archive -Path dist/* -DestinationPath Foobar-for-Home-Theater-windows-x64.zip -Force
+
+      - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: AtmosHomeTheaterExperiment-windows-x64
-          path: build/Release/AtmosHomeTheaterExperiment.exe
+          path: Foobar-for-Home-Theater-windows-x64.zip
+
+      - name: Publish nightly release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "nightly"
+          $asset = "Foobar-for-Home-Theater-windows-x64.zip"
+          $title = "Nightly Windows build"
+          $notes = "Automated build from $env:GITHUB_SHA.`n`nThis is an experimental Windows Spatial Audio probe, not the foobar2000 component yet."
+
+          gh release delete $tag --yes --cleanup-tag 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "No existing nightly release to replace."
+          }
+
+          git tag -f $tag
+          git push origin $tag --force
+          gh release create $tag $asset --title $title --notes $notes --prerelease --target $env:GITHUB_SHA
