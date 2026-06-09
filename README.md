@@ -4,7 +4,7 @@ Windows Spatial Audio / Dolby Atmos for Home Theater experiments for a future fo
 
 This is not the foobar plugin yet. It is a small C++ probe that checks whether a Windows machine with Dolby Atmos for Home Theater enabled can accept static 7.1.4 bed channels and dynamic spatial objects.
 
-The repository builds the experiment with GitHub Actions on `windows-latest`. The action can verify MSVC/CMake compilation, but real Atmos playback must be tested on a Windows machine with a compatible HDMI/eARC endpoint.
+The repository builds the experiment with GitHub Actions on `windows-2022`. The action can verify MSVC/CMake compilation, but real Atmos playback must be tested on a Windows machine with a compatible HDMI/eARC endpoint.
 
 ## Requirements
 
@@ -36,6 +36,8 @@ cmake --build build --config Release
 `--static-test` plays sequential tone bursts through the configured static bed. With a 7.1.4 Atmos endpoint, the important checks are `top_front_left`, `top_front_right`, `top_back_left`, and `top_back_right`.
 
 `--custom` creates dynamic spatial objects from `config/atmos_profile.ini` and positions them with Windows Spatial Audio coordinates.
+
+Release ZIPs include the executable and `config/atmos_profile.ini` in the same default layout the executable expects.
 
 ## Notes
 
