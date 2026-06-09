@@ -36,7 +36,7 @@ Select the listening mode and tune how stereo is spread into center, surround, r
 
 ### Per-channel trims
 
-Adjust each 7.1.4 bed channel independently with gain, delay, and polarity inversion. This is useful when matching a receiver, speaker distance compensation, or a room correction profile.
+Adjust bed channels independently with gain, delay, and polarity inversion. This is useful when matching a receiver, speaker distance compensation, or a room correction profile.
 
 ![Per-channel trims](docs/screenshots/channel-trims.png)
 
@@ -61,22 +61,13 @@ Play short tones from front, side, rear, height, and LFE directions. Positional 
 - Spatial sound enabled for that endpoint in Windows sound settings.
 - foobar2000 2.x 64-bit for the component package.
 
-The component settings live under Preferences > Playback > Output > Spatial Audio.
+## How it works
 
-Stereo input is upmixed to the available Spatial Audio bed. 5.1 input can be mapped per source channel from the component settings: FL, FR, FC, LFE, SL/BL, and SR/BR can each target front, side, rear, height, LFE, or Disabled. 7.1 input is preserved to matching front, side, rear, center, and LFE bed channels.
+Stereo input is upmixed into the selected Windows Spatial Audio bed. 5.1 input can be mapped per source channel, and 7.1 input is preserved to matching front, side, rear, center, and LFE bed channels.
 
-The preferences page now exposes:
+Supported output beds are Auto, Stereo, 5.1, 7.1, 5.1.2, 5.1.4, and 7.1.4. New installs start with beginner-safe defaults: Auto bed, 48 kHz compatible render rate, Reference upmix, limiter on, and conservative gains.
 
-- Layout selection: Auto, Stereo, 5.1, 7.1, 5.1.2, 5.1.4, and 7.1.4, with endpoint probe output.
-- Render quality controls: 48 kHz compatible default, source sample rate if supported, auto highest supported, or fixed 44.1/88.2/96/176.4/192 kHz.
-- Beginner-safe defaults: Auto bed, 48 kHz compatible render rate, Reference upmix, limiter on, and conservative gains.
-- Upmix mode controls: Reference, Full spatial, and Front only for quick A/B comparison.
-- Upmix sliders next to numeric values for master/headroom, center, surround, rear, height, width, height ambience, decorrelation, and LFE.
-- Per-channel gain, delay, and polarity invert controls for the 7.1.4 bed.
-- Copy/Paste profile buttons for sharing the full component settings through the clipboard.
-- Tooltips on important controls for setup guidance without cluttering the settings page.
-- A directional test pad that can play a short Spatial Audio tone from front, side, rear, ceiling, or LFE directions. If the endpoint supports dynamic objects, the test can use object coordinates for positional channels; LFE always uses the static low-frequency bed channel with a low test tone.
-- Transparent soft limiter or hard ceiling limiter control to reduce accidental clipping.
+Use the settings tabs above for endpoint probing, upmix tuning, per-channel trims, 5.1 source mapping, and directional tests. Copy/Paste profile buttons can share the full component setup through the clipboard.
 
 ## Quality
 
@@ -113,11 +104,11 @@ The foobar2000 component is built by the GitHub Actions workflow using the offic
 
 `--probe` prints endpoint capabilities.
 
-`--static-test` plays sequential tone bursts through the configured static bed. With a 7.1.4 Spatial Audio endpoint, the important checks are `top_front_left`, `top_front_right`, `top_back_left`, and `top_back_right`.
+`--static-test` plays sequential tone bursts through the configured static bed. With height-enabled layouts such as 5.1.4 or 7.1.4, the important checks are `top_front_left`, `top_front_right`, `top_back_left`, and `top_back_right`.
 
 `--custom` creates dynamic spatial objects from `config/spatial_audio_profile.ini` and positions them with Windows Spatial Audio coordinates.
 
-`StereoSpatialPlayer.exe --mode bed` plays a stereo WAV through the configured static 7.1.4 bed. `--mode objects` plays the same WAV as dynamic spatial objects using `source`, `gain_db`, `x`, `y`, and `z` from the custom object sections.
+`StereoSpatialPlayer.exe --mode bed` plays a stereo WAV through the configured static bed. `--mode objects` plays the same WAV as dynamic spatial objects using `source`, `gain_db`, `x`, `y`, and `z` from the custom object sections.
 
 Release ZIPs include the standalone executables and `config/spatial_audio_profile.ini` in the same default layout the executables expect. The component is published separately as `foo_out_spatial_audio.fb2k-component`.
 
