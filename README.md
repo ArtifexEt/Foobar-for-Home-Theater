@@ -8,13 +8,13 @@ The repository builds the Windows tools and foobar2000 component with GitHub Act
 
 ## Download and install
 
-1. Download the latest component from the nightly release: [`foo_out_spatial_audio.fb2k-component`](https://github.com/ArtifexEt/Foobar-for-Home-Theater/releases/download/nightly/foo_out_spatial_audio.fb2k-component).
+1. Download the latest component release: [`foo_out_spatial_audio.fb2k-component`](https://github.com/ArtifexEt/Foobar-for-Home-Theater/releases/latest/download/foo_out_spatial_audio.fb2k-component).
 2. In foobar2000, open Preferences > Components, click Install, choose the downloaded `.fb2k-component`, then Apply.
 3. Restart foobar2000 when prompted.
 4. Open Preferences > Playback > Output and select `Spatial Audio for Home Theater`.
 5. Open Preferences > Playback > Output > Spatial Audio if you want to probe the Windows endpoint, run directional tests, or adjust channel gains. New installs use beginner-safe defaults, so no setup is required before first playback.
 
-The release ZIP contains standalone diagnostics and test executables. The foobar2000 plugin itself is the `.fb2k-component` file linked above.
+Release notes are published on the [GitHub releases page](https://github.com/ArtifexEt/Foobar-for-Home-Theater/releases). The release ZIP contains standalone diagnostics and test executables. The foobar2000 plugin itself is the `.fb2k-component` file linked above.
 
 ## Requirements
 

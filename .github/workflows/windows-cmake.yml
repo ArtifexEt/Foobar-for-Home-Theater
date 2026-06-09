@@ -20,6 +20,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
@@ -60,23 +62,57 @@ jobs:
             Foobar-for-Home-Theater-windows-x64.zip
             foo_out_spatial_audio.fb2k-component
 
-      - name: Publish nightly release
+      - name: Publish release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "nightly"
           $asset = "Foobar-for-Home-Theater-windows-x64.zip"
           $componentAsset = "foo_out_spatial_audio.fb2k-component"
-          $title = "Nightly Windows build"
-          $notes = "Automated build from $env:GITHUB_SHA.`n`nIncludes the foo_out_spatial_audio foobar2000 output component and standalone Windows Spatial Audio diagnostics."
 
-          gh release delete $tag --yes --cleanup-tag 2>$null
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "No existing nightly release to replace."
+          $tag = "v0.3.$env:GITHUB_RUN_NUMBER"
+          if ($env:GITHUB_RUN_ATTEMPT -and $env:GITHUB_RUN_ATTEMPT -ne "1") {
+            $tag = "$tag-r$env:GITHUB_RUN_ATTEMPT"
+          }
+          $title = "Foobar for Home Theater $tag"
+
+          git fetch --tags --force
+
+          $previousTag = ""
+          try {
+            $previousTag = gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=50" --jq '[.[] | select(.draft == false and .prerelease == false)][0].tag_name' 2>$null
+          } catch {
+            $previousTag = ""
+          }
+          if ($previousTag -eq "null") {
+            $previousTag = ""
           }
 
-          git tag -f $tag
-          git push origin $tag --force
-          gh release create $tag $asset $componentAsset --title $title --notes $notes --prerelease --target $env:GITHUB_SHA
+          $range = "HEAD"
+          $changesHeader = "Changes"
+          if (-not [string]::IsNullOrWhiteSpace($previousTag)) {
+            git rev-parse "$previousTag^{commit}" *> $null
+            if ($LASTEXITCODE -eq 0) {
+              $range = "$previousTag..HEAD"
+              $changesHeader = "Changes since $previousTag"
+            }
+          }
+
+          $changes = git log $range --no-merges --pretty=format:"- %s (%h)"
+          if ([string]::IsNullOrWhiteSpace($changes)) {
+            $changes = "- Build artifacts only."
+          }
+
+          @(
+            "Automated Windows build from $env:GITHUB_SHA.",
+            "",
+            "## Downloads",
+            "- ``foo_out_spatial_audio.fb2k-component`` - foobar2000 output component",
+            "- ``Foobar-for-Home-Theater-windows-x64.zip`` - standalone diagnostics and test tools",
+            "",
+            "## $changesHeader",
+            $changes
+          ) | Set-Content -Path release-notes.md -Encoding utf8
+
+          gh release create $tag $asset $componentAsset --title $title --notes-file release-notes.md --target $env:GITHUB_SHA
