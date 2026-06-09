@@ -45,16 +45,16 @@ RuntimeConfig ReadConfig() {
 }
 
 void WriteConfig(const RuntimeConfig& config) {
-    cfg_master_gain.set(config.masterGainDb);
-    cfg_center_gain.set(config.centerGainDb);
-    cfg_surround_gain.set(config.surroundGainDb);
-    cfg_rear_gain.set(config.rearGainDb);
-    cfg_height_gain.set(config.heightGainDb);
-    cfg_side_amount.set(config.sideAmount);
-    cfg_height_from_mid.set(config.heightFromMid);
-    cfg_enable_lfe.set(config.enableLfe);
-    cfg_lfe_gain.set(config.lfeGainDb);
-    cfg_lfe_lowpass.set(config.lfeLowpassHz);
+    cfg_master_gain = static_cast<float>(config.masterGainDb);
+    cfg_center_gain = static_cast<float>(config.centerGainDb);
+    cfg_surround_gain = static_cast<float>(config.surroundGainDb);
+    cfg_rear_gain = static_cast<float>(config.rearGainDb);
+    cfg_height_gain = static_cast<float>(config.heightGainDb);
+    cfg_side_amount = static_cast<float>(config.sideAmount);
+    cfg_height_from_mid = static_cast<float>(config.heightFromMid);
+    cfg_enable_lfe = config.enableLfe;
+    cfg_lfe_gain = static_cast<float>(config.lfeGainDb);
+    cfg_lfe_lowpass = static_cast<float>(config.lfeLowpassHz);
 }
 
 }  // namespace spatial_atmos

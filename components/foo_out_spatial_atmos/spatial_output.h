@@ -8,7 +8,7 @@ namespace spatial_atmos {
 class spatial_atmos_output : public output_impl {
 public:
     spatial_atmos_output(const GUID& device, double bufferLength, bool dither, t_uint32 bitDepth);
-    ~spatial_atmos_output() override;
+    ~spatial_atmos_output();
 
     static GUID g_get_guid();
     static const char* g_get_name();

@@ -49,7 +49,7 @@ public:
         populate();
     }
 
-    ~preferences_instance() override {
+    ~preferences_instance() {
         if (wnd_ != nullptr && IsWindow(wnd_)) {
             DestroyWindow(wnd_);
         }
