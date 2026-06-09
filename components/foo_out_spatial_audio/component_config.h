@@ -20,23 +20,46 @@ enum ChannelTarget {
     target_top_back_right = 11,
 };
 
+static constexpr size_t target_count = 12;
+
+enum class LayoutMode {
+    Auto = 0,
+    Stereo = 1,
+    FivePointOne = 2,
+    SevenPointOne = 3,
+    FivePointOneTwo = 4,
+    SevenPointOneFour = 5,
+};
+
 struct RuntimeConfig {
+    LayoutMode layoutMode = LayoutMode::Auto;
     double masterGainDb = -12.0;
+    double headroomDb = 0.0;
+    bool limiterEnabled = true;
+    double limiterCeilingDb = -1.0;
     double centerGainDb = -6.0;
     double surroundGainDb = -9.0;
     double rearGainDb = -12.0;
     double heightGainDb = -12.0;
     double sideAmount = 0.75;
     double heightFromMid = 0.20;
+    double decorrelationAmount = 0.20;
     bool enableLfe = false;
     double lfeGainDb = -24.0;
     double lfeLowpassHz = 120.0;
+    std::array<double, target_count> channelGainDb = {};
+    std::array<double, target_count> channelDelayMs = {};
     int map51FrontLeft = target_front_left;
     int map51FrontRight = target_front_right;
     int map51FrontCenter = target_front_center;
     int map51Lfe = target_low_frequency;
     int map51SurroundLeft = target_side_left;
     int map51SurroundRight = target_side_right;
+    bool directionalTestEnabled = false;
+    bool directionalTestUseDynamicObject = true;
+    int directionalTestTarget = target_front_center;
+    double directionalTestGainDb = -18.0;
+    double directionalTestFrequencyHz = 660.0;
 };
 
 RuntimeConfig ReadConfig();

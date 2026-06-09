@@ -2,7 +2,7 @@
 
 Windows Spatial Audio output component for foobar2000 home theater setups, plus standalone diagnostics used to validate the Windows endpoint.
 
-`foo_out_spatial_audio` is an early foobar2000 output component. It takes foobar2000 stereo or 5.1 PCM, forces 48 kHz when needed, and renders it to the default Windows Spatial Audio endpoint as a static home theater bed.
+`foo_out_spatial_audio` is an early foobar2000 output component. It takes foobar2000 stereo, 5.1, or 7.1 PCM, forces 48 kHz when needed, and renders it to the default Windows Spatial Audio endpoint as a home theater Spatial Audio bed.
 
 The repository builds the Windows tools and foobar2000 component with GitHub Actions on `windows-2022`. The action can verify MSVC/CMake compilation, but real Spatial Audio playback must be tested on a Windows machine with a compatible HDMI/eARC endpoint.
 
@@ -21,7 +21,15 @@ Download `foo_out_spatial_audio.fb2k-component` from the `nightly` release and i
 
 The component settings live under Preferences > Playback > Output > Spatial Audio.
 
-Stereo input is upmixed to the available Spatial Audio bed. 5.1 input can be mapped per source channel from the component settings: FL, FR, FC, LFE, SL/BL, and SR/BR can each target front, side, rear, height, LFE, or Disabled.
+Stereo input is upmixed to the available Spatial Audio bed. 5.1 input can be mapped per source channel from the component settings: FL, FR, FC, LFE, SL/BL, and SR/BR can each target front, side, rear, height, LFE, or Disabled. 7.1 input is preserved to matching front, side, rear, center, and LFE bed channels.
+
+The preferences page now exposes:
+
+- Layout selection: Auto, Stereo, 5.1, 7.1, 5.1.2, and 7.1.4, with endpoint probe output.
+- Upmix sliders next to numeric values for master/headroom, center, surround, rear, height, width, height ambience, decorrelation, and LFE.
+- Per-channel gain and delay controls for the 7.1.4 bed.
+- A directional test pad that can play a short Spatial Audio tone from front, side, rear, ceiling, or LFE directions. If the endpoint supports dynamic objects, the test can use object coordinates; otherwise it falls back to static bed channels.
+- Limiter ceiling control to reduce accidental clipping.
 
 ## Support
 

@@ -32,6 +32,7 @@ private:
     enum class InputLayout {
         Stereo,
         FivePointOne,
+        SevenPointOne,
     };
 
     struct InputFrame {
@@ -41,12 +42,16 @@ private:
         float lfe = 0.0f;
         float surroundLeft = 0.0f;
         float surroundRight = 0.0f;
+        float backLeft = 0.0f;
+        float backRight = 0.0f;
     };
 
     struct ChannelState {
         std::string key;
         AudioObjectType type = AudioObjectType_None;
         Microsoft::WRL::ComPtr<ISpatialAudioObject> object;
+        std::vector<float> delayBuffer;
+        size_t delayIndex = 0;
     };
 
     void on_update() override;
@@ -65,9 +70,16 @@ private:
     double bed_value(const std::string& key, const InputFrame& frame, double& lfeState) const;
     double stereo_bed_value(const std::string& key, const InputFrame& frame, double& lfeState) const;
     double mapped_5point1_value(const std::string& key, const InputFrame& frame) const;
+    double mapped_7point1_value(const std::string& key, const InputFrame& frame) const;
+    double test_signal_value(double& phase) const;
+    double apply_limiter(double value) const;
+    double apply_channel_delay(ChannelState& channel, double value) const;
     static bool is_5point1_mask(unsigned mask);
+    static bool is_7point1_mask(unsigned mask);
     static float sample_by_flag(const audio_sample* samples, size_t frame, unsigned channels, unsigned mask, unsigned flag, unsigned fallbackIndex);
     static int target_from_key(const std::string& key);
+    static AudioObjectType requested_static_mask(const RuntimeConfig& config, AudioObjectType nativeMask);
+    static bool target_coordinates(int target, float& x, float& y, float& z);
     static float clamp_sample(double value);
     static double db_to_linear(double db);
     static WAVEFORMATEX make_object_format(uint32_t sampleRate);

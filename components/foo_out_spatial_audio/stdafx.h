@@ -14,6 +14,7 @@
 #include <objidl.h>
 #include <shellapi.h>
 #include <timeapi.h>
+#include <commctrl.h>
 
 #include <SDK/foobar2000.h>
 #include <SDK/coreDarkMode.h>
@@ -26,6 +27,7 @@
 #include <wrl/client.h>
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cmath>
 #include <condition_variable>
@@ -33,6 +35,8 @@
 #include <cstdlib>
 #include <cwchar>
 #include <deque>
+#include <initializer_list>
+#include <memory>
 #include <mutex>
 #include <sstream>
 #include <stdexcept>
