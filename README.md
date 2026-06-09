@@ -1,8 +1,8 @@
 # Foobar for Home Theater
 
-Windows Spatial Audio / Dolby Atmos for Home Theater experiments for a future foobar2000 output component.
+Windows Spatial Audio / Dolby Atmos for Home Theater output component for foobar2000, plus standalone experiments used to validate the Windows endpoint.
 
-This is not the foobar plugin yet. It contains small C++ experiments for proving the Windows Spatial Audio path before it is wrapped as a foobar2000 output component.
+`foo_out_spatial_atmos` is an early foobar2000 output component. It takes foobar2000 stereo PCM, forces 48 kHz stereo, and renders it to the default Windows Spatial Audio endpoint as a static 7.1.4 bed for Dolby Atmos for Home Theater systems.
 
 The repository builds the experiment with GitHub Actions on `windows-2022`. The action can verify MSVC/CMake compilation, but real Atmos playback must be tested on a Windows machine with a compatible HDMI/eARC endpoint.
 
@@ -13,6 +13,13 @@ The repository builds the experiment with GitHub Actions on `windows-2022`. The 
 - CMake 3.24 or newer.
 - A real HDMI/eARC Atmos endpoint selected as the default output device.
 - Spatial sound set to Dolby Atmos for Home Theater in Windows sound settings.
+- foobar2000 2.x 64-bit for the component package.
+
+## Install
+
+Download `foo_out_spatial_atmos.fb2k-component` from the `nightly` release and install it from foobar2000 Preferences > Components. After restart, select `Spatial Atmos for Home Theater` as the output device.
+
+The component settings live under Preferences > Playback > Output > Spatial Atmos.
 
 ## Build
 
@@ -23,7 +30,9 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A x64
 cmake --build build --config Release
 ```
 
-## Run
+The foobar2000 component is built by the GitHub Actions workflow using the official foobar2000 SDK.
+
+## Standalone Tools
 
 ```powershell
 .\build\Release\AtmosHomeTheaterExperiment.exe --probe --config .\config\atmos_profile.ini
@@ -41,7 +50,7 @@ cmake --build build --config Release
 
 `StereoSpatialPlayer.exe --mode bed` plays a stereo WAV through the configured static 7.1.4 bed. `--mode objects` plays the same WAV as dynamic spatial objects using `source`, `gain_db`, `x`, `y`, and `z` from the custom object sections.
 
-Release ZIPs include the executables and `config/atmos_profile.ini` in the same default layout the executables expect.
+Release ZIPs include the standalone executables and `config/atmos_profile.ini` in the same default layout the executables expect. The component is published separately as `foo_out_spatial_atmos.fb2k-component`.
 
 ## Notes
 

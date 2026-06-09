@@ -1,6 +1,6 @@
 # Foobar component plan
 
-The first checked-in program is a standalone Windows Spatial Audio experiment. The foobar2000 component should be built only after the target Windows machine confirms that Dolby Atmos for Home Theater exposes the expected static bed and dynamic object count.
+The standalone Windows Spatial Audio experiments remain in the repository as diagnostics. The first foobar2000 output component is now `foo_out_spatial_atmos`, built from `components/foo_out_spatial_atmos`.
 
 ## Component shape
 
@@ -45,6 +45,7 @@ The foobar configuration dialog should have four compact tabs:
 2. Static bed test: send sequential tone bursts into 7.1.4 static channels, especially top front/top back.
 3. Dynamic object test: send synthetic tones to configured x/y/z positions.
 4. Standalone stereo WAV player: route real stereo PCM into the same static bed and dynamic object paths.
-5. Foobar output skeleton: accept PCM and forward silence/test tones to Windows Spatial Audio.
-6. Stereo upmix: split incoming stereo into mid/side/ambience/LFE/height ambience and route to configured static channels.
-7. Configuration UI and profile persistence.
+5. Foobar output skeleton: accept PCM and route stereo to Windows Spatial Audio static bed.
+6. Stereo upmix: tune mid/side/ambience/LFE/height ambience routing and expose per-channel controls.
+7. Dynamic object mode inside the foobar output.
+8. Rich configuration UI and profile import/export.

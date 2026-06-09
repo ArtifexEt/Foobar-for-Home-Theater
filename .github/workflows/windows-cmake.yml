@@ -21,11 +21,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
       - name: Configure
         run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
 
       - name: Build
         run: cmake --build build --config Release
+
+      - name: Build foobar2000 component
+        shell: pwsh
+        run: |
+          $sdkUrl = "https://www.foobar2000.org/downloads/SDK-2025-03-07.7z"
+          New-Item -ItemType Directory -Force external | Out-Null
+          Invoke-WebRequest -Uri $sdkUrl -OutFile external/foobar2000-sdk.7z
+          7z x external/foobar2000-sdk.7z -oexternal/foobar2000-sdk -y
+          Copy-Item -Recurse components/foo_out_spatial_atmos external/foobar2000-sdk/foobar2000/
+          msbuild external/foobar2000-sdk/foobar2000/foo_out_spatial_atmos/foo_out_spatial_atmos.vcxproj /m /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143
 
       - name: Package
         shell: pwsh
@@ -37,12 +50,15 @@ jobs:
           Copy-Item config/atmos_profile.ini dist/config/
           Copy-Item README.md dist/
           Compress-Archive -Path dist/* -DestinationPath Foobar-for-Home-Theater-windows-x64.zip -Force
+          Compress-Archive -Path external/foobar2000-sdk/foobar2000/foo_out_spatial_atmos/bin/x64/Release/foo_out_spatial_atmos.dll -DestinationPath foo_out_spatial_atmos.fb2k-component -Force
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: AtmosHomeTheaterExperiment-windows-x64
-          path: Foobar-for-Home-Theater-windows-x64.zip
+          path: |
+            Foobar-for-Home-Theater-windows-x64.zip
+            foo_out_spatial_atmos.fb2k-component
 
       - name: Publish nightly release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -52,8 +68,9 @@ jobs:
         run: |
           $tag = "nightly"
           $asset = "Foobar-for-Home-Theater-windows-x64.zip"
+          $componentAsset = "foo_out_spatial_atmos.fb2k-component"
           $title = "Nightly Windows build"
-          $notes = "Automated build from $env:GITHUB_SHA.`n`nThis is an experimental Windows Spatial Audio probe, not the foobar2000 component yet."
+          $notes = "Automated build from $env:GITHUB_SHA.`n`nIncludes the early foo_out_spatial_atmos foobar2000 output component and standalone Windows Spatial Audio experiments."
 
           gh release delete $tag --yes --cleanup-tag 2>$null
           if ($LASTEXITCODE -ne 0) {
@@ -62,4 +79,4 @@ jobs:
 
           git tag -f $tag
           git push origin $tag --force
-          gh release create $tag $asset --title $title --notes $notes --prerelease --target $env:GITHUB_SHA
+          gh release create $tag $asset $componentAsset --title $title --notes $notes --prerelease --target $env:GITHUB_SHA
