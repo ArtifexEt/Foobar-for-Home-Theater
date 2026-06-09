@@ -158,6 +158,7 @@ const LayoutOption kLayoutOptions[] = {
     {LayoutMode::FivePointOne, L"5.1"},
     {LayoutMode::SevenPointOne, L"7.1"},
     {LayoutMode::FivePointOneTwo, L"5.1.2"},
+    {LayoutMode::FivePointOneFour, L"5.1.4"},
     {LayoutMode::SevenPointOneFour, L"7.1.4"},
 };
 
@@ -242,6 +243,9 @@ AudioObjectType requested_static_mask(LayoutMode mode, AudioObjectType nativeMas
         break;
     case LayoutMode::FivePointOneTwo:
         include({target_front_left, target_front_right, target_front_center, target_low_frequency, target_side_left, target_side_right, target_top_front_left, target_top_front_right});
+        break;
+    case LayoutMode::FivePointOneFour:
+        include({target_front_left, target_front_right, target_front_center, target_low_frequency, target_side_left, target_side_right, target_top_front_left, target_top_front_right, target_top_back_left, target_top_back_right});
         break;
     case LayoutMode::SevenPointOneFour:
     default:

@@ -67,7 +67,7 @@ Stereo input is upmixed to the available Spatial Audio bed. 5.1 input can be map
 
 The preferences page now exposes:
 
-- Layout selection: Auto, Stereo, 5.1, 7.1, 5.1.2, and 7.1.4, with endpoint probe output.
+- Layout selection: Auto, Stereo, 5.1, 7.1, 5.1.2, 5.1.4, and 7.1.4, with endpoint probe output.
 - Render quality controls: 48 kHz compatible default, source sample rate if supported, auto highest supported, or fixed 44.1/88.2/96/176.4/192 kHz.
 - Beginner-safe defaults: Auto bed, 48 kHz compatible render rate, Reference upmix, limiter on, and conservative gains.
 - Upmix mode controls: Reference, Full spatial, and Front only for quick A/B comparison.

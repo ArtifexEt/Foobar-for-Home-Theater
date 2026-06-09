@@ -15,7 +15,7 @@ The standalone Windows Spatial Audio diagnostics remain in the repository next t
 The foobar configuration dialog should have four compact tabs:
 
 1. Layout
-   - Output mode: Auto, Stereo, 5.1, 7.1, 5.1.2, 7.1.4, Custom.
+   - Output mode: Auto, Stereo, 5.1, 7.1, 5.1.2, 5.1.4, 7.1.4, Custom.
    - Render quality: highest supported sample rate, source sample rate if supported, or fixed sample rate.
    - Beginner defaults: compatible render rate, Reference upmix, limiter on.
    - Windows Spatial Audio diagnostics: endpoint name, native static bed, max dynamic objects.

@@ -29,6 +29,7 @@ enum class LayoutMode {
     SevenPointOne = 3,
     FivePointOneTwo = 4,
     SevenPointOneFour = 5,
+    FivePointOneFour = 6,
 };
 
 enum class SampleRateMode {

@@ -497,6 +497,8 @@ AudioObjectType RequestedStaticMask(const PlayerConfig& config) {
         include({"front_left", "front_right", "front_center", "low_frequency", "side_left", "side_right", "back_left", "back_right"});
     } else if (config.staticBed == "5.1.2") {
         include({"front_left", "front_right", "front_center", "low_frequency", "side_left", "side_right", "top_front_left", "top_front_right"});
+    } else if (config.staticBed == "5.1.4") {
+        include({"front_left", "front_right", "front_center", "low_frequency", "side_left", "side_right", "top_front_left", "top_front_right", "top_back_left", "top_back_right"});
     } else {
         include({"front_left", "front_right", "front_center", "low_frequency", "side_left", "side_right", "back_left", "back_right", "top_front_left", "top_front_right", "top_back_left", "top_back_right"});
     }

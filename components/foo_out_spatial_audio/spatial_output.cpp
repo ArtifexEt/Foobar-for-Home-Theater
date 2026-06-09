@@ -768,6 +768,18 @@ AudioObjectType spatial_audio_output::requested_static_mask(const RuntimeConfig&
         include(AudioObjectType_TopFrontLeft);
         include(AudioObjectType_TopFrontRight);
         break;
+    case LayoutMode::FivePointOneFour:
+        include(AudioObjectType_FrontLeft);
+        include(AudioObjectType_FrontRight);
+        include(AudioObjectType_FrontCenter);
+        include(AudioObjectType_LowFrequency);
+        include(AudioObjectType_SideLeft);
+        include(AudioObjectType_SideRight);
+        include(AudioObjectType_TopFrontLeft);
+        include(AudioObjectType_TopFrontRight);
+        include(AudioObjectType_TopBackLeft);
+        include(AudioObjectType_TopBackRight);
+        break;
     case LayoutMode::SevenPointOneFour:
     default:
         include(AudioObjectType_FrontLeft);
