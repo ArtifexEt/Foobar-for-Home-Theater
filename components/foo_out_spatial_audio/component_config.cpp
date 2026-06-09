@@ -168,10 +168,10 @@ static LayoutMode layout_from_int(int value) {
         return LayoutMode::SevenPointOne;
     case static_cast<int>(LayoutMode::FivePointOneTwo):
         return LayoutMode::FivePointOneTwo;
-    case static_cast<int>(LayoutMode::SevenPointOneFour):
-        return LayoutMode::SevenPointOneFour;
     case static_cast<int>(LayoutMode::FivePointOneFour):
         return LayoutMode::FivePointOneFour;
+    case static_cast<int>(LayoutMode::SevenPointOneFour):
+        return LayoutMode::SevenPointOneFour;
     default:
         return LayoutMode::Auto;
     }
