@@ -44,6 +44,7 @@ The foobar configuration dialog should have four compact tabs:
 1. Standalone probe: verify `ISpatialAudioClient`, native static object mask, and max dynamic objects.
 2. Static bed test: send sequential tone bursts into 7.1.4 static channels, especially top front/top back.
 3. Dynamic object test: send synthetic tones to configured x/y/z positions.
-4. Foobar output skeleton: accept PCM and forward silence/test tones to Windows Spatial Audio.
-5. Stereo upmix: split incoming stereo into mid/side/ambience/LFE/height ambience and route to configured static channels.
-6. Configuration UI and profile persistence.
+4. Standalone stereo WAV player: route real stereo PCM into the same static bed and dynamic object paths.
+5. Foobar output skeleton: accept PCM and forward silence/test tones to Windows Spatial Audio.
+6. Stereo upmix: split incoming stereo into mid/side/ambience/LFE/height ambience and route to configured static channels.
+7. Configuration UI and profile persistence.

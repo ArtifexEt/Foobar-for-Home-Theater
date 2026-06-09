@@ -33,6 +33,7 @@ jobs:
           New-Item -ItemType Directory -Force dist | Out-Null
           New-Item -ItemType Directory -Force dist/config | Out-Null
           Copy-Item build/Release/AtmosHomeTheaterExperiment.exe dist/
+          Copy-Item build/Release/StereoSpatialPlayer.exe dist/
           Copy-Item config/atmos_profile.ini dist/config/
           Copy-Item README.md dist/
           Compress-Archive -Path dist/* -DestinationPath Foobar-for-Home-Theater-windows-x64.zip -Force

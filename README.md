@@ -2,7 +2,7 @@
 
 Windows Spatial Audio / Dolby Atmos for Home Theater experiments for a future foobar2000 output component.
 
-This is not the foobar plugin yet. It is a small C++ probe that checks whether a Windows machine with Dolby Atmos for Home Theater enabled can accept static 7.1.4 bed channels and dynamic spatial objects.
+This is not the foobar plugin yet. It contains small C++ experiments for proving the Windows Spatial Audio path before it is wrapped as a foobar2000 output component.
 
 The repository builds the experiment with GitHub Actions on `windows-2022`. The action can verify MSVC/CMake compilation, but real Atmos playback must be tested on a Windows machine with a compatible HDMI/eARC endpoint.
 
@@ -29,6 +29,8 @@ cmake --build build --config Release
 .\build\Release\AtmosHomeTheaterExperiment.exe --probe --config .\config\atmos_profile.ini
 .\build\Release\AtmosHomeTheaterExperiment.exe --static-test --config .\config\atmos_profile.ini
 .\build\Release\AtmosHomeTheaterExperiment.exe --custom --config .\config\atmos_profile.ini
+.\build\Release\StereoSpatialPlayer.exe --wav C:\path\to\stereo-48k.wav --mode bed --config .\config\atmos_profile.ini
+.\build\Release\StereoSpatialPlayer.exe --wav C:\path\to\stereo-48k.wav --mode objects --config .\config\atmos_profile.ini
 ```
 
 `--probe` prints endpoint capabilities.
@@ -37,7 +39,9 @@ cmake --build build --config Release
 
 `--custom` creates dynamic spatial objects from `config/atmos_profile.ini` and positions them with Windows Spatial Audio coordinates.
 
-Release ZIPs include the executable and `config/atmos_profile.ini` in the same default layout the executable expects.
+`StereoSpatialPlayer.exe --mode bed` plays a stereo WAV through the configured static 7.1.4 bed. `--mode objects` plays the same WAV as dynamic spatial objects using `source`, `gain_db`, `x`, `y`, and `z` from the custom object sections.
+
+Release ZIPs include the executables and `config/atmos_profile.ini` in the same default layout the executables expect.
 
 ## Notes
 

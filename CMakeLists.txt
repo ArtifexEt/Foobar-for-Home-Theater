@@ -10,8 +10,21 @@ add_executable(AtmosHomeTheaterExperiment
     src/main.cpp
 )
 
+add_executable(StereoSpatialPlayer
+    src/stereo_spatial_player.cpp
+)
+
 target_compile_features(AtmosHomeTheaterExperiment PRIVATE cxx_std_20)
+target_compile_features(StereoSpatialPlayer PRIVATE cxx_std_20)
+
 target_compile_definitions(AtmosHomeTheaterExperiment PRIVATE
+    WIN32_LEAN_AND_MEAN
+    NOMINMAX
+    UNICODE
+    _UNICODE
+    _CRT_SECURE_NO_WARNINGS
+)
+target_compile_definitions(StereoSpatialPlayer PRIVATE
     WIN32_LEAN_AND_MEAN
     NOMINMAX
     UNICODE
@@ -24,7 +37,13 @@ target_link_libraries(AtmosHomeTheaterExperiment PRIVATE
     propsys
     uuid
 )
+target_link_libraries(StereoSpatialPlayer PRIVATE
+    ole32
+    propsys
+    uuid
+)
 
 if(MSVC)
     target_compile_options(AtmosHomeTheaterExperiment PRIVATE /W4 /permissive-)
+    target_compile_options(StereoSpatialPlayer PRIVATE /W4 /permissive-)
 endif()
