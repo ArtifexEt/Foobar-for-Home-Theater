@@ -16,6 +16,40 @@ The repository builds the Windows tools and foobar2000 component with GitHub Act
 
 Release notes are published on the [GitHub releases page](https://github.com/ArtifexEt/Foobar-for-Home-Theater/releases). The release ZIP contains standalone diagnostics and test executables. The foobar2000 plugin itself is the `.fb2k-component` file linked above.
 
+## Screenshots
+
+The component is configured from Preferences > Playback > Output > Spatial Audio. The defaults are intended to work for a first run, while the tabs below expose the parts most home-theater users usually need to tune.
+
+### Layout and endpoint probe
+
+Choose the Windows Spatial Audio bed, render rate, and limiter behavior. `Probe endpoint` asks Windows what the selected HDMI/eARC endpoint exposes, including supported float32 rates and native static bed channels.
+
+![Layout and endpoint probe](docs/screenshots/layout-endpoint-probe.png)
+
+### Upmix controls
+
+Select the listening mode and tune how stereo is spread into center, surround, rear, height, and optional LFE channels. `Reference` is the safer default; `Full spatial` is wider and more aggressive.
+
+![Upmix controls](docs/screenshots/upmix-controls.png)
+
+### Per-channel trims
+
+Adjust each 7.1.4 bed channel independently with gain, delay, and polarity inversion. This is useful when matching a receiver, speaker distance compensation, or a room correction profile.
+
+![Per-channel trims](docs/screenshots/channel-trims.png)
+
+### 5.1 source mapping
+
+Map each 5.1 input channel to the Spatial Audio bed. This lets SL/SR, LFE, or center-heavy sources be routed to the speaker layout that works best for a specific receiver.
+
+![5.1 source mapping](docs/screenshots/five-one-mapping.png)
+
+### Directional test pad
+
+Play short tones from front, side, rear, height, and LFE directions. Positional channels can use dynamic Spatial Audio objects when supported; LFE always uses the static low-frequency bed channel.
+
+![Directional test pad](docs/screenshots/directional-test-pad.png)
+
 ## Requirements
 
 - Windows 10/11 with a recent Windows SDK.
