@@ -1,56 +1,60 @@
 # Foobar component plan
 
-The standalone Windows Spatial Audio diagnostics remain in the repository next to the foobar2000 output component, now `foo_out_spatial_audio`, built from `components/foo_out_spatial_audio`.
+This file tracks only unfinished or deliberately parked work. Completed
+milestones were removed from the plan so the remaining list stays actionable.
 
-## Component shape
+## Current shape
 
-- `foo_out_spatial_audio` should be an output component, not a plain DSP.
-- A helper DSP can still exist for stereo stem extraction, but the Windows Spatial Audio stream must live in the output component.
-- The output component should use `ISpatialAudioClient` and `ISpatialAudioObjectRenderStream`.
-- For home theater spatial endpoints, the main target bed is 7.1.4: front L/R/C, LFE, side L/R, back L/R, top front L/R, top back L/R.
-- Dynamic object mode should be optional, because some devices or Windows configurations can report zero available dynamic objects.
+`foo_out_spatial_audio` is a foobar2000 output component built from
+`components/foo_out_spatial_audio`. It owns the Windows Spatial Audio stream
+through `ISpatialAudioClient` and `ISpatialAudioObjectRenderStream`. The stable
+baseline is static-bed playback with configurable upmix, channel calibration,
+5.1 mapping, endpoint probe, and directional testing.
 
-## Configuration view
+## Remaining useful work
 
-The foobar configuration dialog should have four compact tabs:
+### 1. Custom/object music routing in the foobar output
 
-1. Layout
-   - Output mode: Auto, Stereo, 5.1, 7.1, 5.1.2, 5.1.4, 7.1.4, Custom.
-   - Render quality: highest supported sample rate, source sample rate if supported, or fixed sample rate.
-   - Beginner defaults: compatible render rate, Reference upmix, limiter on.
-   - Windows Spatial Audio diagnostics: endpoint name, native static bed, max dynamic objects.
-   - Test buttons for front, side, rear, ceiling, and LFE.
+The standalone tools already support custom dynamic object experiments, and the
+component already supports dynamic objects for directional test tones. The
+missing high-value feature is routing real foobar playback into user-defined
+static channels or dynamic Spatial Audio objects.
 
-2. Channel gains
-   - Per-channel gain sliders in dB.
-   - Per-channel delay and polarity invert controls.
-   - Master gain.
-   - Reset and copy/paste profile controls.
+Suggested shape:
 
-3. Upmix
-   - Center extraction amount.
-   - Width.
-   - Rear ambience.
-   - Height ambience.
-   - LFE low-pass frequency and gain.
-   - Decorrelation strength for rear/height channels.
+- Add a Custom page or extend the Test/Upmix UI with a compact source list.
+- Each virtual source chooses input material: left, right, mid, side, ambience,
+  height ambience, LFE, or full mix.
+- Each source targets either a static bed channel or dynamic object coordinates
+  using Windows Spatial Audio coordinates: x right, y up, z behind.
+- Per-source gain, delay, polarity, and optional simple motion can be added once
+  the static object routing is stable.
+- Respect the endpoint dynamic object count and gracefully fall back to static
+  bed routing when the endpoint exposes no dynamic objects.
+- Keep LFE on the static low-frequency bed channel by default; object LFE should
+  be an explicit advanced option at most.
 
-4. Custom mode
-   - A list of virtual sources.
-   - Each source selects input material: left, right, mid, side, ambience, height ambience, LFE, or full mix.
-   - Each source can target either a static channel or dynamic object coordinates.
-   - Coordinates use Windows Spatial Audio convention: x right, y up, z behind.
-   - Per-source gain, delay, polarity, and optional simple motion.
+### 2. Profile file import/export
 
-## First implementation milestones
+Clipboard profile copy/paste is implemented and covers the common sharing path.
+File import/export would still be useful for backups, release issue reports, and
+switching between multiple room profiles.
 
-1. Standalone probe: verify `ISpatialAudioClient`, native static object mask, and max dynamic objects.
-2. Static bed test: send sequential tone bursts into 7.1.4 static channels, especially top front/top back.
-3. Dynamic object test: send synthetic tones to configured x/y/z positions.
-4. Standalone stereo WAV player: route real stereo PCM into the same static bed and dynamic object paths.
-5. Foobar output skeleton: accept PCM and route stereo to Windows Spatial Audio static bed.
-6. Stereo upmix: tune mid/side/ambience/LFE/height ambience routing and expose per-channel controls. Implemented: sliders, headroom, transparent soft limiter, render sample rate control, decorrelation, per-channel gain, delay, and polarity.
-7. 5.1 input mapping: route FL/FR/FC/LFE/SL/SR sources to configurable static bed targets. Implemented.
-8. Dynamic object mode inside the foobar output. Partially implemented for directional test tones; real music object routing remains.
-9. Rich configuration UI and profile import/export. Partially implemented: tabbed UI, endpoint probe, directional test pad, tooltips, stable tab repaint handling, copy/paste profile sharing. File import/export remains.
-10. Listening comparison modes. Implemented: Reference, Full spatial, and Front only stereo upmix modes.
+Suggested shape:
+
+- Add Export profile and Import profile controls near the existing copy/paste
+  buttons.
+- Use the same text profile format as the clipboard implementation.
+- If the import UI opens a file picker, also support drag and drop onto that
+  import area.
+- Validate imported profiles before applying them and keep Apply as the final
+  save step.
+
+## Parked
+
+- A separate helper DSP is no longer needed for the main feature. Windows
+  Spatial Audio rendering belongs in the output component, where the endpoint
+  stream is owned.
+- Full dynamic-object music rendering should stay optional because many Windows
+  Spatial Audio endpoints expose zero dynamic objects. Static bed playback is
+  the reliable home-theater baseline.
