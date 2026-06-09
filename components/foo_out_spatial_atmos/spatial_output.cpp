@@ -117,7 +117,7 @@ unsigned spatial_atmos_output::get_forced_sample_rate() {
 }
 
 unsigned spatial_atmos_output::get_forced_channel_mask() {
-    return audio_chunk::channel_config_stereo;
+    return 0;
 }
 
 void spatial_atmos_output::pause(bool state) {
@@ -145,13 +145,16 @@ void spatial_atmos_output::on_update() {
 }
 
 void spatial_atmos_output::open(audio_chunk::spec_t const& spec) {
-    if (spec.sampleRate != 48000 || spec.chanCount != 2) {
+    const bool stereo = spec.chanCount == 2;
+    const bool fivePointOne = spec.chanCount == 6 && is_5point1_mask(spec.chanMask);
+    if (spec.sampleRate != 48000 || (!stereo && !fivePointOne)) {
         throw exception_output_unsupported_stream_format();
     }
 
     stop_stream();
     config_ = ReadConfig();
     sampleRate_ = spec.sampleRate;
+    inputLayout_ = fivePointOne ? InputLayout::FivePointOne : InputLayout::Stereo;
     capacityFrames_ = static_cast<size_t>(std::max(0.2, bufferLength_) * static_cast<double>(sampleRate_));
     clear_queue();
     start_stream(sampleRate_);
@@ -160,6 +163,7 @@ void spatial_atmos_output::open(audio_chunk::spec_t const& spec) {
 void spatial_atmos_output::write(const audio_chunk& data) {
     const auto sampleCount = data.get_sample_count();
     const auto channels = data.get_channel_count();
+    const auto mask = data.get_channel_config();
     const audio_sample* samples = data.get_data();
     if (samples == nullptr || channels < 2 || sampleCount == 0) {
         return;
@@ -170,10 +174,20 @@ void spatial_atmos_output::write(const audio_chunk& data) {
         const size_t freeFrames = capacityFrames_ > queue_.size() ? capacityFrames_ - queue_.size() : 0;
         const size_t framesToCopy = std::min<size_t>(sampleCount, freeFrames);
         for (size_t i = 0; i < framesToCopy; ++i) {
-            queue_.push_back({
-                static_cast<float>(samples[(i * channels) + 0]),
-                static_cast<float>(samples[(i * channels) + 1]),
-            });
+            InputFrame frame;
+            if (inputLayout_ == InputLayout::FivePointOne) {
+                frame.frontLeft = sample_by_flag(samples, i, channels, mask, audio_chunk::channel_front_left, 0);
+                frame.frontRight = sample_by_flag(samples, i, channels, mask, audio_chunk::channel_front_right, 1);
+                frame.frontCenter = sample_by_flag(samples, i, channels, mask, audio_chunk::channel_front_center, 2);
+                frame.lfe = sample_by_flag(samples, i, channels, mask, audio_chunk::channel_lfe, 3);
+                const bool usesSideSurround = (mask & audio_chunk::channels_side_left_right) == audio_chunk::channels_side_left_right;
+                frame.surroundLeft = sample_by_flag(samples, i, channels, mask, usesSideSurround ? audio_chunk::channel_side_left : audio_chunk::channel_back_left, 4);
+                frame.surroundRight = sample_by_flag(samples, i, channels, mask, usesSideSurround ? audio_chunk::channel_side_right : audio_chunk::channel_back_right, 5);
+            } else {
+                frame.frontLeft = sample_by_flag(samples, i, channels, mask, audio_chunk::channel_front_left, 0);
+                frame.frontRight = sample_by_flag(samples, i, channels, mask, audio_chunk::channel_front_right, 1);
+            }
+            queue_.push_back(frame);
         }
         queuedFrames_.store(queue_.size());
     }
@@ -366,7 +380,7 @@ void spatial_atmos_output::render_loop(uint32_t sampleRate) {
             throw_if_failed(stream->BeginUpdatingAudioObjects(&availableDynamicObjects, &frameCount), "Begin updating audio objects");
             lastRenderFrames_.store(frameCount);
 
-            std::vector<StereoFrame> input(frameCount);
+            std::vector<InputFrame> input(frameCount);
             bool paused = false;
             {
                 std::lock_guard<std::mutex> lock(mutex_);
@@ -413,9 +427,13 @@ void spatial_atmos_output::render_loop(uint32_t sampleRate) {
     CoUninitialize();
 }
 
-double spatial_atmos_output::bed_value(const std::string& key, const StereoFrame& frame, double& lfeState) const {
-    const double left = frame.left;
-    const double right = frame.right;
+double spatial_atmos_output::bed_value(const std::string& key, const InputFrame& frame, double& lfeState) const {
+    return inputLayout_ == InputLayout::FivePointOne ? mapped_5point1_value(key, frame) : stereo_bed_value(key, frame, lfeState);
+}
+
+double spatial_atmos_output::stereo_bed_value(const std::string& key, const InputFrame& frame, double& lfeState) const {
+    const double left = frame.frontLeft;
+    const double right = frame.frontRight;
     const double mid = (left + right) * 0.5;
     const double side = (left - right) * 0.5 * config_.sideAmount;
 
@@ -438,6 +456,50 @@ double spatial_atmos_output::bed_value(const std::string& key, const StereoFrame
         return lfeState * db_to_linear(config_.lfeGainDb);
     }
     return 0.0;
+}
+
+double spatial_atmos_output::mapped_5point1_value(const std::string& key, const InputFrame& frame) const {
+    const int target = target_from_key(key);
+    double value = 0.0;
+    if (config_.map51FrontLeft == target) value += frame.frontLeft;
+    if (config_.map51FrontRight == target) value += frame.frontRight;
+    if (config_.map51FrontCenter == target) value += frame.frontCenter;
+    if (config_.map51Lfe == target) value += frame.lfe;
+    if (config_.map51SurroundLeft == target) value += frame.surroundLeft;
+    if (config_.map51SurroundRight == target) value += frame.surroundRight;
+    return value;
+}
+
+bool spatial_atmos_output::is_5point1_mask(unsigned mask) {
+    const unsigned front = audio_chunk::channel_front_left | audio_chunk::channel_front_right | audio_chunk::channel_front_center | audio_chunk::channel_lfe;
+    const bool hasFront = (mask & front) == front;
+    const bool hasBack = (mask & audio_chunk::channels_back_left_right) == audio_chunk::channels_back_left_right;
+    const bool hasSide = (mask & audio_chunk::channels_side_left_right) == audio_chunk::channels_side_left_right;
+    return hasFront && (hasBack || hasSide) && audio_chunk::g_count_channels(mask) == 6;
+}
+
+float spatial_atmos_output::sample_by_flag(const audio_sample* samples, size_t frame, unsigned channels, unsigned mask, unsigned flag, unsigned fallbackIndex) {
+    unsigned index = audio_chunk::g_channel_index_from_flag(mask, flag);
+    if (index == static_cast<unsigned>(-1) || index >= channels) {
+        index = fallbackIndex;
+    }
+    return index < channels ? static_cast<float>(samples[(frame * channels) + index]) : 0.0f;
+}
+
+int spatial_atmos_output::target_from_key(const std::string& key) {
+    if (key == "front_left") return target_front_left;
+    if (key == "front_right") return target_front_right;
+    if (key == "front_center") return target_front_center;
+    if (key == "low_frequency") return target_low_frequency;
+    if (key == "side_left") return target_side_left;
+    if (key == "side_right") return target_side_right;
+    if (key == "back_left") return target_back_left;
+    if (key == "back_right") return target_back_right;
+    if (key == "top_front_left") return target_top_front_left;
+    if (key == "top_front_right") return target_top_front_right;
+    if (key == "top_back_left") return target_top_back_left;
+    if (key == "top_back_right") return target_top_back_right;
+    return target_disabled;
 }
 
 float spatial_atmos_output::clamp_sample(double value) {

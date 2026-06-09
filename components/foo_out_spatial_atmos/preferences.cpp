@@ -17,6 +17,35 @@ enum ControlId {
     idEnableLfe,
     idLfeGain,
     idLfeLowpass,
+    idMap51FrontLeft,
+    idMap51FrontRight,
+    idMap51FrontCenter,
+    idMap51Lfe,
+    idMap51SurroundLeft,
+    idMap51SurroundRight,
+    idSupportButton,
+    idRepoButton,
+};
+
+struct MappingOption {
+    int target;
+    const wchar_t* label;
+};
+
+const MappingOption kMappingOptions[] = {
+    {target_front_left, L"Front left"},
+    {target_front_right, L"Front right"},
+    {target_front_center, L"Front center"},
+    {target_low_frequency, L"LFE"},
+    {target_side_left, L"Side left"},
+    {target_side_right, L"Side right"},
+    {target_back_left, L"Back left"},
+    {target_back_right, L"Back right"},
+    {target_top_front_left, L"Top front left"},
+    {target_top_front_right, L"Top front right"},
+    {target_top_back_left, L"Top back left"},
+    {target_top_back_right, L"Top back right"},
+    {target_disabled, L"Disabled"},
 };
 
 double read_double(HWND wnd, int id, double fallback) {
@@ -41,11 +70,48 @@ HWND create_edit(HWND parent, int id, int x, int y, int w, int h) {
     return CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL, x, y, w, h, parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), core_api::get_my_instance(), nullptr);
 }
 
+HWND create_combo(HWND parent, int id, int x, int y, int w, int h) {
+    HWND combo = CreateWindowExW(0, L"COMBOBOX", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL, x, y, w, h, parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), core_api::get_my_instance(), nullptr);
+    for (const auto& option : kMappingOptions) {
+        const auto index = ComboBox_AddString(combo, option.label);
+        ComboBox_SetItemData(combo, index, option.target);
+    }
+    return combo;
+}
+
+HWND create_button(HWND parent, int id, const wchar_t* text, int x, int y, int w, int h) {
+    return CreateWindowExW(0, L"BUTTON", text, WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, x, y, w, h, parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), core_api::get_my_instance(), nullptr);
+}
+
+void open_url(const wchar_t* url) {
+    ShellExecuteW(nullptr, L"open", url, nullptr, nullptr, SW_SHOWNORMAL);
+}
+
+int read_combo_target(HWND wnd, int id, int fallback) {
+    HWND combo = GetDlgItem(wnd, id);
+    const int index = ComboBox_GetCurSel(combo);
+    if (index == CB_ERR) {
+        return fallback;
+    }
+    return static_cast<int>(ComboBox_GetItemData(combo, index));
+}
+
+void set_combo_target(HWND wnd, int id, int target) {
+    HWND combo = GetDlgItem(wnd, id);
+    for (int i = 0; i < ComboBox_GetCount(combo); ++i) {
+        if (static_cast<int>(ComboBox_GetItemData(combo, i)) == target) {
+            ComboBox_SetCurSel(combo, i);
+            return;
+        }
+    }
+    ComboBox_SetCurSel(combo, 0);
+}
+
 class preferences_instance : public preferences_page_instance {
 public:
     preferences_instance(HWND parent, preferences_page_callback::ptr callback) : callback_(callback), initial_(ReadConfig()) {
         register_class();
-        wnd_ = CreateWindowExW(0, class_name(), L"", WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN, 0, 0, 520, 330, parent, nullptr, core_api::get_my_instance(), this);
+        wnd_ = CreateWindowExW(0, class_name(), L"", WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN, 0, 0, 560, 500, parent, nullptr, core_api::get_my_instance(), this);
         populate();
     }
 
@@ -108,8 +174,17 @@ private:
         }
 
         if (self != nullptr && msg == WM_COMMAND) {
+            const WORD id = LOWORD(wp);
             const WORD code = HIWORD(wp);
-            if (code == EN_CHANGE || code == BN_CLICKED) {
+            if (id == idSupportButton && code == BN_CLICKED) {
+                open_url(L"https://buymeacoffee.com/szymonrybka");
+                return 0;
+            }
+            if (id == idRepoButton && code == BN_CLICKED) {
+                open_url(L"https://github.com/ArtifexEt/Foobar-for-Home-Theater");
+                return 0;
+            }
+            if (code == EN_CHANGE || code == CBN_SELCHANGE || code == BN_CLICKED) {
                 self->callback_->on_state_changed();
             }
         }
@@ -139,6 +214,22 @@ private:
         create_label(wnd_, L"LFE low-pass (Hz)", 12, 290, 170, 24);
         create_edit(wnd_, idLfeLowpass, 210, 288, 80, 24);
 
+        create_label(wnd_, L"5.1 FL", 12, 330, 70, 24);
+        create_combo(wnd_, idMap51FrontLeft, 90, 328, 150, 200);
+        create_label(wnd_, L"5.1 FR", 280, 330, 70, 24);
+        create_combo(wnd_, idMap51FrontRight, 358, 328, 150, 200);
+        create_label(wnd_, L"5.1 FC", 12, 360, 70, 24);
+        create_combo(wnd_, idMap51FrontCenter, 90, 358, 150, 200);
+        create_label(wnd_, L"5.1 LFE", 280, 360, 70, 24);
+        create_combo(wnd_, idMap51Lfe, 358, 358, 150, 200);
+        create_label(wnd_, L"5.1 SL/BL", 12, 390, 70, 24);
+        create_combo(wnd_, idMap51SurroundLeft, 90, 388, 150, 200);
+        create_label(wnd_, L"5.1 SR/BR", 280, 390, 70, 24);
+        create_combo(wnd_, idMap51SurroundRight, 358, 388, 150, 200);
+
+        create_button(wnd_, idSupportButton, L"Support: Buy me a coffee", 12, 438, 220, 28);
+        create_button(wnd_, idRepoButton, L"GitHub repo", 248, 438, 140, 28);
+
         write_to_controls(initial_);
     }
 
@@ -154,6 +245,12 @@ private:
         config.enableLfe = Button_GetCheck(GetDlgItem(wnd_, idEnableLfe)) == BST_CHECKED;
         config.lfeGainDb = read_double(wnd_, idLfeGain, config.lfeGainDb);
         config.lfeLowpassHz = read_double(wnd_, idLfeLowpass, config.lfeLowpassHz);
+        config.map51FrontLeft = read_combo_target(wnd_, idMap51FrontLeft, config.map51FrontLeft);
+        config.map51FrontRight = read_combo_target(wnd_, idMap51FrontRight, config.map51FrontRight);
+        config.map51FrontCenter = read_combo_target(wnd_, idMap51FrontCenter, config.map51FrontCenter);
+        config.map51Lfe = read_combo_target(wnd_, idMap51Lfe, config.map51Lfe);
+        config.map51SurroundLeft = read_combo_target(wnd_, idMap51SurroundLeft, config.map51SurroundLeft);
+        config.map51SurroundRight = read_combo_target(wnd_, idMap51SurroundRight, config.map51SurroundRight);
         return config;
     }
 
@@ -168,6 +265,12 @@ private:
         Button_SetCheck(GetDlgItem(wnd_, idEnableLfe), config.enableLfe ? BST_CHECKED : BST_UNCHECKED);
         set_double(wnd_, idLfeGain, config.lfeGainDb);
         set_double(wnd_, idLfeLowpass, config.lfeLowpassHz);
+        set_combo_target(wnd_, idMap51FrontLeft, config.map51FrontLeft);
+        set_combo_target(wnd_, idMap51FrontRight, config.map51FrontRight);
+        set_combo_target(wnd_, idMap51FrontCenter, config.map51FrontCenter);
+        set_combo_target(wnd_, idMap51Lfe, config.map51Lfe);
+        set_combo_target(wnd_, idMap51SurroundLeft, config.map51SurroundLeft);
+        set_combo_target(wnd_, idMap51SurroundRight, config.map51SurroundRight);
     }
 
     static bool different(double a, double b) {
@@ -185,7 +288,13 @@ private:
             || different(current.heightFromMid, initial_.heightFromMid)
             || current.enableLfe != initial_.enableLfe
             || different(current.lfeGainDb, initial_.lfeGainDb)
-            || different(current.lfeLowpassHz, initial_.lfeLowpassHz);
+            || different(current.lfeLowpassHz, initial_.lfeLowpassHz)
+            || current.map51FrontLeft != initial_.map51FrontLeft
+            || current.map51FrontRight != initial_.map51FrontRight
+            || current.map51FrontCenter != initial_.map51FrontCenter
+            || current.map51Lfe != initial_.map51Lfe
+            || current.map51SurroundLeft != initial_.map51SurroundLeft
+            || current.map51SurroundRight != initial_.map51SurroundRight;
     }
 
     HWND wnd_ = nullptr;

@@ -47,5 +47,6 @@ The foobar configuration dialog should have four compact tabs:
 4. Standalone stereo WAV player: route real stereo PCM into the same static bed and dynamic object paths.
 5. Foobar output skeleton: accept PCM and route stereo to Windows Spatial Audio static bed.
 6. Stereo upmix: tune mid/side/ambience/LFE/height ambience routing and expose per-channel controls.
-7. Dynamic object mode inside the foobar output.
-8. Rich configuration UI and profile import/export.
+7. 5.1 input mapping: route FL/FR/FC/LFE/SL/SR sources to configurable static bed targets.
+8. Dynamic object mode inside the foobar output.
+9. Rich configuration UI and profile import/export.

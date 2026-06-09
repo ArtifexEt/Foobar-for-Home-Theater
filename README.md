@@ -2,7 +2,7 @@
 
 Windows Spatial Audio / Dolby Atmos for Home Theater output component for foobar2000, plus standalone experiments used to validate the Windows endpoint.
 
-`foo_out_spatial_atmos` is an early foobar2000 output component. It takes foobar2000 stereo PCM, forces 48 kHz stereo, and renders it to the default Windows Spatial Audio endpoint as a static 7.1.4 bed for Dolby Atmos for Home Theater systems.
+`foo_out_spatial_atmos` is an early foobar2000 output component. It takes foobar2000 stereo or 5.1 PCM, forces 48 kHz when needed, and renders it to the default Windows Spatial Audio endpoint as a static bed for Dolby Atmos for Home Theater systems.
 
 The repository builds the experiment with GitHub Actions on `windows-2022`. The action can verify MSVC/CMake compilation, but real Atmos playback must be tested on a Windows machine with a compatible HDMI/eARC endpoint.
 
@@ -20,6 +20,14 @@ The repository builds the experiment with GitHub Actions on `windows-2022`. The 
 Download `foo_out_spatial_atmos.fb2k-component` from the `nightly` release and install it from foobar2000 Preferences > Components. After restart, select `Spatial Atmos for Home Theater` as the output device.
 
 The component settings live under Preferences > Playback > Output > Spatial Atmos.
+
+Stereo input is upmixed to the available Spatial Audio bed. 5.1 input can be mapped per source channel from the component settings: FL, FR, FC, LFE, SL/BL, and SR/BR can each target front, side, rear, height, LFE, or Disabled.
+
+## Support
+
+[Support: Buy me a coffee](https://buymeacoffee.com/szymonrybka)
+
+[GitHub repository](https://github.com/ArtifexEt/Foobar-for-Home-Theater)
 
 ## Build
 

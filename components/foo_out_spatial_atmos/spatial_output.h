@@ -29,9 +29,18 @@ public:
     pfc::eventHandle_t get_trigger_event() override;
 
 private:
-    struct StereoFrame {
-        float left = 0.0f;
-        float right = 0.0f;
+    enum class InputLayout {
+        Stereo,
+        FivePointOne,
+    };
+
+    struct InputFrame {
+        float frontLeft = 0.0f;
+        float frontRight = 0.0f;
+        float frontCenter = 0.0f;
+        float lfe = 0.0f;
+        float surroundLeft = 0.0f;
+        float surroundRight = 0.0f;
     };
 
     struct ChannelState {
@@ -53,7 +62,12 @@ private:
     void render_loop(uint32_t sampleRate);
     void clear_queue();
 
-    double bed_value(const std::string& key, const StereoFrame& frame, double& lfeState) const;
+    double bed_value(const std::string& key, const InputFrame& frame, double& lfeState) const;
+    double stereo_bed_value(const std::string& key, const InputFrame& frame, double& lfeState) const;
+    double mapped_5point1_value(const std::string& key, const InputFrame& frame) const;
+    static bool is_5point1_mask(unsigned mask);
+    static float sample_by_flag(const audio_sample* samples, size_t frame, unsigned channels, unsigned mask, unsigned flag, unsigned fallbackIndex);
+    static int target_from_key(const std::string& key);
     static float clamp_sample(double value);
     static double db_to_linear(double db);
     static WAVEFORMATEX make_object_format(uint32_t sampleRate);
@@ -64,9 +78,10 @@ private:
     GUID device_ = {};
     double bufferLength_ = 1.0;
     uint32_t sampleRate_ = 48000;
+    InputLayout inputLayout_ = InputLayout::Stereo;
 
     mutable std::mutex mutex_;
-    std::deque<StereoFrame> queue_;
+    std::deque<InputFrame> queue_;
     size_t capacityFrames_ = 48000;
     bool stopping_ = false;
     bool paused_ = false;
