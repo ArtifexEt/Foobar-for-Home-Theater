@@ -6,6 +6,7 @@ namespace spatial_audio {
 static constexpr GUID guid_cfg_master_gain = { 0xe84f6d6e, 0xf21a, 0x4d07, { 0x94, 0x9e, 0xde, 0x37, 0xb1, 0x02, 0x1c, 0x56 } };
 static constexpr GUID guid_cfg_layout_mode = { 0xb4dfd071, 0x7707, 0x4967, { 0xaa, 0x38, 0x2b, 0x81, 0xf1, 0xf1, 0x8d, 0xad } };
 static constexpr GUID guid_cfg_sample_rate_mode = { 0x9df89513, 0x3f1b, 0x4548, { 0xa2, 0x01, 0x26, 0xc4, 0x55, 0x49, 0x8f, 0xf1 } };
+static constexpr GUID guid_cfg_upmix_mode = { 0x7ee6e772, 0x6f02, 0x49e6, { 0xb5, 0x4a, 0x34, 0xe7, 0x7d, 0xcf, 0x7c, 0xf6 } };
 static constexpr GUID guid_cfg_headroom = { 0x810b1a63, 0xf065, 0x417d, { 0x84, 0x66, 0x07, 0xce, 0x0f, 0xf5, 0x68, 0xf0 } };
 static constexpr GUID guid_cfg_limiter_enabled = { 0x26f390c3, 0xf665, 0x4cd1, { 0x96, 0x72, 0x44, 0xaa, 0xa8, 0xa4, 0xe1, 0x7a } };
 static constexpr GUID guid_cfg_limiter_mode = { 0x6dd2b549, 0x7f65, 0x4aa9, { 0xb7, 0x89, 0x1a, 0x9a, 0xdc, 0x44, 0x30, 0xe9 } };
@@ -44,6 +45,7 @@ static constexpr GUID guid_cfg_channel_delay_top_front_left = { 0xf9808900, 0x64
 static constexpr GUID guid_cfg_channel_delay_top_front_right = { 0x870a0c0c, 0xf1d6, 0x4f17, { 0xbf, 0xfc, 0xa8, 0x71, 0xf6, 0xcf, 0x1a, 0xfb } };
 static constexpr GUID guid_cfg_channel_delay_top_back_left = { 0x7b76d1b2, 0x1cd5, 0x4636, { 0xb9, 0x17, 0xa1, 0x6f, 0x9d, 0x2a, 0xfa, 0x3d } };
 static constexpr GUID guid_cfg_channel_delay_top_back_right = { 0x285552a0, 0x3c67, 0x4b5b, { 0xad, 0x96, 0x3a, 0x55, 0x33, 0x2b, 0x50, 0x00 } };
+static constexpr GUID guid_cfg_channel_invert_mask = { 0xd60c8a95, 0xefea, 0x4a88, { 0xb2, 0xd5, 0x59, 0xd6, 0x77, 0x94, 0x7d, 0xda } };
 static constexpr GUID guid_cfg_map51_front_left = { 0x4eb609d7, 0xb273, 0x4dde, { 0x8d, 0xf9, 0x15, 0x93, 0x02, 0xac, 0x74, 0xda } };
 static constexpr GUID guid_cfg_map51_front_right = { 0xe8f17fbd, 0x3591, 0x4709, { 0x84, 0x0d, 0xb7, 0x11, 0x2b, 0x33, 0x65, 0x44 } };
 static constexpr GUID guid_cfg_map51_front_center = { 0x2bc81e7f, 0x9bff, 0x4820, { 0xa4, 0x31, 0xa0, 0x43, 0x23, 0x2d, 0xb2, 0xc9 } };
@@ -58,6 +60,7 @@ static constexpr GUID guid_cfg_directional_test_frequency = { 0x8e136568, 0x5de0
 
 static cfg_int cfg_layout_mode(guid_cfg_layout_mode, static_cast<int>(LayoutMode::Auto));
 static cfg_int cfg_sample_rate_mode(guid_cfg_sample_rate_mode, static_cast<int>(SampleRateMode::AutoHighest));
+static cfg_int cfg_upmix_mode(guid_cfg_upmix_mode, static_cast<int>(UpmixMode::Full));
 static cfg_float cfg_master_gain(guid_cfg_master_gain, -12.0);
 static cfg_float cfg_headroom(guid_cfg_headroom, 0.0);
 static cfg_bool cfg_limiter_enabled(guid_cfg_limiter_enabled, true);
@@ -97,6 +100,7 @@ static cfg_float cfg_channel_delay_top_front_left(guid_cfg_channel_delay_top_fro
 static cfg_float cfg_channel_delay_top_front_right(guid_cfg_channel_delay_top_front_right, 0.0);
 static cfg_float cfg_channel_delay_top_back_left(guid_cfg_channel_delay_top_back_left, 0.0);
 static cfg_float cfg_channel_delay_top_back_right(guid_cfg_channel_delay_top_back_right, 0.0);
+static cfg_int cfg_channel_invert_mask(guid_cfg_channel_invert_mask, 0);
 static cfg_int cfg_map51_front_left(guid_cfg_map51_front_left, target_front_left);
 static cfg_int cfg_map51_front_right(guid_cfg_map51_front_right, target_front_right);
 static cfg_int cfg_map51_front_center(guid_cfg_map51_front_center, target_front_center);
@@ -137,6 +141,21 @@ static cfg_float* const channel_delay_cfgs[target_count] = {
     &cfg_channel_delay_top_front_right,
     &cfg_channel_delay_top_back_left,
     &cfg_channel_delay_top_back_right,
+};
+
+static const char* const target_keys[target_count] = {
+    "front_left",
+    "front_right",
+    "front_center",
+    "low_frequency",
+    "side_left",
+    "side_right",
+    "back_left",
+    "back_right",
+    "top_front_left",
+    "top_front_right",
+    "top_back_left",
+    "top_back_right",
 };
 
 static LayoutMode layout_from_int(int value) {
@@ -181,6 +200,93 @@ static LimiterMode limiter_mode_from_int(int value) {
     return value == static_cast<int>(LimiterMode::HardCeiling) ? LimiterMode::HardCeiling : LimiterMode::TransparentSoft;
 }
 
+static UpmixMode upmix_mode_from_int(int value) {
+    switch (value) {
+    case static_cast<int>(UpmixMode::Reference):
+        return UpmixMode::Reference;
+    case static_cast<int>(UpmixMode::FrontOnly):
+        return UpmixMode::FrontOnly;
+    default:
+        return UpmixMode::Full;
+    }
+}
+
+static std::string trim(std::string text) {
+    const auto first = text.find_first_not_of(" \t\r\n");
+    if (first == std::string::npos) {
+        return {};
+    }
+    const auto last = text.find_last_not_of(" \t\r\n");
+    return text.substr(first, last - first + 1);
+}
+
+static std::map<std::string, std::string> parse_profile_values(const std::string& text) {
+    std::map<std::string, std::string> values;
+    std::istringstream stream(text);
+    std::string line;
+    while (std::getline(stream, line)) {
+        line = trim(line);
+        if (line.empty() || line[0] == '#' || line[0] == ';' || line[0] == '[') {
+            continue;
+        }
+        const auto separator = line.find('=');
+        if (separator == std::string::npos) {
+            continue;
+        }
+        const std::string key = trim(line.substr(0, separator));
+        const std::string value = trim(line.substr(separator + 1));
+        if (!key.empty()) {
+            values[key] = value;
+        }
+    }
+    return values;
+}
+
+static bool read_int_key(const std::map<std::string, std::string>& values, const char* key, int& output) {
+    const auto it = values.find(key);
+    if (it == values.end()) {
+        return false;
+    }
+    char* end = nullptr;
+    const long parsed = std::strtol(it->second.c_str(), &end, 10);
+    if (end == it->second.c_str()) {
+        return false;
+    }
+    output = static_cast<int>(parsed);
+    return true;
+}
+
+static bool read_double_key(const std::map<std::string, std::string>& values, const char* key, double& output) {
+    const auto it = values.find(key);
+    if (it == values.end()) {
+        return false;
+    }
+    char* end = nullptr;
+    const double parsed = std::strtod(it->second.c_str(), &end);
+    if (end == it->second.c_str()) {
+        return false;
+    }
+    output = parsed;
+    return true;
+}
+
+static bool read_bool_key(const std::map<std::string, std::string>& values, const char* key, bool& output) {
+    const auto it = values.find(key);
+    if (it == values.end()) {
+        return false;
+    }
+    const std::string value = it->second;
+    if (value == "1" || value == "true" || value == "yes" || value == "on") {
+        output = true;
+        return true;
+    }
+    if (value == "0" || value == "false" || value == "no" || value == "off") {
+        output = false;
+        return true;
+    }
+    return false;
+}
+
 RuntimeConfig DefaultConfig() {
     return {};
 }
@@ -189,6 +295,7 @@ RuntimeConfig ReadConfig() {
     RuntimeConfig config;
     config.layoutMode = layout_from_int(static_cast<int>(cfg_layout_mode.get()));
     config.sampleRateMode = sample_rate_mode_from_int(static_cast<int>(cfg_sample_rate_mode.get()));
+    config.upmixMode = upmix_mode_from_int(static_cast<int>(cfg_upmix_mode.get()));
     config.masterGainDb = cfg_master_gain.get();
     config.headroomDb = cfg_headroom.get();
     config.limiterEnabled = cfg_limiter_enabled.get();
@@ -207,6 +314,7 @@ RuntimeConfig ReadConfig() {
     for (size_t i = 0; i < target_count; ++i) {
         config.channelGainDb[i] = channel_gain_cfgs[i]->get();
         config.channelDelayMs[i] = channel_delay_cfgs[i]->get();
+        config.channelInvert[i] = (static_cast<int>(cfg_channel_invert_mask.get()) & (1 << i)) != 0;
     }
     config.map51FrontLeft = static_cast<int>(cfg_map51_front_left.get());
     config.map51FrontRight = static_cast<int>(cfg_map51_front_right.get());
@@ -225,6 +333,7 @@ RuntimeConfig ReadConfig() {
 void WriteConfig(const RuntimeConfig& config) {
     cfg_layout_mode = static_cast<int>(config.layoutMode);
     cfg_sample_rate_mode = static_cast<int>(config.sampleRateMode);
+    cfg_upmix_mode = static_cast<int>(config.upmixMode);
     cfg_master_gain = static_cast<float>(config.masterGainDb);
     cfg_headroom = static_cast<float>(config.headroomDb);
     cfg_limiter_enabled = config.limiterEnabled;
@@ -244,6 +353,13 @@ void WriteConfig(const RuntimeConfig& config) {
         *channel_gain_cfgs[i] = static_cast<float>(config.channelGainDb[i]);
         *channel_delay_cfgs[i] = static_cast<float>(config.channelDelayMs[i]);
     }
+    int invertMask = 0;
+    for (size_t i = 0; i < target_count; ++i) {
+        if (config.channelInvert[i]) {
+            invertMask |= 1 << i;
+        }
+    }
+    cfg_channel_invert_mask = invertMask;
     cfg_map51_front_left = config.map51FrontLeft;
     cfg_map51_front_right = config.map51FrontRight;
     cfg_map51_front_center = config.map51FrontCenter;
@@ -255,6 +371,103 @@ void WriteConfig(const RuntimeConfig& config) {
     cfg_directional_test_target = config.directionalTestTarget;
     cfg_directional_test_gain = static_cast<float>(config.directionalTestGainDb);
     cfg_directional_test_frequency = static_cast<float>(config.directionalTestFrequencyHz);
+}
+
+std::string SerializeConfig(const RuntimeConfig& config) {
+    std::ostringstream output;
+    output << std::setprecision(10);
+    output << "[foo_out_spatial_audio]\n";
+    output << "version=1\n";
+    output << "layout_mode=" << static_cast<int>(config.layoutMode) << "\n";
+    output << "sample_rate_mode=" << static_cast<int>(config.sampleRateMode) << "\n";
+    output << "upmix_mode=" << static_cast<int>(config.upmixMode) << "\n";
+    output << "master_gain_db=" << config.masterGainDb << "\n";
+    output << "headroom_db=" << config.headroomDb << "\n";
+    output << "limiter_enabled=" << (config.limiterEnabled ? 1 : 0) << "\n";
+    output << "limiter_mode=" << static_cast<int>(config.limiterMode) << "\n";
+    output << "limiter_ceiling_db=" << config.limiterCeilingDb << "\n";
+    output << "center_gain_db=" << config.centerGainDb << "\n";
+    output << "surround_gain_db=" << config.surroundGainDb << "\n";
+    output << "rear_gain_db=" << config.rearGainDb << "\n";
+    output << "height_gain_db=" << config.heightGainDb << "\n";
+    output << "side_amount=" << config.sideAmount << "\n";
+    output << "height_from_mid=" << config.heightFromMid << "\n";
+    output << "decorrelation_amount=" << config.decorrelationAmount << "\n";
+    output << "enable_lfe=" << (config.enableLfe ? 1 : 0) << "\n";
+    output << "lfe_gain_db=" << config.lfeGainDb << "\n";
+    output << "lfe_lowpass_hz=" << config.lfeLowpassHz << "\n";
+    for (size_t i = 0; i < target_count; ++i) {
+        output << "channel_gain_" << target_keys[i] << "=" << config.channelGainDb[i] << "\n";
+        output << "channel_delay_" << target_keys[i] << "_ms=" << config.channelDelayMs[i] << "\n";
+        output << "channel_invert_" << target_keys[i] << "=" << (config.channelInvert[i] ? 1 : 0) << "\n";
+    }
+    output << "map51_front_left=" << config.map51FrontLeft << "\n";
+    output << "map51_front_right=" << config.map51FrontRight << "\n";
+    output << "map51_front_center=" << config.map51FrontCenter << "\n";
+    output << "map51_lfe=" << config.map51Lfe << "\n";
+    output << "map51_surround_left=" << config.map51SurroundLeft << "\n";
+    output << "map51_surround_right=" << config.map51SurroundRight << "\n";
+    output << "directional_test_enabled=" << (config.directionalTestEnabled ? 1 : 0) << "\n";
+    output << "directional_test_dynamic=" << (config.directionalTestUseDynamicObject ? 1 : 0) << "\n";
+    output << "directional_test_target=" << config.directionalTestTarget << "\n";
+    output << "directional_test_gain_db=" << config.directionalTestGainDb << "\n";
+    output << "directional_test_frequency_hz=" << config.directionalTestFrequencyHz << "\n";
+    return output.str();
+}
+
+bool DeserializeConfig(const std::string& text, RuntimeConfig& config) {
+    const auto values = parse_profile_values(text);
+    if (values.empty()) {
+        return false;
+    }
+    const bool hasKnownKey = values.find("version") != values.end()
+        || values.find("layout_mode") != values.end()
+        || values.find("sample_rate_mode") != values.end()
+        || values.find("master_gain_db") != values.end()
+        || values.find("map51_front_left") != values.end();
+    if (!hasKnownKey) {
+        return false;
+    }
+
+    RuntimeConfig next = config;
+    int intValue = 0;
+    if (read_int_key(values, "layout_mode", intValue)) next.layoutMode = layout_from_int(intValue);
+    if (read_int_key(values, "sample_rate_mode", intValue)) next.sampleRateMode = sample_rate_mode_from_int(intValue);
+    if (read_int_key(values, "upmix_mode", intValue)) next.upmixMode = upmix_mode_from_int(intValue);
+    read_double_key(values, "master_gain_db", next.masterGainDb);
+    read_double_key(values, "headroom_db", next.headroomDb);
+    read_bool_key(values, "limiter_enabled", next.limiterEnabled);
+    if (read_int_key(values, "limiter_mode", intValue)) next.limiterMode = limiter_mode_from_int(intValue);
+    read_double_key(values, "limiter_ceiling_db", next.limiterCeilingDb);
+    read_double_key(values, "center_gain_db", next.centerGainDb);
+    read_double_key(values, "surround_gain_db", next.surroundGainDb);
+    read_double_key(values, "rear_gain_db", next.rearGainDb);
+    read_double_key(values, "height_gain_db", next.heightGainDb);
+    read_double_key(values, "side_amount", next.sideAmount);
+    read_double_key(values, "height_from_mid", next.heightFromMid);
+    read_double_key(values, "decorrelation_amount", next.decorrelationAmount);
+    read_bool_key(values, "enable_lfe", next.enableLfe);
+    read_double_key(values, "lfe_gain_db", next.lfeGainDb);
+    read_double_key(values, "lfe_lowpass_hz", next.lfeLowpassHz);
+    for (size_t i = 0; i < target_count; ++i) {
+        read_double_key(values, ("channel_gain_" + std::string(target_keys[i])).c_str(), next.channelGainDb[i]);
+        read_double_key(values, ("channel_delay_" + std::string(target_keys[i]) + "_ms").c_str(), next.channelDelayMs[i]);
+        read_bool_key(values, ("channel_invert_" + std::string(target_keys[i])).c_str(), next.channelInvert[i]);
+    }
+    read_int_key(values, "map51_front_left", next.map51FrontLeft);
+    read_int_key(values, "map51_front_right", next.map51FrontRight);
+    read_int_key(values, "map51_front_center", next.map51FrontCenter);
+    read_int_key(values, "map51_lfe", next.map51Lfe);
+    read_int_key(values, "map51_surround_left", next.map51SurroundLeft);
+    read_int_key(values, "map51_surround_right", next.map51SurroundRight);
+    read_bool_key(values, "directional_test_enabled", next.directionalTestEnabled);
+    read_bool_key(values, "directional_test_dynamic", next.directionalTestUseDynamicObject);
+    read_int_key(values, "directional_test_target", next.directionalTestTarget);
+    read_double_key(values, "directional_test_gain_db", next.directionalTestGainDb);
+    read_double_key(values, "directional_test_frequency_hz", next.directionalTestFrequencyHz);
+
+    config = next;
+    return true;
 }
 
 }  // namespace spatial_audio

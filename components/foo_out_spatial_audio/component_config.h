@@ -47,9 +47,16 @@ enum class LimiterMode {
     HardCeiling = 1,
 };
 
+enum class UpmixMode {
+    Full = 0,
+    Reference = 1,
+    FrontOnly = 2,
+};
+
 struct RuntimeConfig {
     LayoutMode layoutMode = LayoutMode::Auto;
     SampleRateMode sampleRateMode = SampleRateMode::AutoHighest;
+    UpmixMode upmixMode = UpmixMode::Full;
     double masterGainDb = -12.0;
     double headroomDb = 0.0;
     bool limiterEnabled = true;
@@ -67,6 +74,7 @@ struct RuntimeConfig {
     double lfeLowpassHz = 120.0;
     std::array<double, target_count> channelGainDb = {};
     std::array<double, target_count> channelDelayMs = {};
+    std::array<bool, target_count> channelInvert = {};
     int map51FrontLeft = target_front_left;
     int map51FrontRight = target_front_right;
     int map51FrontCenter = target_front_center;
@@ -83,5 +91,7 @@ struct RuntimeConfig {
 RuntimeConfig ReadConfig();
 void WriteConfig(const RuntimeConfig& config);
 RuntimeConfig DefaultConfig();
+std::string SerializeConfig(const RuntimeConfig& config);
+bool DeserializeConfig(const std::string& text, RuntimeConfig& config);
 
 }  // namespace spatial_audio

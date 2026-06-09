@@ -33,9 +33,12 @@
 #include <condition_variable>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <cwchar>
 #include <deque>
 #include <initializer_list>
+#include <iomanip>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <sstream>

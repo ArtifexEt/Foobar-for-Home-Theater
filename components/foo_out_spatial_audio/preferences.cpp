@@ -16,12 +16,15 @@ enum ControlId {
     idTabs = 1001,
     idLayoutMode,
     idSampleRateMode,
+    idUpmixMode,
     idProbeEndpoint,
     idEndpointSummary,
     idLimiterEnabled,
     idLimiterMode,
     idSupportButton,
     idRepoButton,
+    idCopyProfileButton,
+    idPasteProfileButton,
     idEnableLfe,
     idMap51FrontLeft,
     idMap51FrontRight,
@@ -69,6 +72,7 @@ enum ControlId {
     idChannelGainSliderBase = 4100,
     idChannelDelayEditBase = 4200,
     idChannelDelaySliderBase = 4300,
+    idChannelInvertCheckBase = 4400,
 };
 
 enum class Page {
@@ -142,6 +146,11 @@ struct LimiterOption {
     const wchar_t* label;
 };
 
+struct UpmixOption {
+    UpmixMode mode;
+    const wchar_t* label;
+};
+
 const LayoutOption kLayoutOptions[] = {
     {LayoutMode::Auto, L"Auto / endpoint native"},
     {LayoutMode::Stereo, L"Stereo"},
@@ -165,6 +174,12 @@ const SampleRateOption kSampleRateOptions[] = {
 const LimiterOption kLimiterOptions[] = {
     {LimiterMode::TransparentSoft, L"Transparent soft"},
     {LimiterMode::HardCeiling, L"Hard ceiling"},
+};
+
+const UpmixOption kUpmixOptions[] = {
+    {UpmixMode::Full, L"Full spatial"},
+    {UpmixMode::Reference, L"Reference"},
+    {UpmixMode::FrontOnly, L"Front only"},
 };
 
 const uint32_t kProbeSampleRates[] = {44100, 48000, 88200, 96000, 176400, 192000};
@@ -623,6 +638,54 @@ void open_url(const wchar_t* url) {
     ShellExecuteW(nullptr, L"open", url, nullptr, nullptr, SW_SHOWNORMAL);
 }
 
+bool set_clipboard_text(HWND owner, const std::wstring& text) {
+    if (!OpenClipboard(owner)) {
+        return false;
+    }
+    EmptyClipboard();
+    const SIZE_T bytes = (text.size() + 1) * sizeof(wchar_t);
+    HGLOBAL memory = GlobalAlloc(GMEM_MOVEABLE, bytes);
+    if (memory == nullptr) {
+        CloseClipboard();
+        return false;
+    }
+    void* destination = GlobalLock(memory);
+    if (destination == nullptr) {
+        GlobalFree(memory);
+        CloseClipboard();
+        return false;
+    }
+    std::memcpy(destination, text.c_str(), bytes);
+    GlobalUnlock(memory);
+    if (SetClipboardData(CF_UNICODETEXT, memory) == nullptr) {
+        GlobalFree(memory);
+        CloseClipboard();
+        return false;
+    }
+    CloseClipboard();
+    return true;
+}
+
+bool get_clipboard_text(HWND owner, std::wstring& text) {
+    if (!IsClipboardFormatAvailable(CF_UNICODETEXT) || !OpenClipboard(owner)) {
+        return false;
+    }
+    HGLOBAL memory = GetClipboardData(CF_UNICODETEXT);
+    if (memory == nullptr) {
+        CloseClipboard();
+        return false;
+    }
+    const wchar_t* source = static_cast<const wchar_t*>(GlobalLock(memory));
+    if (source == nullptr) {
+        CloseClipboard();
+        return false;
+    }
+    text = source;
+    GlobalUnlock(memory);
+    CloseClipboard();
+    return true;
+}
+
 int read_combo_target(HWND wnd, int id, int fallback) {
     HWND combo = GetDlgItem(wnd, id);
     const int index = ComboBox_GetCurSel(combo);
@@ -696,6 +759,26 @@ void set_limiter_mode(HWND wnd, LimiterMode mode) {
     HWND combo = GetDlgItem(wnd, idLimiterMode);
     for (int i = 0; i < ComboBox_GetCount(combo); ++i) {
         if (static_cast<LimiterMode>(ComboBox_GetItemData(combo, i)) == mode) {
+            ComboBox_SetCurSel(combo, i);
+            return;
+        }
+    }
+    ComboBox_SetCurSel(combo, 0);
+}
+
+UpmixMode read_upmix_mode(HWND wnd) {
+    HWND combo = GetDlgItem(wnd, idUpmixMode);
+    const int index = ComboBox_GetCurSel(combo);
+    if (index == CB_ERR) {
+        return UpmixMode::Full;
+    }
+    return static_cast<UpmixMode>(ComboBox_GetItemData(combo, index));
+}
+
+void set_upmix_mode(HWND wnd, UpmixMode mode) {
+    HWND combo = GetDlgItem(wnd, idUpmixMode);
+    for (int i = 0; i < ComboBox_GetCount(combo); ++i) {
+        if (static_cast<UpmixMode>(ComboBox_GetItemData(combo, i)) == mode) {
             ComboBox_SetCurSel(combo, i);
             return;
         }
@@ -842,6 +925,24 @@ private:
             open_url(L"https://github.com/ArtifexEt/Foobar-for-Home-Theater");
             return 0;
         }
+        if (id == idCopyProfileButton && code == BN_CLICKED) {
+            const std::string profile = SerializeConfig(read_from_controls());
+            if (!set_clipboard_text(wnd_, widen(profile))) {
+                MessageBoxW(wnd_, L"Could not copy profile to clipboard.", L"Spatial Audio", MB_ICONWARNING | MB_OK);
+            }
+            return 0;
+        }
+        if (id == idPasteProfileButton && code == BN_CLICKED) {
+            std::wstring clipboard;
+            RuntimeConfig imported = read_from_controls();
+            if (!get_clipboard_text(wnd_, clipboard) || !DeserializeConfig(narrow(clipboard.c_str()), imported)) {
+                MessageBoxW(wnd_, L"Clipboard does not contain a Spatial Audio profile.", L"Spatial Audio", MB_ICONWARNING | MB_OK);
+                return 0;
+            }
+            write_to_controls(imported);
+            callback_->on_state_changed();
+            return 0;
+        }
         if (id == idProbeEndpoint && code == BN_CLICKED) {
             const std::wstring summary = query_endpoint_summary(read_layout_mode(wnd_), read_sample_rate_mode(wnd_));
             SetDlgItemTextW(wnd_, idEndpointSummary, summary.c_str());
@@ -918,6 +1019,8 @@ private:
 
         create_button(wnd_, idSupportButton, L"Support: Buy me a coffee", 12, 562, 220, 28);
         create_button(wnd_, idRepoButton, L"GitHub repo", 248, 562, 140, 28);
+        create_button(wnd_, idCopyProfileButton, L"Copy profile", 404, 562, 120, 28);
+        create_button(wnd_, idPasteProfileButton, L"Paste profile", 540, 562, 120, 28);
 
         write_to_controls(initial_);
         selectedPage_ = 0;
@@ -996,6 +1099,13 @@ private:
     void populate_upmix_page() {
         const Page page = Page::Upmix;
         int y = 52;
+        add_label(page, L"Mode", 28, y, 150, 24);
+        HWND upmixCombo = add_combo(page, idUpmixMode, 188, y - 2, 220, 120);
+        for (const auto& option : kUpmixOptions) {
+            const auto index = ComboBox_AddString(upmixCombo, option.label);
+            ComboBox_SetItemData(upmixCombo, index, static_cast<int>(option.mode));
+        }
+        y += 40;
         add_slider_row(page, L"Master gain (dB)", idMasterGain, idMasterGainSlider, 28, y, -60.0, 12.0, 10.0, 1); y += 32;
         add_slider_row(page, L"Headroom (dB)", idHeadroom, idHeadroomSlider, 28, y, -24.0, 6.0, 10.0, 1); y += 32;
         add_slider_row(page, L"Center gain (dB)", idCenterGain, idCenterGainSlider, 28, y, -60.0, 12.0, 10.0, 1); y += 32;
@@ -1015,6 +1125,7 @@ private:
         add_label(page, L"Channel", 28, 54, 120, 24);
         add_label(page, L"Gain", 178, 54, 64, 24);
         add_label(page, L"Delay ms", 470, 54, 80, 24);
+        add_label(page, L"Inv", 684, 54, 40, 24);
 
         int y = 84;
         for (size_t i = 0; i < target_count; ++i) {
@@ -1028,11 +1139,12 @@ private:
             sliders_.push_back({idChannelGainEditBase + static_cast<int>(i), idChannelGainSliderBase + static_cast<int>(i), -24.0, 12.0, 10.0, 1});
 
             add_page_control(page, create_edit(wnd_, idChannelDelayEditBase + static_cast<int>(i), 470, y, 56, 24));
-            HWND delaySlider = CreateWindowExW(0, TRACKBAR_CLASSW, L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 536, y - 2, 170, 28, wnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(idChannelDelaySliderBase + i)), core_api::get_my_instance(), nullptr);
+            HWND delaySlider = CreateWindowExW(0, TRACKBAR_CLASSW, L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 536, y - 2, 130, 28, wnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(idChannelDelaySliderBase + i)), core_api::get_my_instance(), nullptr);
             SendMessageW(delaySlider, TBM_SETRANGE, TRUE, MAKELPARAM(0, 80));
             SendMessageW(delaySlider, TBM_SETPAGESIZE, 0, 5);
             add_page_control(page, delaySlider);
             sliders_.push_back({idChannelDelayEditBase + static_cast<int>(i), idChannelDelaySliderBase + static_cast<int>(i), 0.0, 80.0, 1.0, 0});
+            add_page_control(page, CreateWindowExW(0, L"BUTTON", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 690, y, 24, 24, wnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(idChannelInvertCheckBase + i)), core_api::get_my_instance(), nullptr));
             y += 30;
         }
     }
@@ -1185,6 +1297,7 @@ private:
         RuntimeConfig config;
         config.layoutMode = read_layout_mode(wnd_);
         config.sampleRateMode = read_sample_rate_mode(wnd_);
+        config.upmixMode = read_upmix_mode(wnd_);
         config.masterGainDb = read_double(wnd_, idMasterGain, config.masterGainDb);
         config.headroomDb = read_double(wnd_, idHeadroom, config.headroomDb);
         config.limiterEnabled = Button_GetCheck(GetDlgItem(wnd_, idLimiterEnabled)) == BST_CHECKED;
@@ -1203,6 +1316,7 @@ private:
         for (size_t i = 0; i < target_count; ++i) {
             config.channelGainDb[i] = read_double(wnd_, idChannelGainEditBase + static_cast<int>(i), config.channelGainDb[i]);
             config.channelDelayMs[i] = read_double(wnd_, idChannelDelayEditBase + static_cast<int>(i), config.channelDelayMs[i]);
+            config.channelInvert[i] = Button_GetCheck(GetDlgItem(wnd_, idChannelInvertCheckBase + static_cast<int>(i))) == BST_CHECKED;
         }
         config.map51FrontLeft = read_combo_target(wnd_, idMap51FrontLeft, config.map51FrontLeft);
         config.map51FrontRight = read_combo_target(wnd_, idMap51FrontRight, config.map51FrontRight);
@@ -1222,6 +1336,7 @@ private:
         updatingControls_ = true;
         set_layout_mode(wnd_, config.layoutMode);
         set_sample_rate_mode(wnd_, config.sampleRateMode);
+        set_upmix_mode(wnd_, config.upmixMode);
         set_numeric(idMasterGain, config.masterGainDb);
         set_numeric(idHeadroom, config.headroomDb);
         Button_SetCheck(GetDlgItem(wnd_, idLimiterEnabled), config.limiterEnabled ? BST_CHECKED : BST_UNCHECKED);
@@ -1240,6 +1355,7 @@ private:
         for (size_t i = 0; i < target_count; ++i) {
             set_numeric(idChannelGainEditBase + static_cast<int>(i), config.channelGainDb[i]);
             set_numeric(idChannelDelayEditBase + static_cast<int>(i), config.channelDelayMs[i]);
+            Button_SetCheck(GetDlgItem(wnd_, idChannelInvertCheckBase + static_cast<int>(i)), config.channelInvert[i] ? BST_CHECKED : BST_UNCHECKED);
         }
         set_combo_target(wnd_, idMap51FrontLeft, config.map51FrontLeft);
         set_combo_target(wnd_, idMap51FrontRight, config.map51FrontRight);
@@ -1268,6 +1384,7 @@ private:
         const RuntimeConfig current = read_from_controls();
         if (current.layoutMode != initial_.layoutMode
             || current.sampleRateMode != initial_.sampleRateMode
+            || current.upmixMode != initial_.upmixMode
             || different(current.masterGainDb, initial_.masterGainDb)
             || different(current.headroomDb, initial_.headroomDb)
             || current.limiterEnabled != initial_.limiterEnabled
@@ -1288,7 +1405,8 @@ private:
 
         for (size_t i = 0; i < target_count; ++i) {
             if (different(current.channelGainDb[i], initial_.channelGainDb[i])
-                || different(current.channelDelayMs[i], initial_.channelDelayMs[i])) {
+                || different(current.channelDelayMs[i], initial_.channelDelayMs[i])
+                || current.channelInvert[i] != initial_.channelInvert[i]) {
                 return true;
             }
         }

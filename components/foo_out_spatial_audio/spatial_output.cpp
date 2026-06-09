@@ -421,13 +421,14 @@ void spatial_audio_output::render_loop(uint32_t sampleRate) {
                 const UINT32 framesToWrite = std::min(frameCount, bufferLength / static_cast<UINT32>(sizeof(float)));
                 const int target = target_from_key(channel.key);
                 const double channelGain = target >= 0 && target < static_cast<int>(target_count) ? db_to_linear(config_.channelGainDb[static_cast<size_t>(target)]) : 1.0;
+                const double polarity = target >= 0 && target < static_cast<int>(target_count) && config_.channelInvert[static_cast<size_t>(target)] ? -1.0 : 1.0;
 
                 for (UINT32 i = 0; i < framesToWrite; ++i) {
                     double value = paused ? 0.0 : bed_value(channel.key, input[i], lfeState);
                     if (!paused && staticTestActive && target == config_.directionalTestTarget) {
                         value += test_signal_value(testPhase);
                     }
-                    value = apply_channel_delay(channel, value * masterGain * channelGain);
+                    value = apply_channel_delay(channel, value * masterGain * channelGain * polarity);
                     samples[i] = clamp_sample(apply_limiter(value));
                 }
             }
@@ -487,26 +488,36 @@ double spatial_audio_output::stereo_bed_value(const std::string& key, const Inpu
     const double left = frame.frontLeft;
     const double right = frame.frontRight;
     const double mid = (left + right) * 0.5;
-    const double side = (left - right) * 0.5 * config_.sideAmount;
-
     if (key == "front_left") return left;
     if (key == "front_right") return right;
-    if (key == "front_center") return mid * db_to_linear(config_.centerGainDb);
-    if (key == "side_left") return side * db_to_linear(config_.surroundGainDb);
-    if (key == "side_right") return -side * db_to_linear(config_.surroundGainDb);
-    const double decorrelation = std::clamp(config_.decorrelationAmount, 0.0, 1.0);
-    if (key == "back_left") return (side * (1.0 + decorrelation * 0.35) + left * 0.10) * db_to_linear(config_.rearGainDb);
-    if (key == "back_right") return (-side * (1.0 - decorrelation * 0.35) + right * 0.10) * db_to_linear(config_.rearGainDb);
-    if (key == "top_front_left") return (side * (1.0 - decorrelation * 0.20) + mid * config_.heightFromMid) * db_to_linear(config_.heightGainDb);
-    if (key == "top_front_right") return (-side * (1.0 + decorrelation * 0.20) + mid * config_.heightFromMid) * db_to_linear(config_.heightGainDb);
-    if (key == "top_back_left") return (side * (0.7 + decorrelation * 0.25) + mid * config_.heightFromMid) * db_to_linear(config_.heightGainDb);
-    if (key == "top_back_right") return (-side * (0.7 - decorrelation * 0.25) + mid * config_.heightFromMid) * db_to_linear(config_.heightGainDb);
+    if (config_.upmixMode == UpmixMode::FrontOnly) return 0.0;
+
+    const bool referenceMode = config_.upmixMode == UpmixMode::Reference;
+    const double sideAmount = referenceMode ? std::min(config_.sideAmount, 0.45) : config_.sideAmount;
+    const double heightFromMid = referenceMode ? std::min(config_.heightFromMid, 0.08) : config_.heightFromMid;
+    const double centerTrim = referenceMode ? db_to_linear(-4.0) : 1.0;
+    const double surroundTrim = referenceMode ? db_to_linear(-6.0) : 1.0;
+    const double rearTrim = referenceMode ? db_to_linear(-8.0) : 1.0;
+    const double heightTrim = referenceMode ? db_to_linear(-10.0) : 1.0;
+    const double lfeTrim = referenceMode ? db_to_linear(-6.0) : 1.0;
+    const double side = (left - right) * 0.5 * sideAmount;
+
+    if (key == "front_center") return mid * db_to_linear(config_.centerGainDb) * centerTrim;
+    if (key == "side_left") return side * db_to_linear(config_.surroundGainDb) * surroundTrim;
+    if (key == "side_right") return -side * db_to_linear(config_.surroundGainDb) * surroundTrim;
+    const double decorrelation = std::clamp(referenceMode ? std::min(config_.decorrelationAmount, 0.12) : config_.decorrelationAmount, 0.0, 1.0);
+    if (key == "back_left") return (side * (1.0 + decorrelation * 0.35) + left * 0.10) * db_to_linear(config_.rearGainDb) * rearTrim;
+    if (key == "back_right") return (-side * (1.0 - decorrelation * 0.35) + right * 0.10) * db_to_linear(config_.rearGainDb) * rearTrim;
+    if (key == "top_front_left") return (side * (1.0 - decorrelation * 0.20) + mid * heightFromMid) * db_to_linear(config_.heightGainDb) * heightTrim;
+    if (key == "top_front_right") return (-side * (1.0 + decorrelation * 0.20) + mid * heightFromMid) * db_to_linear(config_.heightGainDb) * heightTrim;
+    if (key == "top_back_left") return (side * (0.7 + decorrelation * 0.25) + mid * heightFromMid) * db_to_linear(config_.heightGainDb) * heightTrim;
+    if (key == "top_back_right") return (-side * (0.7 - decorrelation * 0.25) + mid * heightFromMid) * db_to_linear(config_.heightGainDb) * heightTrim;
     if (key == "low_frequency") {
         if (!config_.enableLfe) return 0.0;
         const double cutoffHz = std::clamp(config_.lfeLowpassHz, 20.0, 250.0);
         const double alpha = 1.0 - std::exp((-2.0 * kPi * cutoffHz) / static_cast<double>(sampleRate_));
         lfeState += alpha * (mid - lfeState);
-        return lfeState * db_to_linear(config_.lfeGainDb);
+        return lfeState * db_to_linear(config_.lfeGainDb) * lfeTrim;
     }
     return 0.0;
 }

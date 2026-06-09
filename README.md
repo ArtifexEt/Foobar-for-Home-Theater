@@ -27,8 +27,10 @@ The preferences page now exposes:
 
 - Layout selection: Auto, Stereo, 5.1, 7.1, 5.1.2, and 7.1.4, with endpoint probe output.
 - Render quality controls: Auto highest supported sample rate, source sample rate if supported, or fixed 44.1/48/88.2/96/176.4/192 kHz.
+- Upmix mode controls: Full spatial, Reference, and Front only for quick A/B comparison.
 - Upmix sliders next to numeric values for master/headroom, center, surround, rear, height, width, height ambience, decorrelation, and LFE.
-- Per-channel gain and delay controls for the 7.1.4 bed.
+- Per-channel gain, delay, and polarity invert controls for the 7.1.4 bed.
+- Copy/Paste profile buttons for sharing the full component settings through the clipboard.
 - A directional test pad that can play a short Spatial Audio tone from front, side, rear, ceiling, or LFE directions. If the endpoint supports dynamic objects, the test can use object coordinates; otherwise it falls back to static bed channels.
 - Transparent soft limiter or hard ceiling limiter control to reduce accidental clipping.
 

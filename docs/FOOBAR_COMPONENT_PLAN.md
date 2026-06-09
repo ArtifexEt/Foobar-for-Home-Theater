@@ -22,6 +22,7 @@ The foobar configuration dialog should have four compact tabs:
 
 2. Channel gains
    - Per-channel gain sliders in dB.
+   - Per-channel delay and polarity invert controls.
    - Master gain.
    - Reset and copy/paste profile controls.
 
@@ -47,7 +48,8 @@ The foobar configuration dialog should have four compact tabs:
 3. Dynamic object test: send synthetic tones to configured x/y/z positions.
 4. Standalone stereo WAV player: route real stereo PCM into the same static bed and dynamic object paths.
 5. Foobar output skeleton: accept PCM and route stereo to Windows Spatial Audio static bed.
-6. Stereo upmix: tune mid/side/ambience/LFE/height ambience routing and expose per-channel controls. Implemented: sliders, headroom, transparent soft limiter, render sample rate control, decorrelation, per-channel gain and delay.
+6. Stereo upmix: tune mid/side/ambience/LFE/height ambience routing and expose per-channel controls. Implemented: sliders, headroom, transparent soft limiter, render sample rate control, decorrelation, per-channel gain, delay, and polarity.
 7. 5.1 input mapping: route FL/FR/FC/LFE/SL/SR sources to configurable static bed targets. Implemented.
 8. Dynamic object mode inside the foobar output. Partially implemented for directional test tones; real music object routing remains.
-9. Rich configuration UI and profile import/export. Partially implemented: tabbed UI, endpoint probe, directional test pad. Profile import/export remains.
+9. Rich configuration UI and profile import/export. Partially implemented: tabbed UI, endpoint probe, directional test pad, copy/paste profile sharing. File import/export remains.
+10. Listening comparison modes. Implemented: Full spatial, Reference, and Front only stereo upmix modes.
