@@ -16,6 +16,7 @@
 #include <timeapi.h>
 
 #include <SDK/foobar2000.h>
+#include <SDK/coreDarkMode.h>
 
 #include <audioclient.h>
 #include <comdef.h>

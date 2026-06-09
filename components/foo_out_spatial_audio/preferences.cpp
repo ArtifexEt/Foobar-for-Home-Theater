@@ -113,6 +113,7 @@ public:
         register_class();
         wnd_ = CreateWindowExW(0, class_name(), L"", WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN, 0, 0, 560, 500, parent, nullptr, core_api::get_my_instance(), this);
         populate();
+        dark_.AddDialogWithControls(wnd_);
     }
 
     ~preferences_instance() {
@@ -122,7 +123,7 @@ public:
     }
 
     t_uint32 get_state() override {
-        t_uint32 state = preferences_state::resettable;
+        t_uint32 state = preferences_state::resettable | preferences_state::dark_mode_supported;
         if (has_changed()) {
             state |= preferences_state::changed | preferences_state::needs_restart_playback;
         }
@@ -300,6 +301,7 @@ private:
     HWND wnd_ = nullptr;
     preferences_page_callback::ptr callback_;
     RuntimeConfig initial_;
+    fb2k::CCoreDarkModeHooks dark_;
 };
 
 class preferences_page_spatial_audio : public preferences_page_v3 {
