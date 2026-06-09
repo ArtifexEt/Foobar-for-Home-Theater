@@ -98,6 +98,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="component_config.h" />
+    <ClInclude Include="component_version.h" />
     <ClInclude Include="spatial_output.h" />
     <ClInclude Include="stdafx.h" />
   </ItemGroup>

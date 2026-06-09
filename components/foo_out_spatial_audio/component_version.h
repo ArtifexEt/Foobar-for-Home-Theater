@@ -1,0 +1,5 @@
+#pragma once
+
+#ifndef SPATIAL_AUDIO_COMPONENT_VERSION
+#define SPATIAL_AUDIO_COMPONENT_VERSION "0.3.0-dev"
+#endif

@@ -16,6 +16,8 @@ The repository builds the Windows tools and foobar2000 component with GitHub Act
 
 Release notes are published on the [GitHub releases page](https://github.com/ArtifexEt/Foobar-for-Home-Theater/releases). The release ZIP contains standalone diagnostics and test executables. The foobar2000 plugin itself is the `.fb2k-component` file linked above.
 
+The component version shown inside foobar2000 is embedded during the GitHub Actions build and matches the release tag without the leading `v`, for example release `v0.3.30` installs as component version `0.3.30`.
+
 ## Screenshots
 
 The component is configured from Preferences > Playback > Output > Spatial Audio. The defaults are intended to work for a first run, while the tabs below expose the parts most home-theater users usually need to tune.

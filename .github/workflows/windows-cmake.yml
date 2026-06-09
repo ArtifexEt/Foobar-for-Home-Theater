@@ -26,6 +26,18 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
+      - name: Set build version
+        shell: pwsh
+        run: |
+          $version = "0.3.$env:GITHUB_RUN_NUMBER"
+          if ($env:GITHUB_RUN_ATTEMPT -and $env:GITHUB_RUN_ATTEMPT -ne "1") {
+            $version = "$version-r$env:GITHUB_RUN_ATTEMPT"
+          }
+          "COMPONENT_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "RELEASE_TAG=v$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "Component version: $version"
+          Write-Host "Release tag: v$version"
+
       - name: Configure
         run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
 
@@ -40,6 +52,11 @@ jobs:
           Invoke-WebRequest -Uri $sdkUrl -OutFile external/foobar2000-sdk.7z
           7z x external/foobar2000-sdk.7z -oexternal/foobar2000-sdk -y
           Copy-Item -Recurse components/foo_out_spatial_audio external/foobar2000-sdk/foobar2000/
+          @"
+          #pragma once
+
+          #define SPATIAL_AUDIO_COMPONENT_VERSION "$env:COMPONENT_VERSION"
+          "@ | Set-Content -Path external/foobar2000-sdk/foobar2000/foo_out_spatial_audio/component_version.h -Encoding ascii
           msbuild external/foobar2000-sdk/foobar2000/foo_out_spatial_audio/foo_out_spatial_audio.vcxproj /m /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143
 
       - name: Package
@@ -71,10 +88,7 @@ jobs:
           $asset = "Foobar-for-Home-Theater-windows-x64.zip"
           $componentAsset = "foo_out_spatial_audio.fb2k-component"
 
-          $tag = "v0.3.$env:GITHUB_RUN_NUMBER"
-          if ($env:GITHUB_RUN_ATTEMPT -and $env:GITHUB_RUN_ATTEMPT -ne "1") {
-            $tag = "$tag-r$env:GITHUB_RUN_ATTEMPT"
-          }
+          $tag = $env:RELEASE_TAG
           $title = "Foobar for Home Theater $tag"
 
           git fetch --tags --force
@@ -116,6 +130,8 @@ jobs:
 
           @(
             "Automated Windows build from $env:GITHUB_SHA.",
+            "",
+            "Component version: ``$env:COMPONENT_VERSION``.",
             "",
             "## Downloads",
             "- ``foo_out_spatial_audio.fb2k-component`` - foobar2000 output component",
