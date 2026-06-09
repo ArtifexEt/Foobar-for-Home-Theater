@@ -88,6 +88,16 @@ jobs:
           if ($previousTag -eq "null") {
             $previousTag = ""
           }
+          if ([string]::IsNullOrWhiteSpace($previousTag)) {
+            try {
+              $previousTag = gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=50" --jq '[.[] | select(.draft == false)][0].tag_name' 2>$null
+            } catch {
+              $previousTag = ""
+            }
+            if ($previousTag -eq "null") {
+              $previousTag = ""
+            }
+          }
 
           $range = "HEAD"
           $changesHeader = "Changes"
