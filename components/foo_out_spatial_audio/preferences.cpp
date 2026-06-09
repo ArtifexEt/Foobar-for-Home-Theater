@@ -8,6 +8,9 @@ namespace {
 
 static constexpr GUID guid_preferences = { 0x9a26d4a8, 0x2f0b, 0x47b6, { 0xb5, 0x8d, 0xa0, 0x3c, 0x36, 0x26, 0x8f, 0x91 } };
 static constexpr double kPi = 3.14159265358979323846;
+static constexpr COLORREF kDarkBackground = RGB(32, 32, 32);
+static constexpr COLORREF kDarkEditBackground = RGB(24, 24, 24);
+static constexpr COLORREF kDarkText = RGB(232, 232, 232);
 
 enum ControlId {
     idTabs = 1001,
@@ -718,6 +721,8 @@ public:
         if (wnd_ != nullptr && IsWindow(wnd_)) {
             DestroyWindow(wnd_);
         }
+        DeleteObject(backgroundBrush_);
+        DeleteObject(editBrush_);
     }
 
     t_uint32 get_state() override {
@@ -759,7 +764,7 @@ private:
         wc.hInstance = core_api::get_my_instance();
         wc.lpszClassName = class_name();
         wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
-        wc.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
+        wc.hbrBackground = nullptr;
         RegisterClassW(&wc);
         registered = true;
     }
@@ -777,8 +782,19 @@ private:
         }
 
         switch (msg) {
+        case WM_ERASEBKGND:
+            return self->on_erase(reinterpret_cast<HDC>(wp));
+        case WM_THEMECHANGED:
+        case WM_SETTINGCHANGE:
+            RedrawWindow(wnd, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
+            break;
         case WM_COMMAND:
             return self->on_command(wp, lp);
+        case WM_CTLCOLOREDIT:
+        case WM_CTLCOLORSTATIC:
+        case WM_CTLCOLORBTN:
+        case WM_CTLCOLORDLG:
+            return self->on_control_color(reinterpret_cast<HDC>(wp), reinterpret_cast<HWND>(lp), msg);
         case WM_HSCROLL:
             return self->on_scroll(reinterpret_cast<HWND>(lp));
         case WM_NOTIFY:
@@ -788,6 +804,31 @@ private:
         }
 
         return DefWindowProcW(wnd, msg, wp, lp);
+    }
+
+    LRESULT on_erase(HDC dc) {
+        RECT rc = {};
+        GetClientRect(wnd_, &rc);
+        FillRect(dc, &rc, background_brush());
+        return 1;
+    }
+
+    LRESULT on_control_color(HDC dc, HWND control, UINT msg) {
+        if (!dark_) {
+            return reinterpret_cast<LRESULT>(GetSysColorBrush(COLOR_WINDOW));
+        }
+
+        SetTextColor(dc, kDarkText);
+        SetBkColor(dc, kDarkBackground);
+        SetBkMode(dc, TRANSPARENT);
+
+        if (msg == WM_CTLCOLOREDIT || is_edit_control(control)) {
+            SetBkMode(dc, OPAQUE);
+            SetBkColor(dc, kDarkEditBackground);
+            return reinterpret_cast<LRESULT>(editBrush_ != nullptr ? editBrush_ : background_brush());
+        }
+
+        return reinterpret_cast<LRESULT>(background_brush_);
     }
 
     LRESULT on_command(WPARAM wp, LPARAM) {
@@ -852,6 +893,22 @@ private:
         add_tab(tabs, 2, L"Channels");
         add_tab(tabs, 3, L"5.1 map");
         add_tab(tabs, 4, L"Test");
+
+        RECT pageRect = {0, 0, 744, 536};
+        TabCtrl_AdjustRect(tabs, FALSE, &pageRect);
+        pageBackground_ = CreateWindowExW(
+            0,
+            L"STATIC",
+            L"",
+            WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS,
+            8 + pageRect.left,
+            8 + pageRect.top,
+            pageRect.right - pageRect.left,
+            pageRect.bottom - pageRect.top,
+            wnd_,
+            nullptr,
+            core_api::get_my_instance(),
+            nullptr);
 
         populate_layout_page();
         populate_upmix_page();
@@ -1049,6 +1106,16 @@ private:
         }
     }
 
+    HBRUSH background_brush() const {
+        return dark_ && backgroundBrush_ != nullptr ? backgroundBrush_ : GetSysColorBrush(COLOR_WINDOW);
+    }
+
+    static bool is_edit_control(HWND control) {
+        wchar_t className[16] = {};
+        GetClassNameW(control, className, static_cast<int>(_countof(className)));
+        return _wcsicmp(className, L"Edit") == 0;
+    }
+
     const SliderBinding* slider_from_edit(int editId) const {
         for (const auto& binding : sliders_) {
             if (binding.editId == editId) {
@@ -1243,10 +1310,13 @@ private:
     preferences_page_callback::ptr callback_;
     RuntimeConfig initial_;
     fb2k::CCoreDarkModeHooks dark_;
+    HWND pageBackground_ = nullptr;
     std::array<std::vector<HWND>, static_cast<size_t>(Page::Count)> pageControls_;
     std::vector<SliderBinding> sliders_;
     int selectedPage_ = 0;
     bool updatingControls_ = false;
+    HBRUSH backgroundBrush_ = CreateSolidBrush(kDarkBackground);
+    HBRUSH editBrush_ = CreateSolidBrush(kDarkEditBackground);
 };
 
 class preferences_page_spatial_audio : public preferences_page_v3 {
