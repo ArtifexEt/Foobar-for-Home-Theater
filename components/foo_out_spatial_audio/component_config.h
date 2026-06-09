@@ -2,7 +2,7 @@
 
 #include "stdafx.h"
 
-namespace spatial_atmos {
+namespace spatial_audio {
 
 enum ChannelTarget {
     target_disabled = -1,
@@ -43,4 +43,4 @@ RuntimeConfig ReadConfig();
 void WriteConfig(const RuntimeConfig& config);
 RuntimeConfig DefaultConfig();
 
-}  // namespace spatial_atmos
+}  // namespace spatial_audio

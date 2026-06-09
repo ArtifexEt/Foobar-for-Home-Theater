@@ -3,7 +3,7 @@
 
 using Microsoft::WRL::ComPtr;
 
-namespace spatial_atmos {
+namespace spatial_audio {
 namespace {
 
 constexpr double kPi = 3.14159265358979323846;
@@ -59,7 +59,7 @@ std::string narrow(const wchar_t* text) {
 
 }  // namespace
 
-spatial_atmos_output::spatial_atmos_output(const GUID& device, double bufferLength, bool, t_uint32)
+spatial_audio_output::spatial_audio_output(const GUID& device, double bufferLength, bool, t_uint32)
     : config_(ReadConfig()), device_(device), bufferLength_(std::max(bufferLength, 0.2)) {
     wakeEvent_ = CreateEvent(nullptr, FALSE, FALSE, nullptr);
     if (wakeEvent_ == nullptr) {
@@ -67,7 +67,7 @@ spatial_atmos_output::spatial_atmos_output(const GUID& device, double bufferLeng
     }
 }
 
-spatial_atmos_output::~spatial_atmos_output() {
+spatial_audio_output::~spatial_audio_output() {
     stop_stream();
     if (wakeEvent_ != nullptr) {
         CloseHandle(wakeEvent_);
@@ -75,52 +75,52 @@ spatial_atmos_output::~spatial_atmos_output() {
     }
 }
 
-GUID spatial_atmos_output::g_get_guid() {
+GUID spatial_audio_output::g_get_guid() {
     return guid_output;
 }
 
-const char* spatial_atmos_output::g_get_name() {
-    return "Spatial Atmos for Home Theater";
+const char* spatial_audio_output::g_get_name() {
+    return "Spatial Audio for Home Theater";
 }
 
-void spatial_atmos_output::g_enum_devices(output_device_enum_callback& callback) {
+void spatial_audio_output::g_enum_devices(output_device_enum_callback& callback) {
     const char name[] = "Default Windows Spatial Audio endpoint";
     callback.on_device(guid_device_default, name, sizeof(name) - 1);
 }
 
-bool spatial_atmos_output::g_advanced_settings_query() {
+bool spatial_audio_output::g_advanced_settings_query() {
     return false;
 }
 
-bool spatial_atmos_output::g_needs_bitdepth_config() {
+bool spatial_audio_output::g_needs_bitdepth_config() {
     return false;
 }
 
-bool spatial_atmos_output::g_needs_dither_config() {
+bool spatial_audio_output::g_needs_dither_config() {
     return false;
 }
 
-bool spatial_atmos_output::g_needs_device_list_prefixes() {
+bool spatial_audio_output::g_needs_device_list_prefixes() {
     return false;
 }
 
-bool spatial_atmos_output::g_supports_multiple_streams() {
+bool spatial_audio_output::g_supports_multiple_streams() {
     return false;
 }
 
-bool spatial_atmos_output::g_is_high_latency() {
+bool spatial_audio_output::g_is_high_latency() {
     return false;
 }
 
-unsigned spatial_atmos_output::get_forced_sample_rate() {
+unsigned spatial_audio_output::get_forced_sample_rate() {
     return 48000;
 }
 
-unsigned spatial_atmos_output::get_forced_channel_mask() {
+unsigned spatial_audio_output::get_forced_channel_mask() {
     return 0;
 }
 
-void spatial_atmos_output::pause(bool state) {
+void spatial_audio_output::pause(bool state) {
     {
         std::lock_guard<std::mutex> lock(mutex_);
         paused_ = state;
@@ -128,23 +128,23 @@ void spatial_atmos_output::pause(bool state) {
     SetEvent(wakeEvent_);
 }
 
-void spatial_atmos_output::volume_set(double value) {
+void spatial_audio_output::volume_set(double value) {
     volumeDb_.store(value);
 }
 
-bool spatial_atmos_output::is_progressing() {
+bool spatial_audio_output::is_progressing() {
     std::lock_guard<std::mutex> lock(mutex_);
     return started_ && !paused_;
 }
 
-pfc::eventHandle_t spatial_atmos_output::get_trigger_event() {
+pfc::eventHandle_t spatial_audio_output::get_trigger_event() {
     return wakeEvent_;
 }
 
-void spatial_atmos_output::on_update() {
+void spatial_audio_output::on_update() {
 }
 
-void spatial_atmos_output::open(audio_chunk::spec_t const& spec) {
+void spatial_audio_output::open(audio_chunk::spec_t const& spec) {
     const bool stereo = spec.chanCount == 2;
     const bool fivePointOne = spec.chanCount == 6 && is_5point1_mask(spec.chanMask);
     if (spec.sampleRate != 48000 || (!stereo && !fivePointOne)) {
@@ -160,7 +160,7 @@ void spatial_atmos_output::open(audio_chunk::spec_t const& spec) {
     start_stream(sampleRate_);
 }
 
-void spatial_atmos_output::write(const audio_chunk& data) {
+void spatial_audio_output::write(const audio_chunk& data) {
     const auto sampleCount = data.get_sample_count();
     const auto channels = data.get_channel_count();
     const auto mask = data.get_channel_config();
@@ -195,7 +195,7 @@ void spatial_atmos_output::write(const audio_chunk& data) {
     SetEvent(wakeEvent_);
 }
 
-t_size spatial_atmos_output::can_write_samples() {
+t_size spatial_audio_output::can_write_samples() {
     std::lock_guard<std::mutex> lock(mutex_);
     if (!started_ || stopping_) {
         return 0;
@@ -203,20 +203,20 @@ t_size spatial_atmos_output::can_write_samples() {
     return capacityFrames_ > queue_.size() ? capacityFrames_ - queue_.size() : 0;
 }
 
-t_size spatial_atmos_output::get_latency_samples() {
+t_size spatial_audio_output::get_latency_samples() {
     return queuedFrames_.load() + lastRenderFrames_.load();
 }
 
-void spatial_atmos_output::on_flush() {
+void spatial_audio_output::on_flush() {
     clear_queue();
     SetEvent(wakeEvent_);
 }
 
-void spatial_atmos_output::on_force_play() {
+void spatial_audio_output::on_force_play() {
     SetEvent(wakeEvent_);
 }
 
-void spatial_atmos_output::start_stream(uint32_t sampleRate) {
+void spatial_audio_output::start_stream(uint32_t sampleRate) {
     spatialEvent_ = CreateEvent(nullptr, FALSE, FALSE, nullptr);
     if (spatialEvent_ == nullptr) {
         throw_if_failed(HRESULT_FROM_WIN32(GetLastError()), "Create spatial completion event");
@@ -234,7 +234,7 @@ void spatial_atmos_output::start_stream(uint32_t sampleRate) {
     });
 }
 
-void spatial_atmos_output::stop_stream() {
+void spatial_audio_output::stop_stream() {
     {
         std::lock_guard<std::mutex> lock(mutex_);
         stopping_ = true;
@@ -258,14 +258,14 @@ void spatial_atmos_output::stop_stream() {
     clear_queue();
 }
 
-void spatial_atmos_output::clear_queue() {
+void spatial_audio_output::clear_queue() {
     std::lock_guard<std::mutex> lock(mutex_);
     queue_.clear();
     queuedFrames_.store(0);
     lastRenderFrames_.store(0);
 }
 
-WAVEFORMATEX spatial_atmos_output::make_object_format(uint32_t sampleRate) {
+WAVEFORMATEX spatial_audio_output::make_object_format(uint32_t sampleRate) {
     WAVEFORMATEX format = {};
     format.wFormatTag = WAVE_FORMAT_IEEE_FLOAT;
     format.nChannels = 1;
@@ -276,7 +276,7 @@ WAVEFORMATEX spatial_atmos_output::make_object_format(uint32_t sampleRate) {
     return format;
 }
 
-std::string spatial_atmos_output::hresult_text(HRESULT hr) {
+std::string spatial_audio_output::hresult_text(HRESULT hr) {
     _com_error error(hr);
     std::ostringstream stream;
     stream << "0x" << std::hex << std::uppercase << static_cast<uint32_t>(hr);
@@ -287,7 +287,7 @@ std::string spatial_atmos_output::hresult_text(HRESULT hr) {
     return stream.str();
 }
 
-void spatial_atmos_output::throw_if_failed(HRESULT hr, const char* action) {
+void spatial_audio_output::throw_if_failed(HRESULT hr, const char* action) {
     if (FAILED(hr)) {
         std::ostringstream stream;
         stream << action << " failed: " << hresult_text(hr);
@@ -295,10 +295,10 @@ void spatial_atmos_output::throw_if_failed(HRESULT hr, const char* action) {
     }
 }
 
-void spatial_atmos_output::render_loop(uint32_t sampleRate) {
+void spatial_audio_output::render_loop(uint32_t sampleRate) {
     HRESULT coInit = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     if (FAILED(coInit)) {
-        FB2K_console_formatter() << "foo_out_spatial_atmos: COM init failed: " << hresult_text(coInit).c_str();
+        FB2K_console_formatter() << "foo_out_spatial_audio: COM init failed: " << hresult_text(coInit).c_str();
         return;
     }
 
@@ -415,7 +415,7 @@ void spatial_atmos_output::render_loop(uint32_t sampleRate) {
         stream->Stop();
         stream->Reset();
     } catch (const std::exception& error) {
-        FB2K_console_formatter() << "foo_out_spatial_atmos: " << error.what();
+        FB2K_console_formatter() << "foo_out_spatial_audio: " << error.what();
     }
 
     {
@@ -427,11 +427,11 @@ void spatial_atmos_output::render_loop(uint32_t sampleRate) {
     CoUninitialize();
 }
 
-double spatial_atmos_output::bed_value(const std::string& key, const InputFrame& frame, double& lfeState) const {
+double spatial_audio_output::bed_value(const std::string& key, const InputFrame& frame, double& lfeState) const {
     return inputLayout_ == InputLayout::FivePointOne ? mapped_5point1_value(key, frame) : stereo_bed_value(key, frame, lfeState);
 }
 
-double spatial_atmos_output::stereo_bed_value(const std::string& key, const InputFrame& frame, double& lfeState) const {
+double spatial_audio_output::stereo_bed_value(const std::string& key, const InputFrame& frame, double& lfeState) const {
     const double left = frame.frontLeft;
     const double right = frame.frontRight;
     const double mid = (left + right) * 0.5;
@@ -458,7 +458,7 @@ double spatial_atmos_output::stereo_bed_value(const std::string& key, const Inpu
     return 0.0;
 }
 
-double spatial_atmos_output::mapped_5point1_value(const std::string& key, const InputFrame& frame) const {
+double spatial_audio_output::mapped_5point1_value(const std::string& key, const InputFrame& frame) const {
     const int target = target_from_key(key);
     double value = 0.0;
     if (config_.map51FrontLeft == target) value += frame.frontLeft;
@@ -470,7 +470,7 @@ double spatial_atmos_output::mapped_5point1_value(const std::string& key, const 
     return value;
 }
 
-bool spatial_atmos_output::is_5point1_mask(unsigned mask) {
+bool spatial_audio_output::is_5point1_mask(unsigned mask) {
     const unsigned front = audio_chunk::channel_front_left | audio_chunk::channel_front_right | audio_chunk::channel_front_center | audio_chunk::channel_lfe;
     const bool hasFront = (mask & front) == front;
     const bool hasBack = (mask & audio_chunk::channels_back_left_right) == audio_chunk::channels_back_left_right;
@@ -478,7 +478,7 @@ bool spatial_atmos_output::is_5point1_mask(unsigned mask) {
     return hasFront && (hasBack || hasSide) && audio_chunk::g_count_channels(mask) == 6;
 }
 
-float spatial_atmos_output::sample_by_flag(const audio_sample* samples, size_t frame, unsigned channels, unsigned mask, unsigned flag, unsigned fallbackIndex) {
+float spatial_audio_output::sample_by_flag(const audio_sample* samples, size_t frame, unsigned channels, unsigned mask, unsigned flag, unsigned fallbackIndex) {
     unsigned index = audio_chunk::g_channel_index_from_flag(mask, flag);
     if (index == static_cast<unsigned>(-1) || index >= channels) {
         index = fallbackIndex;
@@ -486,7 +486,7 @@ float spatial_atmos_output::sample_by_flag(const audio_sample* samples, size_t f
     return index < channels ? static_cast<float>(samples[(frame * channels) + index]) : 0.0f;
 }
 
-int spatial_atmos_output::target_from_key(const std::string& key) {
+int spatial_audio_output::target_from_key(const std::string& key) {
     if (key == "front_left") return target_front_left;
     if (key == "front_right") return target_front_right;
     if (key == "front_center") return target_front_center;
@@ -502,14 +502,14 @@ int spatial_atmos_output::target_from_key(const std::string& key) {
     return target_disabled;
 }
 
-float spatial_atmos_output::clamp_sample(double value) {
+float spatial_audio_output::clamp_sample(double value) {
     return static_cast<float>(std::clamp(value, -1.0, 1.0));
 }
 
-double spatial_atmos_output::db_to_linear(double db) {
+double spatial_audio_output::db_to_linear(double db) {
     return std::pow(10.0, db / 20.0);
 }
 
-static output_factory_t<spatial_atmos_output> g_spatial_atmos_output_factory;
+static output_factory_t<spatial_audio_output> g_spatial_audio_output_factory;
 
-}  // namespace spatial_atmos
+}  // namespace spatial_audio

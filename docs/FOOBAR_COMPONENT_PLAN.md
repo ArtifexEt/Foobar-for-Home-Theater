@@ -1,13 +1,13 @@
 # Foobar component plan
 
-The standalone Windows Spatial Audio experiments remain in the repository as diagnostics. The first foobar2000 output component is now `foo_out_spatial_atmos`, built from `components/foo_out_spatial_atmos`.
+The standalone Windows Spatial Audio experiments remain in the repository as diagnostics. The first foobar2000 output component is now `foo_out_spatial_audio`, built from `components/foo_out_spatial_audio`.
 
 ## Component shape
 
-- `foo_out_spatial_atmos` should be an output component, not a plain DSP.
+- `foo_out_spatial_audio` should be an output component, not a plain DSP.
 - A helper DSP can still exist for stereo stem extraction, but the Windows Spatial Audio stream must live in the output component.
 - The output component should use `ISpatialAudioClient` and `ISpatialAudioObjectRenderStream`.
-- For Atmos home theater, the main target bed is 7.1.4: front L/R/C, LFE, side L/R, back L/R, top front L/R, top back L/R.
+- For home theater spatial endpoints, the main target bed is 7.1.4: front L/R/C, LFE, side L/R, back L/R, top front L/R, top back L/R.
 - Dynamic object mode should be optional, because some devices or Windows configurations can report zero available dynamic objects.
 
 ## Configuration view

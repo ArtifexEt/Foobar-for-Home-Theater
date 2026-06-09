@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "component_config.h"
 
-namespace spatial_atmos {
+namespace spatial_audio {
 namespace {
 
 static constexpr GUID guid_preferences = { 0x9a26d4a8, 0x2f0b, 0x47b6, { 0xb5, 0x8d, 0xa0, 0x3c, 0x36, 0x26, 0x8f, 0x91 } };
@@ -146,7 +146,7 @@ public:
 
 private:
     static const wchar_t* class_name() {
-        return L"foo_out_spatial_atmos_preferences";
+        return L"foo_out_spatial_audio_preferences";
     }
 
     static void register_class() {
@@ -302,10 +302,10 @@ private:
     RuntimeConfig initial_;
 };
 
-class preferences_page_spatial_atmos : public preferences_page_v3 {
+class preferences_page_spatial_audio : public preferences_page_v3 {
 public:
     const char* get_name() override {
-        return "Spatial Atmos";
+        return "Spatial Audio";
     }
 
     GUID get_guid() override {
@@ -321,7 +321,7 @@ public:
     }
 };
 
-static preferences_page_factory_t<preferences_page_spatial_atmos> g_preferences_page_factory;
+static preferences_page_factory_t<preferences_page_spatial_audio> g_preferences_page_factory;
 
 }  // namespace
-}  // namespace spatial_atmos
+}  // namespace spatial_audio

@@ -12,7 +12,7 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{AB0F2689-629D-4FF1-A7EC-A43E5F0E6B20}</ProjectGuid>
-    <RootNamespace>foo_out_spatial_atmos</RootNamespace>
+    <RootNamespace>foo_out_spatial_audio</RootNamespace>
     <Keyword>Win32Proj</Keyword>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
@@ -38,7 +38,7 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <TargetName>foo_out_spatial_atmos</TargetName>
+    <TargetName>foo_out_spatial_audio</TargetName>
     <OutDir>$(MSBuildProjectDirectory)\bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(MSBuildProjectDirectory)\obj\$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>

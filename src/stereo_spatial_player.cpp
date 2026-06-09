@@ -77,7 +77,7 @@ struct PlayerConfig {
 
 struct RuntimeOptions {
     std::string wavPath;
-    std::string configPath = "config\\atmos_profile.ini";
+    std::string configPath = "config\\spatial_audio_profile.ini";
     std::string mode = "bed";
 };
 
@@ -191,10 +191,10 @@ std::string ResolveConfigPath(const std::string& requestedPath) {
 
     const std::string exeDirectory = ExecutableDirectory();
     const std::vector<std::string> candidates = {
-        "config\\atmos_profile.ini",
-        "atmos_profile.ini",
-        JoinPath(exeDirectory, "config\\atmos_profile.ini"),
-        JoinPath(exeDirectory, "atmos_profile.ini"),
+        "config\\spatial_audio_profile.ini",
+        "spatial_audio_profile.ini",
+        JoinPath(exeDirectory, "config\\spatial_audio_profile.ini"),
+        JoinPath(exeDirectory, "spatial_audio_profile.ini"),
     };
 
     for (const auto& candidate : candidates) {

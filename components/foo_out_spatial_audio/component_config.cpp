@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "component_config.h"
 
-namespace spatial_atmos {
+namespace spatial_audio {
 
 static constexpr GUID guid_cfg_master_gain = { 0xe84f6d6e, 0xf21a, 0x4d07, { 0x94, 0x9e, 0xde, 0x37, 0xb1, 0x02, 0x1c, 0x56 } };
 static constexpr GUID guid_cfg_center_gain = { 0x7e551f08, 0x60ae, 0x46d6, { 0x8b, 0x0f, 0x3b, 0x0d, 0x48, 0x44, 0x3d, 0xfb } };
@@ -81,4 +81,4 @@ void WriteConfig(const RuntimeConfig& config) {
     cfg_map51_surround_right = config.map51SurroundRight;
 }
 
-}  // namespace spatial_atmos
+}  // namespace spatial_audio

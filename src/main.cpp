@@ -61,7 +61,7 @@ struct RuntimeOptions {
     bool probe = false;
     bool staticTest = false;
     bool custom = false;
-    std::string configPath = "config\\atmos_profile.ini";
+    std::string configPath = "config\\spatial_audio_profile.ini";
 };
 
 struct AudioObjectState {
@@ -322,9 +322,9 @@ RuntimeOptions ParseOptions(int argc, char** argv) {
         } else if (arg == "--help" || arg == "-h") {
             std::cout
                 << "Usage:\n"
-                << "  AtmosHomeTheaterExperiment --probe [--config path]\n"
-                << "  AtmosHomeTheaterExperiment --static-test [--config path]\n"
-                << "  AtmosHomeTheaterExperiment --custom [--config path]\n";
+                << "  SpatialAudioHomeTheaterExperiment --probe [--config path]\n"
+                << "  SpatialAudioHomeTheaterExperiment --static-test [--config path]\n"
+                << "  SpatialAudioHomeTheaterExperiment --custom [--config path]\n";
             std::exit(0);
         } else {
             throw std::runtime_error("Unknown argument: " + arg);

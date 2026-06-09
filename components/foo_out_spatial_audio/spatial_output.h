@@ -3,12 +3,12 @@
 #include "stdafx.h"
 #include "component_config.h"
 
-namespace spatial_atmos {
+namespace spatial_audio {
 
-class spatial_atmos_output : public output_impl {
+class spatial_audio_output : public output_impl {
 public:
-    spatial_atmos_output(const GUID& device, double bufferLength, bool dither, t_uint32 bitDepth);
-    ~spatial_atmos_output();
+    spatial_audio_output(const GUID& device, double bufferLength, bool dither, t_uint32 bitDepth);
+    ~spatial_audio_output();
 
     static GUID g_get_guid();
     static const char* g_get_name();
@@ -96,4 +96,4 @@ private:
     std::thread renderThread_;
 };
 
-}  // namespace spatial_atmos
+}  // namespace spatial_audio
