@@ -113,7 +113,7 @@ bool spatial_audio_output::g_is_high_latency() {
 }
 
 unsigned spatial_audio_output::get_forced_sample_rate() {
-    return 48000;
+    return forced_sample_rate(ReadConfig());
 }
 
 unsigned spatial_audio_output::get_forced_channel_mask() {
@@ -145,15 +145,17 @@ void spatial_audio_output::on_update() {
 }
 
 void spatial_audio_output::open(audio_chunk::spec_t const& spec) {
+    config_ = ReadConfig();
+    const uint32_t configuredRate = forced_sample_rate(config_);
+    const bool rateMatchesConfig = configuredRate == 0 || spec.sampleRate == configuredRate;
     const bool stereo = spec.chanCount == 2;
     const bool fivePointOne = spec.chanCount == 6 && (spec.chanMask == 0 || is_5point1_mask(spec.chanMask));
     const bool sevenPointOne = spec.chanCount == 8 && (spec.chanMask == 0 || is_7point1_mask(spec.chanMask));
-    if (spec.sampleRate != 48000 || (!stereo && !fivePointOne && !sevenPointOne)) {
+    if (!rateMatchesConfig || !spatial_sample_rate_supported(spec.sampleRate) || (!stereo && !fivePointOne && !sevenPointOne)) {
         throw exception_output_unsupported_stream_format();
     }
 
     stop_stream();
-    config_ = ReadConfig();
     sampleRate_ = spec.sampleRate;
     inputLayout_ = sevenPointOne ? InputLayout::SevenPointOne : fivePointOne ? InputLayout::FivePointOne : InputLayout::Stereo;
     capacityFrames_ = static_cast<size_t>(std::max(0.2, bufferLength_) * static_cast<double>(sampleRate_));
@@ -550,7 +552,20 @@ double spatial_audio_output::apply_limiter(double value) const {
     }
 
     const double ceiling = db_to_linear(std::clamp(config_.limiterCeilingDb, -24.0, 0.0));
-    return std::clamp(value, -ceiling, ceiling);
+    if (config_.limiterMode == LimiterMode::HardCeiling) {
+        return std::clamp(value, -ceiling, ceiling);
+    }
+
+    const double magnitude = std::fabs(value);
+    const double kneeStart = ceiling * 0.85;
+    if (magnitude <= kneeStart) {
+        return value;
+    }
+
+    const double range = std::max(ceiling - kneeStart, 0.000001);
+    const double over = magnitude - kneeStart;
+    const double limited = kneeStart + range * std::tanh(over / range);
+    return std::copysign(std::min(limited, ceiling), value);
 }
 
 double spatial_audio_output::apply_channel_delay(ChannelState& channel, double value) const {
@@ -593,6 +608,74 @@ bool spatial_audio_output::is_7point1_mask(unsigned mask) {
     const bool hasBack = (mask & audio_chunk::channels_back_left_right) == audio_chunk::channels_back_left_right;
     const bool hasSide = (mask & audio_chunk::channels_side_left_right) == audio_chunk::channels_side_left_right;
     return hasFront && hasBack && hasSide && audio_chunk::g_count_channels(mask) == 8;
+}
+
+uint32_t spatial_audio_output::fixed_sample_rate(SampleRateMode mode) {
+    switch (mode) {
+    case SampleRateMode::Fixed44100:
+        return 44100;
+    case SampleRateMode::Fixed48000:
+        return 48000;
+    case SampleRateMode::Fixed88200:
+        return 88200;
+    case SampleRateMode::Fixed96000:
+        return 96000;
+    case SampleRateMode::Fixed176400:
+        return 176400;
+    case SampleRateMode::Fixed192000:
+        return 192000;
+    default:
+        return 0;
+    }
+}
+
+uint32_t spatial_audio_output::highest_supported_sample_rate() {
+    const uint32_t descendingRates[] = {192000, 176400, 96000, 88200, 48000, 44100};
+    for (const uint32_t sampleRate : descendingRates) {
+        if (spatial_sample_rate_supported(sampleRate)) {
+            return sampleRate;
+        }
+    }
+    return 48000;
+}
+
+bool spatial_audio_output::spatial_sample_rate_supported(uint32_t sampleRate) {
+    HRESULT coInit = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    const bool shouldUninitialize = SUCCEEDED(coInit);
+    if (FAILED(coInit) && coInit != RPC_E_CHANGED_MODE) {
+        return sampleRate == 48000;
+    }
+    const auto cleanupCom = std::unique_ptr<void, void (*)(void*)>(shouldUninitialize ? reinterpret_cast<void*>(1) : nullptr, [](void* marker) {
+        if (marker != nullptr) {
+            CoUninitialize();
+        }
+    });
+
+    try {
+        ComPtr<IMMDeviceEnumerator> enumerator;
+        throw_if_failed(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL, IID_PPV_ARGS(&enumerator)), "Create MMDeviceEnumerator");
+
+        ComPtr<IMMDevice> device;
+        throw_if_failed(enumerator->GetDefaultAudioEndpoint(eRender, eMultimedia, &device), "Get default render endpoint");
+
+        ComPtr<ISpatialAudioClient> spatialClient;
+        throw_if_failed(device->Activate(__uuidof(ISpatialAudioClient), CLSCTX_INPROC_SERVER, nullptr, reinterpret_cast<void**>(spatialClient.GetAddressOf())), "Activate ISpatialAudioClient");
+
+        const WAVEFORMATEX format = make_object_format(sampleRate);
+        return SUCCEEDED(spatialClient->IsAudioObjectFormatSupported(&format));
+    } catch (...) {
+        return sampleRate == 48000;
+    }
+}
+
+uint32_t spatial_audio_output::forced_sample_rate(const RuntimeConfig& config) {
+    if (config.sampleRateMode == SampleRateMode::SourceIfSupported) {
+        return 0;
+    }
+    if (config.sampleRateMode == SampleRateMode::AutoHighest) {
+        return highest_supported_sample_rate();
+    }
+    return fixed_sample_rate(config.sampleRateMode);
 }
 
 float spatial_audio_output::sample_by_flag(const audio_sample* samples, size_t frame, unsigned channels, unsigned mask, unsigned flag, unsigned fallbackIndex) {

@@ -31,11 +31,29 @@ enum class LayoutMode {
     SevenPointOneFour = 5,
 };
 
+enum class SampleRateMode {
+    AutoHighest = 0,
+    SourceIfSupported = 1,
+    Fixed44100 = 2,
+    Fixed48000 = 3,
+    Fixed88200 = 4,
+    Fixed96000 = 5,
+    Fixed176400 = 6,
+    Fixed192000 = 7,
+};
+
+enum class LimiterMode {
+    TransparentSoft = 0,
+    HardCeiling = 1,
+};
+
 struct RuntimeConfig {
     LayoutMode layoutMode = LayoutMode::Auto;
+    SampleRateMode sampleRateMode = SampleRateMode::AutoHighest;
     double masterGainDb = -12.0;
     double headroomDb = 0.0;
     bool limiterEnabled = true;
+    LimiterMode limiterMode = LimiterMode::TransparentSoft;
     double limiterCeilingDb = -1.0;
     double centerGainDb = -6.0;
     double surroundGainDb = -9.0;

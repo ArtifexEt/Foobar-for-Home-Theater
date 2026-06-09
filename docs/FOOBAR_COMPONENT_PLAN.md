@@ -16,6 +16,7 @@ The foobar configuration dialog should have four compact tabs:
 
 1. Layout
    - Output mode: Auto, Stereo, 5.1, 7.1, 5.1.2, 7.1.4, Custom.
+   - Render quality: highest supported sample rate, source sample rate if supported, or fixed sample rate.
    - Windows Spatial Audio diagnostics: endpoint name, native static bed, max dynamic objects.
    - Test buttons for front, side, rear, ceiling, and LFE.
 
@@ -46,7 +47,7 @@ The foobar configuration dialog should have four compact tabs:
 3. Dynamic object test: send synthetic tones to configured x/y/z positions.
 4. Standalone stereo WAV player: route real stereo PCM into the same static bed and dynamic object paths.
 5. Foobar output skeleton: accept PCM and route stereo to Windows Spatial Audio static bed.
-6. Stereo upmix: tune mid/side/ambience/LFE/height ambience routing and expose per-channel controls. Implemented: sliders, headroom, limiter, decorrelation, per-channel gain and delay.
+6. Stereo upmix: tune mid/side/ambience/LFE/height ambience routing and expose per-channel controls. Implemented: sliders, headroom, transparent soft limiter, render sample rate control, decorrelation, per-channel gain and delay.
 7. 5.1 input mapping: route FL/FR/FC/LFE/SL/SR sources to configurable static bed targets. Implemented.
 8. Dynamic object mode inside the foobar output. Partially implemented for directional test tones; real music object routing remains.
 9. Rich configuration UI and profile import/export. Partially implemented: tabbed UI, endpoint probe, directional test pad. Profile import/export remains.

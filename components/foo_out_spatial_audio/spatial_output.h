@@ -76,6 +76,10 @@ private:
     double apply_channel_delay(ChannelState& channel, double value) const;
     static bool is_5point1_mask(unsigned mask);
     static bool is_7point1_mask(unsigned mask);
+    static uint32_t fixed_sample_rate(SampleRateMode mode);
+    static uint32_t highest_supported_sample_rate();
+    static bool spatial_sample_rate_supported(uint32_t sampleRate);
+    static uint32_t forced_sample_rate(const RuntimeConfig& config);
     static float sample_by_flag(const audio_sample* samples, size_t frame, unsigned channels, unsigned mask, unsigned flag, unsigned fallbackIndex);
     static int target_from_key(const std::string& key);
     static AudioObjectType requested_static_mask(const RuntimeConfig& config, AudioObjectType nativeMask);

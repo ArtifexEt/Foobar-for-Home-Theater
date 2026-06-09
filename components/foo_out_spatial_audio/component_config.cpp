@@ -5,8 +5,10 @@ namespace spatial_audio {
 
 static constexpr GUID guid_cfg_master_gain = { 0xe84f6d6e, 0xf21a, 0x4d07, { 0x94, 0x9e, 0xde, 0x37, 0xb1, 0x02, 0x1c, 0x56 } };
 static constexpr GUID guid_cfg_layout_mode = { 0xb4dfd071, 0x7707, 0x4967, { 0xaa, 0x38, 0x2b, 0x81, 0xf1, 0xf1, 0x8d, 0xad } };
+static constexpr GUID guid_cfg_sample_rate_mode = { 0x9df89513, 0x3f1b, 0x4548, { 0xa2, 0x01, 0x26, 0xc4, 0x55, 0x49, 0x8f, 0xf1 } };
 static constexpr GUID guid_cfg_headroom = { 0x810b1a63, 0xf065, 0x417d, { 0x84, 0x66, 0x07, 0xce, 0x0f, 0xf5, 0x68, 0xf0 } };
 static constexpr GUID guid_cfg_limiter_enabled = { 0x26f390c3, 0xf665, 0x4cd1, { 0x96, 0x72, 0x44, 0xaa, 0xa8, 0xa4, 0xe1, 0x7a } };
+static constexpr GUID guid_cfg_limiter_mode = { 0x6dd2b549, 0x7f65, 0x4aa9, { 0xb7, 0x89, 0x1a, 0x9a, 0xdc, 0x44, 0x30, 0xe9 } };
 static constexpr GUID guid_cfg_limiter_ceiling = { 0x02d2e53a, 0xcdf9, 0x44df, { 0x8c, 0xda, 0xea, 0x8f, 0x6e, 0x06, 0xe9, 0xfb } };
 static constexpr GUID guid_cfg_center_gain = { 0x7e551f08, 0x60ae, 0x46d6, { 0x8b, 0x0f, 0x3b, 0x0d, 0x48, 0x44, 0x3d, 0xfb } };
 static constexpr GUID guid_cfg_surround_gain = { 0x28113b00, 0x8e41, 0x4512, { 0xba, 0x32, 0x1a, 0x1f, 0xfb, 0x12, 0xb4, 0xec } };
@@ -55,9 +57,11 @@ static constexpr GUID guid_cfg_directional_test_gain = { 0xb0e4807b, 0xb7fd, 0x4
 static constexpr GUID guid_cfg_directional_test_frequency = { 0x8e136568, 0x5de0, 0x4ef9, { 0xb8, 0x5e, 0x47, 0xec, 0x43, 0x28, 0x01, 0xbf } };
 
 static cfg_int cfg_layout_mode(guid_cfg_layout_mode, static_cast<int>(LayoutMode::Auto));
+static cfg_int cfg_sample_rate_mode(guid_cfg_sample_rate_mode, static_cast<int>(SampleRateMode::AutoHighest));
 static cfg_float cfg_master_gain(guid_cfg_master_gain, -12.0);
 static cfg_float cfg_headroom(guid_cfg_headroom, 0.0);
 static cfg_bool cfg_limiter_enabled(guid_cfg_limiter_enabled, true);
+static cfg_int cfg_limiter_mode(guid_cfg_limiter_mode, static_cast<int>(LimiterMode::TransparentSoft));
 static cfg_float cfg_limiter_ceiling(guid_cfg_limiter_ceiling, -1.0);
 static cfg_float cfg_center_gain(guid_cfg_center_gain, -6.0);
 static cfg_float cfg_surround_gain(guid_cfg_surround_gain, -9.0);
@@ -152,6 +156,31 @@ static LayoutMode layout_from_int(int value) {
     }
 }
 
+static SampleRateMode sample_rate_mode_from_int(int value) {
+    switch (value) {
+    case static_cast<int>(SampleRateMode::SourceIfSupported):
+        return SampleRateMode::SourceIfSupported;
+    case static_cast<int>(SampleRateMode::Fixed44100):
+        return SampleRateMode::Fixed44100;
+    case static_cast<int>(SampleRateMode::Fixed48000):
+        return SampleRateMode::Fixed48000;
+    case static_cast<int>(SampleRateMode::Fixed88200):
+        return SampleRateMode::Fixed88200;
+    case static_cast<int>(SampleRateMode::Fixed96000):
+        return SampleRateMode::Fixed96000;
+    case static_cast<int>(SampleRateMode::Fixed176400):
+        return SampleRateMode::Fixed176400;
+    case static_cast<int>(SampleRateMode::Fixed192000):
+        return SampleRateMode::Fixed192000;
+    default:
+        return SampleRateMode::AutoHighest;
+    }
+}
+
+static LimiterMode limiter_mode_from_int(int value) {
+    return value == static_cast<int>(LimiterMode::HardCeiling) ? LimiterMode::HardCeiling : LimiterMode::TransparentSoft;
+}
+
 RuntimeConfig DefaultConfig() {
     return {};
 }
@@ -159,9 +188,11 @@ RuntimeConfig DefaultConfig() {
 RuntimeConfig ReadConfig() {
     RuntimeConfig config;
     config.layoutMode = layout_from_int(static_cast<int>(cfg_layout_mode.get()));
+    config.sampleRateMode = sample_rate_mode_from_int(static_cast<int>(cfg_sample_rate_mode.get()));
     config.masterGainDb = cfg_master_gain.get();
     config.headroomDb = cfg_headroom.get();
     config.limiterEnabled = cfg_limiter_enabled.get();
+    config.limiterMode = limiter_mode_from_int(static_cast<int>(cfg_limiter_mode.get()));
     config.limiterCeilingDb = cfg_limiter_ceiling.get();
     config.centerGainDb = cfg_center_gain.get();
     config.surroundGainDb = cfg_surround_gain.get();
@@ -193,9 +224,11 @@ RuntimeConfig ReadConfig() {
 
 void WriteConfig(const RuntimeConfig& config) {
     cfg_layout_mode = static_cast<int>(config.layoutMode);
+    cfg_sample_rate_mode = static_cast<int>(config.sampleRateMode);
     cfg_master_gain = static_cast<float>(config.masterGainDb);
     cfg_headroom = static_cast<float>(config.headroomDb);
     cfg_limiter_enabled = config.limiterEnabled;
+    cfg_limiter_mode = static_cast<int>(config.limiterMode);
     cfg_limiter_ceiling = static_cast<float>(config.limiterCeilingDb);
     cfg_center_gain = static_cast<float>(config.centerGainDb);
     cfg_surround_gain = static_cast<float>(config.surroundGainDb);

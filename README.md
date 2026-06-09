@@ -26,10 +26,17 @@ Stereo input is upmixed to the available Spatial Audio bed. 5.1 input can be map
 The preferences page now exposes:
 
 - Layout selection: Auto, Stereo, 5.1, 7.1, 5.1.2, and 7.1.4, with endpoint probe output.
+- Render quality controls: Auto highest supported sample rate, source sample rate if supported, or fixed 44.1/48/88.2/96/176.4/192 kHz.
 - Upmix sliders next to numeric values for master/headroom, center, surround, rear, height, width, height ambience, decorrelation, and LFE.
 - Per-channel gain and delay controls for the 7.1.4 bed.
 - A directional test pad that can play a short Spatial Audio tone from front, side, rear, ceiling, or LFE directions. If the endpoint supports dynamic objects, the test can use object coordinates; otherwise it falls back to static bed channels.
-- Limiter ceiling control to reduce accidental clipping.
+- Transparent soft limiter or hard ceiling limiter control to reduce accidental clipping.
+
+## Quality
+
+The component renders Windows Spatial Audio objects as mono float32 streams and keeps internal mix math in double precision. `Render rate` defaults to `Auto highest supported`; use `Probe endpoint` to see which float32 object rates the selected Windows Spatial Audio endpoint accepts. If a receiver behaves better at the standard home-theater rate, set `Render rate` to `48 kHz compatible`.
+
+For cleanest output, keep enough headroom for stereo upmixing, leave `Limiter` enabled in `Transparent soft` mode, and keep per-channel trims at or below 0 dB unless you are compensating for real speaker calibration.
 
 ## Support
 

@@ -12,9 +12,11 @@ static constexpr double kPi = 3.14159265358979323846;
 enum ControlId {
     idTabs = 1001,
     idLayoutMode,
+    idSampleRateMode,
     idProbeEndpoint,
     idEndpointSummary,
     idLimiterEnabled,
+    idLimiterMode,
     idSupportButton,
     idRepoButton,
     idEnableLfe,
@@ -127,6 +129,16 @@ struct LayoutOption {
     const wchar_t* label;
 };
 
+struct SampleRateOption {
+    SampleRateMode mode;
+    const wchar_t* label;
+};
+
+struct LimiterOption {
+    LimiterMode mode;
+    const wchar_t* label;
+};
+
 const LayoutOption kLayoutOptions[] = {
     {LayoutMode::Auto, L"Auto / endpoint native"},
     {LayoutMode::Stereo, L"Stereo"},
@@ -135,6 +147,24 @@ const LayoutOption kLayoutOptions[] = {
     {LayoutMode::FivePointOneTwo, L"5.1.2"},
     {LayoutMode::SevenPointOneFour, L"7.1.4"},
 };
+
+const SampleRateOption kSampleRateOptions[] = {
+    {SampleRateMode::AutoHighest, L"Auto highest supported"},
+    {SampleRateMode::SourceIfSupported, L"Source rate if supported"},
+    {SampleRateMode::Fixed48000, L"48 kHz compatible"},
+    {SampleRateMode::Fixed44100, L"44.1 kHz"},
+    {SampleRateMode::Fixed88200, L"88.2 kHz"},
+    {SampleRateMode::Fixed96000, L"96 kHz"},
+    {SampleRateMode::Fixed176400, L"176.4 kHz"},
+    {SampleRateMode::Fixed192000, L"192 kHz"},
+};
+
+const LimiterOption kLimiterOptions[] = {
+    {LimiterMode::TransparentSoft, L"Transparent soft"},
+    {LimiterMode::HardCeiling, L"Hard ceiling"},
+};
+
+const uint32_t kProbeSampleRates[] = {44100, 48000, 88200, 96000, 176400, 192000};
 
 struct SliderBinding {
     int editId;
@@ -277,6 +307,53 @@ WAVEFORMATEX make_object_format(uint32_t sampleRate) {
     return format;
 }
 
+bool is_format_supported(ISpatialAudioClient* spatialClient, uint32_t sampleRate) {
+    const WAVEFORMATEX format = make_object_format(sampleRate);
+    return SUCCEEDED(spatialClient->IsAudioObjectFormatSupported(&format));
+}
+
+uint32_t fixed_sample_rate(SampleRateMode mode) {
+    switch (mode) {
+    case SampleRateMode::Fixed44100:
+        return 44100;
+    case SampleRateMode::Fixed48000:
+        return 48000;
+    case SampleRateMode::Fixed88200:
+        return 88200;
+    case SampleRateMode::Fixed96000:
+        return 96000;
+    case SampleRateMode::Fixed176400:
+        return 176400;
+    case SampleRateMode::Fixed192000:
+        return 192000;
+    default:
+        return 0;
+    }
+}
+
+uint32_t highest_supported_sample_rate(ISpatialAudioClient* spatialClient) {
+    const uint32_t descendingRates[] = {192000, 176400, 96000, 88200, 48000, 44100};
+    for (const uint32_t sampleRate : descendingRates) {
+        if (is_format_supported(spatialClient, sampleRate)) {
+            return sampleRate;
+        }
+    }
+    return 48000;
+}
+
+uint32_t resolve_test_sample_rate(ISpatialAudioClient* spatialClient, SampleRateMode mode) {
+    if (mode == SampleRateMode::AutoHighest) {
+        return highest_supported_sample_rate(spatialClient);
+    }
+
+    const uint32_t fixedRate = fixed_sample_rate(mode);
+    if (fixedRate != 0) {
+        return fixedRate;
+    }
+
+    return is_format_supported(spatialClient, 48000) ? 48000 : highest_supported_sample_rate(spatialClient);
+}
+
 ComPtr<ISpatialAudioClient> create_spatial_client() {
     ComPtr<IMMDeviceEnumerator> enumerator;
     throw_if_failed(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL, IID_PPV_ARGS(&enumerator)), "Create MMDeviceEnumerator");
@@ -318,8 +395,8 @@ ComPtr<ISpatialAudioObjectRenderStream> activate_stream(
     return stream;
 }
 
-void fill_sine(float* samples, UINT32 frames, double& phase, double frequencyHz, double gain) {
-    const double increment = 2.0 * kPi * frequencyHz / 48000.0;
+void fill_sine(float* samples, UINT32 frames, double& phase, double frequencyHz, double gain, uint32_t sampleRate) {
+    const double increment = 2.0 * kPi * frequencyHz / static_cast<double>(sampleRate);
     for (UINT32 i = 0; i < frames; ++i) {
         samples[i] = static_cast<float>(std::sin(phase) * gain);
         phase += increment;
@@ -331,7 +408,7 @@ void fill_sine(float* samples, UINT32 frames, double& phase, double frequencyHz,
 
 std::atomic_bool g_directional_test_running = false;
 
-void run_directional_test_worker(int target, bool preferDynamicObject, double gainDb, double frequencyHz) {
+void run_directional_test_worker(int target, bool preferDynamicObject, double gainDb, double frequencyHz, SampleRateMode sampleRateMode) {
     bool expected = false;
     if (!g_directional_test_running.compare_exchange_strong(expected, true)) {
         return;
@@ -350,7 +427,8 @@ void run_directional_test_worker(int target, bool preferDynamicObject, double ga
         }
 
         ComPtr<ISpatialAudioClient> spatialClient = create_spatial_client();
-        const WAVEFORMATEX format = make_object_format(48000);
+        const uint32_t sampleRate = resolve_test_sample_rate(spatialClient.Get(), sampleRateMode);
+        const WAVEFORMATEX format = make_object_format(sampleRate);
         throw_if_failed(spatialClient->IsAudioObjectFormatSupported(&format), "Check spatial object format");
 
         UINT32 maxDynamicObjectCount = 0;
@@ -413,7 +491,7 @@ void run_directional_test_worker(int target, bool preferDynamicObject, double ga
 
             auto* samples = reinterpret_cast<float*>(byteBuffer);
             const UINT32 framesToWrite = std::min(frameCount, bufferLength / static_cast<UINT32>(sizeof(float)));
-            fill_sine(samples, framesToWrite, phase, frequency, gain);
+            fill_sine(samples, framesToWrite, phase, frequency, gain, sampleRate);
 
             if (useDynamicObject) {
                 throw_if_failed(object->SetPosition(targetDef->x, targetDef->y, targetDef->z), "Set dynamic test position");
@@ -421,7 +499,7 @@ void run_directional_test_worker(int target, bool preferDynamicObject, double ga
             }
 
             throw_if_failed(stream->EndUpdatingAudioObjects(), "End updating audio objects");
-            renderedSeconds += static_cast<double>(frameCount) / 48000.0;
+            renderedSeconds += static_cast<double>(frameCount) / static_cast<double>(sampleRate);
         }
 
         stream->Stop();
@@ -433,11 +511,11 @@ void run_directional_test_worker(int target, bool preferDynamicObject, double ga
     g_directional_test_running.store(false);
 }
 
-void run_directional_test(int target, bool preferDynamicObject, double gainDb, double frequencyHz) {
-    std::thread(run_directional_test_worker, target, preferDynamicObject, gainDb, frequencyHz).detach();
+void run_directional_test(int target, bool preferDynamicObject, double gainDb, double frequencyHz, SampleRateMode sampleRateMode) {
+    std::thread(run_directional_test_worker, target, preferDynamicObject, gainDb, frequencyHz, sampleRateMode).detach();
 }
 
-std::wstring query_endpoint_summary(LayoutMode layoutMode) {
+std::wstring query_endpoint_summary(LayoutMode layoutMode, SampleRateMode sampleRateMode) {
     HRESULT coInit = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     const bool shouldUninitialize = SUCCEEDED(coInit);
     if (FAILED(coInit) && coInit != RPC_E_CHANGED_MODE) {
@@ -454,7 +532,8 @@ std::wstring query_endpoint_summary(LayoutMode layoutMode) {
 
     try {
         ComPtr<ISpatialAudioClient> spatialClient = create_spatial_client();
-        const WAVEFORMATEX format = make_object_format(48000);
+        const uint32_t selectedSampleRate = resolve_test_sample_rate(spatialClient.Get(), sampleRateMode);
+        const WAVEFORMATEX format = make_object_format(selectedSampleRate);
         const HRESULT formatHr = spatialClient->IsAudioObjectFormatSupported(&format);
 
         AudioObjectType nativeMask = AudioObjectType_None;
@@ -478,8 +557,24 @@ std::wstring query_endpoint_summary(LayoutMode layoutMode) {
         }
 
         std::wostringstream text;
-        text << L"Object format: float32 mono 48000 Hz\r\n";
+        text << L"Object format: float32 mono " << selectedSampleRate << L" Hz\r\n";
         text << L"Format supported: " << (SUCCEEDED(formatHr) ? L"yes" : L"no") << L" - " << widen(hresult_text(formatHr)) << L"\r\n";
+        text << L"Supported rates: ";
+        bool firstRate = true;
+        for (const uint32_t sampleRate : kProbeSampleRates) {
+            if (!is_format_supported(spatialClient.Get(), sampleRate)) {
+                continue;
+            }
+            if (!firstRate) {
+                text << L", ";
+            }
+            text << sampleRate;
+            firstRate = false;
+        }
+        if (firstRate) {
+            text << L"none";
+        }
+        text << L"\r\n";
         text << L"Native static bed: " << mask_text(nativeMask) << L"\r\n";
         text << L"Requested bed: " << mask_text(requestedMask) << L"\r\n";
         text << L"Active bed after fallback: " << mask_text(activeMask) << L"\r\n";
@@ -558,6 +653,46 @@ void set_layout_mode(HWND wnd, LayoutMode mode) {
     HWND combo = GetDlgItem(wnd, idLayoutMode);
     for (int i = 0; i < ComboBox_GetCount(combo); ++i) {
         if (static_cast<LayoutMode>(ComboBox_GetItemData(combo, i)) == mode) {
+            ComboBox_SetCurSel(combo, i);
+            return;
+        }
+    }
+    ComboBox_SetCurSel(combo, 0);
+}
+
+SampleRateMode read_sample_rate_mode(HWND wnd) {
+    HWND combo = GetDlgItem(wnd, idSampleRateMode);
+    const int index = ComboBox_GetCurSel(combo);
+    if (index == CB_ERR) {
+        return SampleRateMode::AutoHighest;
+    }
+    return static_cast<SampleRateMode>(ComboBox_GetItemData(combo, index));
+}
+
+void set_sample_rate_mode(HWND wnd, SampleRateMode mode) {
+    HWND combo = GetDlgItem(wnd, idSampleRateMode);
+    for (int i = 0; i < ComboBox_GetCount(combo); ++i) {
+        if (static_cast<SampleRateMode>(ComboBox_GetItemData(combo, i)) == mode) {
+            ComboBox_SetCurSel(combo, i);
+            return;
+        }
+    }
+    ComboBox_SetCurSel(combo, 0);
+}
+
+LimiterMode read_limiter_mode(HWND wnd) {
+    HWND combo = GetDlgItem(wnd, idLimiterMode);
+    const int index = ComboBox_GetCurSel(combo);
+    if (index == CB_ERR) {
+        return LimiterMode::TransparentSoft;
+    }
+    return static_cast<LimiterMode>(ComboBox_GetItemData(combo, index));
+}
+
+void set_limiter_mode(HWND wnd, LimiterMode mode) {
+    HWND combo = GetDlgItem(wnd, idLimiterMode);
+    for (int i = 0; i < ComboBox_GetCount(combo); ++i) {
+        if (static_cast<LimiterMode>(ComboBox_GetItemData(combo, i)) == mode) {
             ComboBox_SetCurSel(combo, i);
             return;
         }
@@ -667,7 +802,7 @@ private:
             return 0;
         }
         if (id == idProbeEndpoint && code == BN_CLICKED) {
-            const std::wstring summary = query_endpoint_summary(read_layout_mode(wnd_));
+            const std::wstring summary = query_endpoint_summary(read_layout_mode(wnd_), read_sample_rate_mode(wnd_));
             SetDlgItemTextW(wnd_, idEndpointSummary, summary.c_str());
             return 0;
         }
@@ -678,7 +813,7 @@ private:
         if (id >= idTestButtonBase && id < idTestButtonBase + static_cast<int>(target_count) && code == BN_CLICKED) {
             const int target = static_cast<int>(id - idTestButtonBase);
             set_combo_target(wnd_, idTestTarget, target);
-            run_directional_test(target, Button_GetCheck(GetDlgItem(wnd_, idTestUseDynamicObject)) == BST_CHECKED, read_double(wnd_, idTestGain, -18.0), read_double(wnd_, idTestFrequency, 660.0));
+            run_directional_test(target, Button_GetCheck(GetDlgItem(wnd_, idTestUseDynamicObject)) == BST_CHECKED, read_double(wnd_, idTestGain, -18.0), read_double(wnd_, idTestFrequency, 660.0), read_sample_rate_mode(wnd_));
             return 0;
         }
 
@@ -779,11 +914,25 @@ private:
             ComboBox_SetItemData(layoutCombo, index, static_cast<int>(option.mode));
         }
 
-        add_checkbox(page, idLimiterEnabled, L"Limiter", 28, 92, 120, 24);
-        add_slider_row(page, L"Limiter ceiling (dB)", idLimiterCeiling, idLimiterCeilingSlider, 188, 92, -12.0, 0.0, 10.0, 1);
+        add_label(page, L"Render rate", 28, 94, 120, 24);
+        HWND sampleRateCombo = add_combo(page, idSampleRateMode, 188, 92, 220, 220);
+        for (const auto& option : kSampleRateOptions) {
+            const auto index = ComboBox_AddString(sampleRateCombo, option.label);
+            ComboBox_SetItemData(sampleRateCombo, index, static_cast<int>(option.mode));
+        }
 
-        add_button(page, idProbeEndpoint, L"Probe endpoint", 28, 138, 150, 28);
-        HWND summary = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | WS_VSCROLL, 28, 180, 680, 270, wnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(idEndpointSummary)), core_api::get_my_instance(), nullptr);
+        add_checkbox(page, idLimiterEnabled, L"Limiter", 28, 134, 120, 24);
+        add_label(page, L"Limiter mode", 188, 134, 110, 24);
+        HWND limiterCombo = add_combo(page, idLimiterMode, 318, 132, 180, 120);
+        for (const auto& option : kLimiterOptions) {
+            const auto index = ComboBox_AddString(limiterCombo, option.label);
+            ComboBox_SetItemData(limiterCombo, index, static_cast<int>(option.mode));
+        }
+
+        add_slider_row(page, L"Limiter ceiling (dB)", idLimiterCeiling, idLimiterCeilingSlider, 28, 174, -12.0, 0.0, 10.0, 1);
+
+        add_button(page, idProbeEndpoint, L"Probe endpoint", 28, 222, 150, 28);
+        HWND summary = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | WS_VSCROLL, 28, 264, 680, 186, wnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(idEndpointSummary)), core_api::get_my_instance(), nullptr);
         add_page_control(page, summary);
     }
 
@@ -968,9 +1117,11 @@ private:
     RuntimeConfig read_from_controls() const {
         RuntimeConfig config;
         config.layoutMode = read_layout_mode(wnd_);
+        config.sampleRateMode = read_sample_rate_mode(wnd_);
         config.masterGainDb = read_double(wnd_, idMasterGain, config.masterGainDb);
         config.headroomDb = read_double(wnd_, idHeadroom, config.headroomDb);
         config.limiterEnabled = Button_GetCheck(GetDlgItem(wnd_, idLimiterEnabled)) == BST_CHECKED;
+        config.limiterMode = read_limiter_mode(wnd_);
         config.limiterCeilingDb = read_double(wnd_, idLimiterCeiling, config.limiterCeilingDb);
         config.centerGainDb = read_double(wnd_, idCenterGain, config.centerGainDb);
         config.surroundGainDb = read_double(wnd_, idSurroundGain, config.surroundGainDb);
@@ -1003,9 +1154,11 @@ private:
     void write_to_controls(const RuntimeConfig& config) {
         updatingControls_ = true;
         set_layout_mode(wnd_, config.layoutMode);
+        set_sample_rate_mode(wnd_, config.sampleRateMode);
         set_numeric(idMasterGain, config.masterGainDb);
         set_numeric(idHeadroom, config.headroomDb);
         Button_SetCheck(GetDlgItem(wnd_, idLimiterEnabled), config.limiterEnabled ? BST_CHECKED : BST_UNCHECKED);
+        set_limiter_mode(wnd_, config.limiterMode);
         set_numeric(idLimiterCeiling, config.limiterCeilingDb);
         set_numeric(idCenterGain, config.centerGainDb);
         set_numeric(idSurroundGain, config.surroundGainDb);
@@ -1037,7 +1190,7 @@ private:
 
     void run_selected_test() {
         const int target = read_combo_target(wnd_, idTestTarget, target_front_center);
-        run_directional_test(target, Button_GetCheck(GetDlgItem(wnd_, idTestUseDynamicObject)) == BST_CHECKED, read_double(wnd_, idTestGain, -18.0), read_double(wnd_, idTestFrequency, 660.0));
+        run_directional_test(target, Button_GetCheck(GetDlgItem(wnd_, idTestUseDynamicObject)) == BST_CHECKED, read_double(wnd_, idTestGain, -18.0), read_double(wnd_, idTestFrequency, 660.0), read_sample_rate_mode(wnd_));
     }
 
     static bool different(double a, double b) {
@@ -1047,9 +1200,11 @@ private:
     bool has_changed() const {
         const RuntimeConfig current = read_from_controls();
         if (current.layoutMode != initial_.layoutMode
+            || current.sampleRateMode != initial_.sampleRateMode
             || different(current.masterGainDb, initial_.masterGainDb)
             || different(current.headroomDb, initial_.headroomDb)
             || current.limiterEnabled != initial_.limiterEnabled
+            || current.limiterMode != initial_.limiterMode
             || different(current.limiterCeilingDb, initial_.limiterCeilingDb)
             || different(current.centerGainDb, initial_.centerGainDb)
             || different(current.surroundGainDb, initial_.surroundGainDb)
