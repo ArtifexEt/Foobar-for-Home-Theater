@@ -203,6 +203,10 @@ const TargetDef* target_def_from_target(int target) {
     return nullptr;
 }
 
+bool supports_dynamic_test_target(int target) {
+    return target != target_low_frequency;
+}
+
 AudioObjectType add_mask(AudioObjectType mask, AudioObjectType value) {
     return static_cast<AudioObjectType>(static_cast<uint32_t>(mask) | static_cast<uint32_t>(value));
 }
@@ -456,7 +460,7 @@ void run_directional_test_worker(int target, bool preferDynamicObject, double ga
         AudioObjectType nativeMask = AudioObjectType_None;
         throw_if_failed(spatialClient->GetNativeStaticObjectTypeMask(&nativeMask), "Get native static object mask");
 
-        const bool useDynamicObject = preferDynamicObject && maxDynamicObjectCount > 0;
+        const bool useDynamicObject = preferDynamicObject && supports_dynamic_test_target(target) && maxDynamicObjectCount > 0;
         const AudioObjectType staticMask = useDynamicObject ? AudioObjectType_None : targetDef->type;
         if (!useDynamicObject && !mask_contains(nativeMask, targetDef->type)) {
             throw std::runtime_error("Selected static direction is not exposed by this endpoint.");
@@ -489,7 +493,8 @@ void run_directional_test_worker(int target, bool preferDynamicObject, double ga
         double renderedSeconds = 0.0;
         const double durationSeconds = 1.4;
         const double gain = db_to_linear(std::clamp(gainDb, -60.0, 0.0));
-        const double frequency = std::clamp(frequencyHz <= 0.0 ? targetDef->frequencyHz : frequencyHz, 40.0, 2000.0);
+        const double requestedFrequency = target == target_low_frequency ? targetDef->frequencyHz : frequencyHz;
+        const double frequency = std::clamp(requestedFrequency <= 0.0 ? targetDef->frequencyHz : requestedFrequency, 40.0, 2000.0);
 
         while (renderedSeconds < durationSeconds) {
             if (WaitForSingleObject(completionEvent, 1000) != WAIT_OBJECT_0) {
@@ -1249,7 +1254,7 @@ private:
         HWND loopTest = add_checkbox(page, idTestLoopEnabled, L"Loop test while playing", 28, 54, 190, 24);
         HWND dynamicTest = add_checkbox(page, idTestUseDynamicObject, L"Prefer dynamic object", 240, 54, 190, 24);
         add_tooltip(loopTest, L"Mix a continuous test tone into playback for the selected direction.");
-        add_tooltip(dynamicTest, L"Use a dynamic Spatial Audio object for test tones when the endpoint supports it.");
+        add_tooltip(dynamicTest, L"Use a dynamic Spatial Audio object for positional test tones when supported. LFE always uses the static LFE bed channel.");
 
         add_label(page, L"Direction", 28, 92, 100, 24);
         HWND combo = add_combo(page, idTestTarget, 128, 90, 190, 220);
@@ -1261,7 +1266,7 @@ private:
         add_slider_row(page, L"Test gain (dB)", idTestGain, idTestGainSlider, 28, 132, -60.0, 0.0, 10.0, 1);
         add_slider_row(page, L"Frequency (Hz)", idTestFrequency, idTestFrequencySlider, 28, 164, 40.0, 2000.0, 1.0, 0);
         add_tooltip(GetDlgItem(wnd_, idTestGain), L"Level of generated test tones.");
-        add_tooltip(GetDlgItem(wnd_, idTestFrequency), L"Frequency of generated test tones.");
+        add_tooltip(GetDlgItem(wnd_, idTestFrequency), L"Frequency of generated test tones. LFE tests always use a low 55 Hz tone.");
 
         add_button(page, idTestButtonBase + target_top_front_left, L"Top FL", 182, 222, 90, 30);
         add_button(page, idTestButtonBase + target_top_front_right, L"Top FR", 382, 222, 90, 30);

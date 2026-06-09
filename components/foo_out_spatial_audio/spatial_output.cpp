@@ -411,7 +411,10 @@ void spatial_audio_output::render_loop(uint32_t sampleRate) {
             }
 
             const double masterGain = db_to_linear(config_.masterGainDb + config_.headroomDb + volumeDb_.load());
-            const bool dynamicTestActive = config_.directionalTestEnabled && config_.directionalTestUseDynamicObject && maxDynamicObjectCount > 0;
+            const bool dynamicTestActive = config_.directionalTestEnabled
+                && config_.directionalTestUseDynamicObject
+                && config_.directionalTestTarget != target_low_frequency
+                && maxDynamicObjectCount > 0;
             const bool staticTestActive = config_.directionalTestEnabled && !dynamicTestActive;
             for (auto& channel : channels) {
                 BYTE* byteBuffer = nullptr;
@@ -450,7 +453,9 @@ void spatial_audio_output::render_loop(uint32_t sampleRate) {
                 float x = 0.0f;
                 float y = 0.0f;
                 float z = -1.0f;
-                target_coordinates(config_.directionalTestTarget, x, y, z);
+                if (!target_coordinates(config_.directionalTestTarget, x, y, z)) {
+                    throw std::runtime_error("Selected test target cannot be positioned as a dynamic object.");
+                }
                 throw_if_failed(dynamicTestObject->SetPosition(x, y, z), "Set dynamic test position");
                 throw_if_failed(dynamicTestObject->SetVolume(1.0f), "Set dynamic test volume");
             }
@@ -547,7 +552,7 @@ double spatial_audio_output::mapped_7point1_value(const std::string& key, const 
 }
 
 double spatial_audio_output::test_signal_value(double& phase) const {
-    const double frequency = std::clamp(config_.directionalTestFrequencyHz, 40.0, 2000.0);
+    const double frequency = test_frequency_hz();
     const double gain = db_to_linear(std::clamp(config_.directionalTestGainDb, -60.0, 0.0));
     const double value = std::sin(phase) * gain;
     phase += 2.0 * kPi * frequency / static_cast<double>(sampleRate_);
@@ -555,6 +560,13 @@ double spatial_audio_output::test_signal_value(double& phase) const {
         phase -= 2.0 * kPi;
     }
     return value;
+}
+
+double spatial_audio_output::test_frequency_hz() const {
+    if (config_.directionalTestTarget == target_low_frequency) {
+        return 55.0;
+    }
+    return std::clamp(config_.directionalTestFrequencyHz, 40.0, 2000.0);
 }
 
 double spatial_audio_output::apply_limiter(double value) const {
@@ -785,7 +797,7 @@ bool spatial_audio_output::target_coordinates(int target, float& x, float& y, fl
     case target_front_center:
         x = 0.0f; y = 0.0f; z = -1.3f; return true;
     case target_low_frequency:
-        x = 0.0f; y = -0.2f; z = -0.8f; return true;
+        return false;
     case target_side_left:
         x = -1.3f; y = 0.0f; z = 0.0f; return true;
     case target_side_right:

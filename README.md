@@ -39,7 +39,7 @@ The preferences page now exposes:
 - Per-channel gain, delay, and polarity invert controls for the 7.1.4 bed.
 - Copy/Paste profile buttons for sharing the full component settings through the clipboard.
 - Tooltips on important controls for setup guidance without cluttering the settings page.
-- A directional test pad that can play a short Spatial Audio tone from front, side, rear, ceiling, or LFE directions. If the endpoint supports dynamic objects, the test can use object coordinates; otherwise it falls back to static bed channels.
+- A directional test pad that can play a short Spatial Audio tone from front, side, rear, ceiling, or LFE directions. If the endpoint supports dynamic objects, the test can use object coordinates for positional channels; LFE always uses the static low-frequency bed channel with a low test tone.
 - Transparent soft limiter or hard ceiling limiter control to reduce accidental clipping.
 
 ## Quality

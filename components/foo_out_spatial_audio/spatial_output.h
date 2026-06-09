@@ -72,6 +72,7 @@ private:
     double mapped_5point1_value(const std::string& key, const InputFrame& frame) const;
     double mapped_7point1_value(const std::string& key, const InputFrame& frame) const;
     double test_signal_value(double& phase) const;
+    double test_frequency_hz() const;
     double apply_limiter(double value) const;
     double apply_channel_delay(ChannelState& channel, double value) const;
     static bool is_5point1_mask(unsigned mask);
