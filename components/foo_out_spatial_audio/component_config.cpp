@@ -59,8 +59,8 @@ static constexpr GUID guid_cfg_directional_test_gain = { 0xb0e4807b, 0xb7fd, 0x4
 static constexpr GUID guid_cfg_directional_test_frequency = { 0x8e136568, 0x5de0, 0x4ef9, { 0xb8, 0x5e, 0x47, 0xec, 0x43, 0x28, 0x01, 0xbf } };
 
 static cfg_int cfg_layout_mode(guid_cfg_layout_mode, static_cast<int>(LayoutMode::Auto));
-static cfg_int cfg_sample_rate_mode(guid_cfg_sample_rate_mode, static_cast<int>(SampleRateMode::AutoHighest));
-static cfg_int cfg_upmix_mode(guid_cfg_upmix_mode, static_cast<int>(UpmixMode::Full));
+static cfg_int cfg_sample_rate_mode(guid_cfg_sample_rate_mode, static_cast<int>(SampleRateMode::Fixed48000));
+static cfg_int cfg_upmix_mode(guid_cfg_upmix_mode, static_cast<int>(UpmixMode::Reference));
 static cfg_float cfg_master_gain(guid_cfg_master_gain, -12.0);
 static cfg_float cfg_headroom(guid_cfg_headroom, 0.0);
 static cfg_bool cfg_limiter_enabled(guid_cfg_limiter_enabled, true);

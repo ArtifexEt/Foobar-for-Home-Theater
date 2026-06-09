@@ -25,6 +25,7 @@ enum ControlId {
     idRepoButton,
     idCopyProfileButton,
     idPasteProfileButton,
+    idBeginnerDefaultsButton,
     idEnableLfe,
     idMap51FrontLeft,
     idMap51FrontRight,
@@ -161,9 +162,9 @@ const LayoutOption kLayoutOptions[] = {
 };
 
 const SampleRateOption kSampleRateOptions[] = {
-    {SampleRateMode::AutoHighest, L"Auto highest supported"},
-    {SampleRateMode::SourceIfSupported, L"Source rate if supported"},
     {SampleRateMode::Fixed48000, L"48 kHz compatible"},
+    {SampleRateMode::SourceIfSupported, L"Source rate if supported"},
+    {SampleRateMode::AutoHighest, L"Auto highest supported"},
     {SampleRateMode::Fixed44100, L"44.1 kHz"},
     {SampleRateMode::Fixed88200, L"88.2 kHz"},
     {SampleRateMode::Fixed96000, L"96 kHz"},
@@ -177,8 +178,8 @@ const LimiterOption kLimiterOptions[] = {
 };
 
 const UpmixOption kUpmixOptions[] = {
-    {UpmixMode::Full, L"Full spatial"},
     {UpmixMode::Reference, L"Reference"},
+    {UpmixMode::Full, L"Full spatial"},
     {UpmixMode::FrontOnly, L"Front only"},
 };
 
@@ -619,19 +620,19 @@ void set_double_text(HWND wnd, int id, double value, int decimals) {
 }
 
 HWND create_label(HWND parent, const wchar_t* text, int x, int y, int w, int h) {
-    return CreateWindowExW(0, L"STATIC", text, WS_CHILD | WS_VISIBLE, x, y + 3, w, h, parent, nullptr, core_api::get_my_instance(), nullptr);
+    return CreateWindowExW(0, L"STATIC", text, WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS, x, y + 3, w, h, parent, nullptr, core_api::get_my_instance(), nullptr);
 }
 
 HWND create_edit(HWND parent, int id, int x, int y, int w, int h) {
-    return CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL, x, y, w, h, parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), core_api::get_my_instance(), nullptr);
+    return CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_CLIPSIBLINGS | ES_AUTOHSCROLL, x, y, w, h, parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), core_api::get_my_instance(), nullptr);
 }
 
 HWND create_combo(HWND parent, int id, int x, int y, int w, int h) {
-    return CreateWindowExW(0, L"COMBOBOX", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL, x, y, w, h, parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), core_api::get_my_instance(), nullptr);
+    return CreateWindowExW(0, L"COMBOBOX", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_CLIPSIBLINGS | CBS_DROPDOWNLIST | WS_VSCROLL, x, y, w, h, parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), core_api::get_my_instance(), nullptr);
 }
 
 HWND create_button(HWND parent, int id, const wchar_t* text, int x, int y, int w, int h) {
-    return CreateWindowExW(0, L"BUTTON", text, WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, x, y, w, h, parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), core_api::get_my_instance(), nullptr);
+    return CreateWindowExW(0, L"BUTTON", text, WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_CLIPSIBLINGS | BS_PUSHBUTTON, x, y, w, h, parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), core_api::get_my_instance(), nullptr);
 }
 
 void open_url(const wchar_t* url) {
@@ -730,7 +731,7 @@ SampleRateMode read_sample_rate_mode(HWND wnd) {
     HWND combo = GetDlgItem(wnd, idSampleRateMode);
     const int index = ComboBox_GetCurSel(combo);
     if (index == CB_ERR) {
-        return SampleRateMode::AutoHighest;
+        return SampleRateMode::Fixed48000;
     }
     return static_cast<SampleRateMode>(ComboBox_GetItemData(combo, index));
 }
@@ -770,7 +771,7 @@ UpmixMode read_upmix_mode(HWND wnd) {
     HWND combo = GetDlgItem(wnd, idUpmixMode);
     const int index = ComboBox_GetCurSel(combo);
     if (index == CB_ERR) {
-        return UpmixMode::Full;
+        return UpmixMode::Reference;
     }
     return static_cast<UpmixMode>(ComboBox_GetItemData(combo, index));
 }
@@ -791,7 +792,7 @@ public:
     preferences_instance(HWND parent, preferences_page_callback::ptr callback) : callback_(callback), initial_(ReadConfig()) {
         INITCOMMONCONTROLSEX commonControls = {};
         commonControls.dwSize = sizeof(commonControls);
-        commonControls.dwICC = ICC_BAR_CLASSES | ICC_TAB_CLASSES;
+        commonControls.dwICC = ICC_BAR_CLASSES | ICC_TAB_CLASSES | ICC_WIN95_CLASSES;
         InitCommonControlsEx(&commonControls);
 
         register_class();
@@ -801,6 +802,10 @@ public:
     }
 
     ~preferences_instance() {
+        if (tooltip_ != nullptr && IsWindow(tooltip_)) {
+            DestroyWindow(tooltip_);
+            tooltip_ = nullptr;
+        }
         if (wnd_ != nullptr && IsWindow(wnd_)) {
             DestroyWindow(wnd_);
         }
@@ -943,6 +948,11 @@ private:
             callback_->on_state_changed();
             return 0;
         }
+        if (id == idBeginnerDefaultsButton && code == BN_CLICKED) {
+            write_to_controls(DefaultConfig());
+            callback_->on_state_changed();
+            return 0;
+        }
         if (id == idProbeEndpoint && code == BN_CLICKED) {
             const std::wstring summary = query_endpoint_summary(read_layout_mode(wnd_), read_sample_rate_mode(wnd_));
             SetDlgItemTextW(wnd_, idEndpointSummary, summary.c_str());
@@ -988,7 +998,9 @@ private:
     }
 
     void populate() {
-        HWND tabs = CreateWindowExW(0, WC_TABCONTROLW, L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_CLIPSIBLINGS, 8, 8, 744, 536, wnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(idTabs)), core_api::get_my_instance(), nullptr);
+        create_tooltips();
+        HWND tabs = CreateWindowExW(0, WC_TABCONTROLW, L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_CLIPCHILDREN | WS_CLIPSIBLINGS, 8, 8, 744, 536, wnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(idTabs)), core_api::get_my_instance(), nullptr);
+        add_tooltip(tabs, L"Select a settings page.");
         add_tab(tabs, 0, L"Layout");
         add_tab(tabs, 1, L"Upmix");
         add_tab(tabs, 2, L"Channels");
@@ -1017,10 +1029,14 @@ private:
         populate_mapping_page();
         populate_test_page();
 
-        create_button(wnd_, idSupportButton, L"Support: Buy me a coffee", 12, 562, 220, 28);
-        create_button(wnd_, idRepoButton, L"GitHub repo", 248, 562, 140, 28);
-        create_button(wnd_, idCopyProfileButton, L"Copy profile", 404, 562, 120, 28);
-        create_button(wnd_, idPasteProfileButton, L"Paste profile", 540, 562, 120, 28);
+        HWND supportButton = create_button(wnd_, idSupportButton, L"Support: Buy me a coffee", 12, 562, 220, 28);
+        HWND repoButton = create_button(wnd_, idRepoButton, L"GitHub repo", 248, 562, 140, 28);
+        HWND copyProfileButton = create_button(wnd_, idCopyProfileButton, L"Copy profile", 404, 562, 120, 28);
+        HWND pasteProfileButton = create_button(wnd_, idPasteProfileButton, L"Paste profile", 540, 562, 120, 28);
+        add_tooltip(supportButton, L"Open the project support page.");
+        add_tooltip(repoButton, L"Open the GitHub repository.");
+        add_tooltip(copyProfileButton, L"Copy every setting as a shareable text profile.");
+        add_tooltip(pasteProfileButton, L"Load a copied profile into this page. Use Apply to save it.");
 
         write_to_controls(initial_);
         selectedPage_ = 0;
@@ -1048,17 +1064,41 @@ private:
     }
 
     HWND add_checkbox(Page page, int id, const wchar_t* text, int x, int y, int w, int h) {
-        return add_page_control(page, CreateWindowExW(0, L"BUTTON", text, WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, x, y, w, h, wnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), core_api::get_my_instance(), nullptr));
+        return add_page_control(page, CreateWindowExW(0, L"BUTTON", text, WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_CLIPSIBLINGS | BS_AUTOCHECKBOX, x, y, w, h, wnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), core_api::get_my_instance(), nullptr));
     }
 
     HWND add_combo(Page page, int id, int x, int y, int w, int h) {
         return add_page_control(page, create_combo(wnd_, id, x, y, w, h));
     }
 
+    void create_tooltips() {
+        if (tooltip_ != nullptr) {
+            return;
+        }
+        tooltip_ = CreateWindowExW(WS_EX_TOPMOST, TOOLTIPS_CLASSW, nullptr, WS_POPUP | TTS_ALWAYSTIP | TTS_NOPREFIX, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, wnd_, nullptr, core_api::get_my_instance(), nullptr);
+        if (tooltip_ != nullptr) {
+            SetWindowPos(tooltip_, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+            SendMessageW(tooltip_, TTM_SETMAXTIPWIDTH, 0, 360);
+        }
+    }
+
+    void add_tooltip(HWND control, const wchar_t* text) {
+        if (tooltip_ == nullptr || control == nullptr || text == nullptr) {
+            return;
+        }
+        TOOLINFOW tool = {};
+        tool.cbSize = sizeof(tool);
+        tool.uFlags = TTF_IDISHWND | TTF_SUBCLASS;
+        tool.hwnd = wnd_;
+        tool.uId = reinterpret_cast<UINT_PTR>(control);
+        tool.lpszText = const_cast<wchar_t*>(text);
+        SendMessageW(tooltip_, TTM_ADDTOOLW, 0, reinterpret_cast<LPARAM>(&tool));
+    }
+
     void add_slider_row(Page page, const wchar_t* label, int editId, int sliderId, int x, int y, double minValue, double maxValue, double scale, int decimals) {
         add_label(page, label, x, y, 150, 24);
         add_page_control(page, create_edit(wnd_, editId, x + 160, y, 64, 24));
-        HWND slider = CreateWindowExW(0, TRACKBAR_CLASSW, L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, x + 236, y - 2, 300, 28, wnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(sliderId)), core_api::get_my_instance(), nullptr);
+        HWND slider = CreateWindowExW(0, TRACKBAR_CLASSW, L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_CLIPSIBLINGS | TBS_HORZ | TBS_NOTICKS, x + 236, y - 2, 300, 28, wnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(sliderId)), core_api::get_my_instance(), nullptr);
         SendMessageW(slider, TBM_SETRANGE, TRUE, MAKELPARAM(static_cast<int>(std::round(minValue * scale)), static_cast<int>(std::round(maxValue * scale))));
         SendMessageW(slider, TBM_SETPAGESIZE, 0, static_cast<LPARAM>(std::max(1.0, scale)));
         add_page_control(page, slider);
@@ -1073,6 +1113,7 @@ private:
             const auto index = ComboBox_AddString(layoutCombo, option.label);
             ComboBox_SetItemData(layoutCombo, index, static_cast<int>(option.mode));
         }
+        add_tooltip(layoutCombo, L"Auto uses the channels exposed by the current Windows Spatial Audio endpoint.");
 
         add_label(page, L"Render rate", 28, 94, 120, 24);
         HWND sampleRateCombo = add_combo(page, idSampleRateMode, 188, 92, 220, 220);
@@ -1080,20 +1121,27 @@ private:
             const auto index = ComboBox_AddString(sampleRateCombo, option.label);
             ComboBox_SetItemData(sampleRateCombo, index, static_cast<int>(option.mode));
         }
+        add_tooltip(sampleRateCombo, L"48 kHz is the safest home-theater default. Auto highest can be used after endpoint probing.");
 
-        add_checkbox(page, idLimiterEnabled, L"Limiter", 28, 134, 120, 24);
+        HWND limiterCheck = add_checkbox(page, idLimiterEnabled, L"Limiter", 28, 134, 120, 24);
+        add_tooltip(limiterCheck, L"Keeps summed upmix output from clipping when several channels add together.");
         add_label(page, L"Limiter mode", 188, 134, 110, 24);
         HWND limiterCombo = add_combo(page, idLimiterMode, 318, 132, 180, 120);
         for (const auto& option : kLimiterOptions) {
             const auto index = ComboBox_AddString(limiterCombo, option.label);
             ComboBox_SetItemData(limiterCombo, index, static_cast<int>(option.mode));
         }
+        add_tooltip(limiterCombo, L"Transparent soft is gentler. Hard ceiling is stricter but can sound less natural.");
 
         add_slider_row(page, L"Limiter ceiling (dB)", idLimiterCeiling, idLimiterCeilingSlider, 28, 174, -12.0, 0.0, 10.0, 1);
+        add_tooltip(GetDlgItem(wnd_, idLimiterCeiling), L"Peak ceiling for the limiter. -1 dB is a safe default.");
+        add_tooltip(GetDlgItem(wnd_, idLimiterCeilingSlider), L"Peak ceiling for the limiter. -1 dB is a safe default.");
 
-        add_button(page, idProbeEndpoint, L"Probe endpoint", 28, 222, 150, 28);
-        HWND summary = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | WS_VSCROLL, 28, 264, 680, 186, wnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(idEndpointSummary)), core_api::get_my_instance(), nullptr);
+        HWND probeButton = add_button(page, idProbeEndpoint, L"Probe endpoint", 28, 222, 150, 28);
+        add_tooltip(probeButton, L"Ask Windows which Spatial Audio channels, objects, and sample rates are available.");
+        HWND summary = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_CLIPSIBLINGS | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | WS_VSCROLL, 28, 264, 680, 186, wnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(idEndpointSummary)), core_api::get_my_instance(), nullptr);
         add_page_control(page, summary);
+        add_tooltip(summary, L"Endpoint diagnostics from Windows Spatial Audio.");
     }
 
     void populate_upmix_page() {
@@ -1105,19 +1153,34 @@ private:
             const auto index = ComboBox_AddString(upmixCombo, option.label);
             ComboBox_SetItemData(upmixCombo, index, static_cast<int>(option.mode));
         }
+        add_tooltip(upmixCombo, L"Reference is the beginner default. Full spatial is wider. Front only is useful for A/B comparison.");
+        HWND beginnerButton = add_button(page, idBeginnerDefaultsButton, L"Beginner defaults", 424, y - 2, 150, 28);
+        add_tooltip(beginnerButton, L"Restore safe defaults: Auto bed, 48 kHz, Reference upmix, limiter on, conservative gains.");
         y += 40;
         add_slider_row(page, L"Master gain (dB)", idMasterGain, idMasterGainSlider, 28, y, -60.0, 12.0, 10.0, 1); y += 32;
+        add_tooltip(GetDlgItem(wnd_, idMasterGain), L"Overall output gain before channel trims. Leave at default unless your chain needs more level.");
+        add_tooltip(GetDlgItem(wnd_, idMasterGainSlider), L"Overall output gain before channel trims. Leave at default unless your chain needs more level.");
         add_slider_row(page, L"Headroom (dB)", idHeadroom, idHeadroomSlider, 28, y, -24.0, 6.0, 10.0, 1); y += 32;
+        add_tooltip(GetDlgItem(wnd_, idHeadroom), L"Extra headroom before limiting. Lower this if loud tracks trigger the limiter too often.");
+        add_tooltip(GetDlgItem(wnd_, idHeadroomSlider), L"Extra headroom before limiting. Lower this if loud tracks trigger the limiter too often.");
         add_slider_row(page, L"Center gain (dB)", idCenterGain, idCenterGainSlider, 28, y, -60.0, 12.0, 10.0, 1); y += 32;
+        add_tooltip(GetDlgItem(wnd_, idCenterGain), L"How much mono center content is added from stereo input.");
         add_slider_row(page, L"Surround gain (dB)", idSurroundGain, idSurroundGainSlider, 28, y, -60.0, 12.0, 10.0, 1); y += 32;
+        add_tooltip(GetDlgItem(wnd_, idSurroundGain), L"Level of side ambience from stereo difference content.");
         add_slider_row(page, L"Rear gain (dB)", idRearGain, idRearGainSlider, 28, y, -60.0, 12.0, 10.0, 1); y += 32;
         add_slider_row(page, L"Height gain (dB)", idHeightGain, idHeightGainSlider, 28, y, -60.0, 12.0, 10.0, 1); y += 32;
+        add_tooltip(GetDlgItem(wnd_, idHeightGain), L"Level sent to height speakers. Keep subtle for music.");
         add_slider_row(page, L"Side amount", idSideAmount, idSideAmountSlider, 28, y, 0.0, 2.0, 100.0, 2); y += 32;
+        add_tooltip(GetDlgItem(wnd_, idSideAmount), L"Width of stereo difference content sent to side/rear/height channels.");
         add_slider_row(page, L"Height from mid", idHeightFromMid, idHeightFromMidSlider, 28, y, 0.0, 1.0, 100.0, 2); y += 32;
+        add_tooltip(GetDlgItem(wnd_, idHeightFromMid), L"How much mono ambience can rise into height speakers.");
         add_slider_row(page, L"Decorrelate", idDecorrelation, idDecorrelationSlider, 28, y, 0.0, 1.0, 100.0, 2); y += 40;
-        add_checkbox(page, idEnableLfe, L"Enable LFE extraction", 28, y, 200, 24); y += 34;
+        add_tooltip(GetDlgItem(wnd_, idDecorrelation), L"Adds small differences between rear and height feeds for a wider field.");
+        HWND lfeCheck = add_checkbox(page, idEnableLfe, L"Enable LFE extraction", 28, y, 200, 24); y += 34;
+        add_tooltip(lfeCheck, L"Create optional low-frequency content from stereo. Off is the safest music default.");
         add_slider_row(page, L"LFE gain (dB)", idLfeGain, idLfeGainSlider, 28, y, -60.0, 12.0, 10.0, 1); y += 32;
         add_slider_row(page, L"LFE low-pass (Hz)", idLfeLowpass, idLfeLowpassSlider, 28, y, 40.0, 250.0, 1.0, 0);
+        add_tooltip(GetDlgItem(wnd_, idLfeLowpass), L"Low-pass cutoff used only when LFE extraction is enabled.");
     }
 
     void populate_channels_page() {
@@ -1132,19 +1195,21 @@ private:
             const auto& target = kTargets[i];
             add_label(page, target.label, 28, y, 140, 24);
             add_page_control(page, create_edit(wnd_, idChannelGainEditBase + static_cast<int>(i), 178, y, 56, 24));
-            HWND gainSlider = CreateWindowExW(0, TRACKBAR_CLASSW, L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 242, y - 2, 190, 28, wnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(idChannelGainSliderBase + i)), core_api::get_my_instance(), nullptr);
+            HWND gainSlider = CreateWindowExW(0, TRACKBAR_CLASSW, L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_CLIPSIBLINGS | TBS_HORZ | TBS_NOTICKS, 242, y - 2, 190, 28, wnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(idChannelGainSliderBase + i)), core_api::get_my_instance(), nullptr);
             SendMessageW(gainSlider, TBM_SETRANGE, TRUE, MAKELPARAM(-240, 120));
             SendMessageW(gainSlider, TBM_SETPAGESIZE, 0, 10);
             add_page_control(page, gainSlider);
             sliders_.push_back({idChannelGainEditBase + static_cast<int>(i), idChannelGainSliderBase + static_cast<int>(i), -24.0, 12.0, 10.0, 1});
 
             add_page_control(page, create_edit(wnd_, idChannelDelayEditBase + static_cast<int>(i), 470, y, 56, 24));
-            HWND delaySlider = CreateWindowExW(0, TRACKBAR_CLASSW, L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 536, y - 2, 130, 28, wnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(idChannelDelaySliderBase + i)), core_api::get_my_instance(), nullptr);
+            HWND delaySlider = CreateWindowExW(0, TRACKBAR_CLASSW, L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_CLIPSIBLINGS | TBS_HORZ | TBS_NOTICKS, 536, y - 2, 130, 28, wnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(idChannelDelaySliderBase + i)), core_api::get_my_instance(), nullptr);
             SendMessageW(delaySlider, TBM_SETRANGE, TRUE, MAKELPARAM(0, 80));
             SendMessageW(delaySlider, TBM_SETPAGESIZE, 0, 5);
             add_page_control(page, delaySlider);
             sliders_.push_back({idChannelDelayEditBase + static_cast<int>(i), idChannelDelaySliderBase + static_cast<int>(i), 0.0, 80.0, 1.0, 0});
-            add_page_control(page, CreateWindowExW(0, L"BUTTON", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_AUTOCHECKBOX, 690, y, 24, 24, wnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(idChannelInvertCheckBase + i)), core_api::get_my_instance(), nullptr));
+            HWND invertCheck = CreateWindowExW(0, L"BUTTON", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_CLIPSIBLINGS | BS_AUTOCHECKBOX, 690, y, 24, 24, wnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(idChannelInvertCheckBase + i)), core_api::get_my_instance(), nullptr);
+            add_page_control(page, invertCheck);
+            add_tooltip(invertCheck, L"Invert polarity for this output channel. Use only for calibration or troubleshooting.");
             y += 30;
         }
     }
@@ -1152,33 +1217,51 @@ private:
     void populate_mapping_page() {
         const Page page = Page::Mapping;
         add_label(page, L"5.1 FL", 28, 58, 80, 24);
-        populate_mapping_combo(add_combo(page, idMap51FrontLeft, 128, 56, 180, 220));
+        HWND mapFrontLeft = add_combo(page, idMap51FrontLeft, 128, 56, 180, 220);
+        populate_mapping_combo(mapFrontLeft);
+        add_tooltip(mapFrontLeft, L"Choose where the 5.1 front-left source channel should play.");
         add_label(page, L"5.1 FR", 370, 58, 80, 24);
-        populate_mapping_combo(add_combo(page, idMap51FrontRight, 470, 56, 180, 220));
+        HWND mapFrontRight = add_combo(page, idMap51FrontRight, 470, 56, 180, 220);
+        populate_mapping_combo(mapFrontRight);
+        add_tooltip(mapFrontRight, L"Choose where the 5.1 front-right source channel should play.");
 
         add_label(page, L"5.1 FC", 28, 98, 80, 24);
-        populate_mapping_combo(add_combo(page, idMap51FrontCenter, 128, 96, 180, 220));
+        HWND mapFrontCenter = add_combo(page, idMap51FrontCenter, 128, 96, 180, 220);
+        populate_mapping_combo(mapFrontCenter);
+        add_tooltip(mapFrontCenter, L"Choose where the 5.1 center source channel should play.");
         add_label(page, L"5.1 LFE", 370, 98, 80, 24);
-        populate_mapping_combo(add_combo(page, idMap51Lfe, 470, 96, 180, 220));
+        HWND mapLfe = add_combo(page, idMap51Lfe, 470, 96, 180, 220);
+        populate_mapping_combo(mapLfe);
+        add_tooltip(mapLfe, L"Choose where the 5.1 LFE source channel should play.");
 
         add_label(page, L"5.1 SL/BL", 28, 138, 80, 24);
-        populate_mapping_combo(add_combo(page, idMap51SurroundLeft, 128, 136, 180, 220));
+        HWND mapSurroundLeft = add_combo(page, idMap51SurroundLeft, 128, 136, 180, 220);
+        populate_mapping_combo(mapSurroundLeft);
+        add_tooltip(mapSurroundLeft, L"Choose where the 5.1 left surround source channel should play.");
         add_label(page, L"5.1 SR/BR", 370, 138, 80, 24);
-        populate_mapping_combo(add_combo(page, idMap51SurroundRight, 470, 136, 180, 220));
+        HWND mapSurroundRight = add_combo(page, idMap51SurroundRight, 470, 136, 180, 220);
+        populate_mapping_combo(mapSurroundRight);
+        add_tooltip(mapSurroundRight, L"Choose where the 5.1 right surround source channel should play.");
     }
 
     void populate_test_page() {
         const Page page = Page::Test;
-        add_checkbox(page, idTestLoopEnabled, L"Loop test while playing", 28, 54, 190, 24);
-        add_checkbox(page, idTestUseDynamicObject, L"Prefer dynamic object", 240, 54, 190, 24);
+        HWND loopTest = add_checkbox(page, idTestLoopEnabled, L"Loop test while playing", 28, 54, 190, 24);
+        HWND dynamicTest = add_checkbox(page, idTestUseDynamicObject, L"Prefer dynamic object", 240, 54, 190, 24);
+        add_tooltip(loopTest, L"Mix a continuous test tone into playback for the selected direction.");
+        add_tooltip(dynamicTest, L"Use a dynamic Spatial Audio object for test tones when the endpoint supports it.");
 
         add_label(page, L"Direction", 28, 92, 100, 24);
         HWND combo = add_combo(page, idTestTarget, 128, 90, 190, 220);
         populate_target_combo(combo);
-        add_button(page, idTestRunSelected, L"Run selected", 340, 88, 120, 28);
+        add_tooltip(combo, L"Select the direction used by Run selected and looped playback tests.");
+        HWND runSelected = add_button(page, idTestRunSelected, L"Run selected", 340, 88, 120, 28);
+        add_tooltip(runSelected, L"Play a short tone in the selected direction without changing saved playback settings.");
 
         add_slider_row(page, L"Test gain (dB)", idTestGain, idTestGainSlider, 28, 132, -60.0, 0.0, 10.0, 1);
         add_slider_row(page, L"Frequency (Hz)", idTestFrequency, idTestFrequencySlider, 28, 164, 40.0, 2000.0, 1.0, 0);
+        add_tooltip(GetDlgItem(wnd_, idTestGain), L"Level of generated test tones.");
+        add_tooltip(GetDlgItem(wnd_, idTestFrequency), L"Frequency of generated test tones.");
 
         add_button(page, idTestButtonBase + target_top_front_left, L"Top FL", 182, 222, 90, 30);
         add_button(page, idTestButtonBase + target_top_front_right, L"Top FR", 382, 222, 90, 30);
@@ -1210,12 +1293,22 @@ private:
     }
 
     void show_selected_page() {
+        if (pageBackground_ != nullptr) {
+            ShowWindow(pageBackground_, SW_SHOW);
+            SetWindowPos(pageBackground_, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        }
+
         for (size_t page = 0; page < pageControls_.size(); ++page) {
             const int command = page == static_cast<size_t>(selectedPage_) ? SW_SHOW : SW_HIDE;
             for (HWND control : pageControls_[page]) {
                 ShowWindow(control, command);
+                if (command == SW_SHOW) {
+                    SetWindowPos(control, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+                    InvalidateRect(control, nullptr, TRUE);
+                }
             }
         }
+        RedrawWindow(wnd_, nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
     }
 
     HBRUSH background_brush() const {
@@ -1428,6 +1521,7 @@ private:
     preferences_page_callback::ptr callback_;
     RuntimeConfig initial_;
     fb2k::CCoreDarkModeHooks dark_;
+    HWND tooltip_ = nullptr;
     HWND pageBackground_ = nullptr;
     std::array<std::vector<HWND>, static_cast<size_t>(Page::Count)> pageControls_;
     std::vector<SliderBinding> sliders_;

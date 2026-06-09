@@ -55,8 +55,8 @@ enum class UpmixMode {
 
 struct RuntimeConfig {
     LayoutMode layoutMode = LayoutMode::Auto;
-    SampleRateMode sampleRateMode = SampleRateMode::AutoHighest;
-    UpmixMode upmixMode = UpmixMode::Full;
+    SampleRateMode sampleRateMode = SampleRateMode::Fixed48000;
+    UpmixMode upmixMode = UpmixMode::Reference;
     double masterGainDb = -12.0;
     double headroomDb = 0.0;
     bool limiterEnabled = true;
