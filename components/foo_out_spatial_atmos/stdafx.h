@@ -3,10 +3,13 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 
-#include <SDK/foobar2000.h>
-
 #include <windows.h>
 #include <windowsx.h>
+#include <objbase.h>
+#include <objidl.h>
+
+#include <SDK/foobar2000.h>
+
 #include <audioclient.h>
 #include <comdef.h>
 #include <mmdeviceapi.h>
