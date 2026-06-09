@@ -1,6 +1,6 @@
 # Foobar component plan
 
-The standalone Windows Spatial Audio experiments remain in the repository as diagnostics. The first foobar2000 output component is now `foo_out_spatial_audio`, built from `components/foo_out_spatial_audio`.
+The standalone Windows Spatial Audio diagnostics remain in the repository next to the foobar2000 output component, now `foo_out_spatial_audio`, built from `components/foo_out_spatial_audio`.
 
 ## Component shape
 

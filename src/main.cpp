@@ -47,7 +47,7 @@ struct CustomObjectConfig {
     std::string motion = "none";
 };
 
-struct ExperimentConfig {
+struct DiagnosticConfig {
     uint32_t sampleRate = 48000;
     double durationSeconds = 10.0;
     double channelTestSeconds = 1.25;
@@ -165,8 +165,8 @@ void ThrowIfFailed(HRESULT hr, const char* action) {
     }
 }
 
-ExperimentConfig LoadConfig(const std::string& path) {
-    ExperimentConfig config;
+DiagnosticConfig LoadConfig(const std::string& path) {
+    DiagnosticConfig config;
 
     for (const auto& channel : AllChannels()) {
         config.channelGainsDb[channel.key] = 0.0;
@@ -258,7 +258,7 @@ bool MaskContains(AudioObjectType mask, AudioObjectType value) {
     return (static_cast<uint32_t>(mask) & static_cast<uint32_t>(value)) == static_cast<uint32_t>(value);
 }
 
-AudioObjectType RequestedStaticMask(const ExperimentConfig& config) {
+AudioObjectType RequestedStaticMask(const DiagnosticConfig& config) {
     AudioObjectType mask = AudioObjectType_None;
 
     auto include = [&](std::initializer_list<std::string_view> keys) {
@@ -322,9 +322,9 @@ RuntimeOptions ParseOptions(int argc, char** argv) {
         } else if (arg == "--help" || arg == "-h") {
             std::cout
                 << "Usage:\n"
-                << "  SpatialAudioHomeTheaterExperiment --probe [--config path]\n"
-                << "  SpatialAudioHomeTheaterExperiment --static-test [--config path]\n"
-                << "  SpatialAudioHomeTheaterExperiment --custom [--config path]\n";
+                << "  SpatialAudioDiagnostics --probe [--config path]\n"
+                << "  SpatialAudioDiagnostics --static-test [--config path]\n"
+                << "  SpatialAudioDiagnostics --custom [--config path]\n";
             std::exit(0);
         } else {
             throw std::runtime_error("Unknown argument: " + arg);
@@ -362,7 +362,7 @@ ComPtr<ISpatialAudioClient> CreateSpatialClient() {
     return spatialClient;
 }
 
-void ProbeSpatialAudio(ISpatialAudioClient* spatialClient, const ExperimentConfig& config) {
+void ProbeSpatialAudio(ISpatialAudioClient* spatialClient, const DiagnosticConfig& config) {
     WAVEFORMATEX format = MakeObjectFormat(config.sampleRate);
 
     std::cout << "Object format: float32 mono " << config.sampleRate << " Hz\n";
@@ -438,7 +438,7 @@ void FillSilence(float* buffer, UINT32 frames) {
     std::fill(buffer, buffer + frames, 0.0f);
 }
 
-void RunStaticBedTest(ISpatialAudioClient* spatialClient, const ExperimentConfig& config) {
+void RunStaticBedTest(ISpatialAudioClient* spatialClient, const DiagnosticConfig& config) {
     const WAVEFORMATEX format = MakeObjectFormat(config.sampleRate);
     ThrowIfFailed(spatialClient->IsAudioObjectFormatSupported(&format), "Check spatial object format");
 
@@ -532,7 +532,7 @@ void RunStaticBedTest(ISpatialAudioClient* spatialClient, const ExperimentConfig
     ThrowIfFailed(stream->Reset(), "Reset spatial stream");
 }
 
-void RunCustomObjectTest(ISpatialAudioClient* spatialClient, const ExperimentConfig& config) {
+void RunCustomObjectTest(ISpatialAudioClient* spatialClient, const DiagnosticConfig& config) {
     if (config.customObjects.empty()) {
         throw std::runtime_error("No custom objects are configured.");
     }
@@ -619,7 +619,7 @@ void RunCustomObjectTest(ISpatialAudioClient* spatialClient, const ExperimentCon
 int main(int argc, char** argv) {
     try {
         const RuntimeOptions options = ParseOptions(argc, argv);
-        const ExperimentConfig config = LoadConfig(options.configPath);
+        const DiagnosticConfig config = LoadConfig(options.configPath);
 
         ThrowIfFailed(CoInitializeEx(nullptr, COINIT_MULTITHREADED), "Initialize COM");
         const auto uninitializeCom = std::unique_ptr<void, void (*)(void*)>(reinterpret_cast<void*>(1), [](void*) {

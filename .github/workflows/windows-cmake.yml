@@ -1,4 +1,4 @@
-name: Windows CMake
+name: Windows Spatial Audio Build
 
 on:
   push:
@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   build:
-    name: Build Windows experiment
+    name: Build Windows Spatial Audio
     runs-on: windows-2022
 
     steps:
@@ -45,7 +45,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
           New-Item -ItemType Directory -Force dist/config | Out-Null
-          Copy-Item build/Release/SpatialAudioHomeTheaterExperiment.exe dist/
+          Copy-Item build/Release/SpatialAudioDiagnostics.exe dist/
           Copy-Item build/Release/StereoSpatialPlayer.exe dist/
           Copy-Item config/spatial_audio_profile.ini dist/config/
           Copy-Item README.md dist/
@@ -55,7 +55,7 @@ jobs:
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SpatialAudioHomeTheaterExperiment-windows-x64
+          name: Foobar-for-Home-Theater-windows-x64
           path: |
             Foobar-for-Home-Theater-windows-x64.zip
             foo_out_spatial_audio.fb2k-component
@@ -70,7 +70,7 @@ jobs:
           $asset = "Foobar-for-Home-Theater-windows-x64.zip"
           $componentAsset = "foo_out_spatial_audio.fb2k-component"
           $title = "Nightly Windows build"
-          $notes = "Automated build from $env:GITHUB_SHA.`n`nIncludes the early foo_out_spatial_audio foobar2000 output component and standalone Windows Spatial Audio experiments."
+          $notes = "Automated build from $env:GITHUB_SHA.`n`nIncludes the foo_out_spatial_audio foobar2000 output component and standalone Windows Spatial Audio diagnostics."
 
           gh release delete $tag --yes --cleanup-tag 2>$null
           if ($LASTEXITCODE -ne 0) {

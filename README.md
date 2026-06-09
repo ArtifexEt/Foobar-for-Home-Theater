@@ -1,10 +1,10 @@
 # Foobar for Home Theater
 
-Windows Spatial Audio output component for foobar2000 home theater setups, plus standalone experiments used to validate the Windows endpoint.
+Windows Spatial Audio output component for foobar2000 home theater setups, plus standalone diagnostics used to validate the Windows endpoint.
 
 `foo_out_spatial_audio` is an early foobar2000 output component. It takes foobar2000 stereo or 5.1 PCM, forces 48 kHz when needed, and renders it to the default Windows Spatial Audio endpoint as a static home theater bed.
 
-The repository builds the experiment with GitHub Actions on `windows-2022`. The action can verify MSVC/CMake compilation, but real Spatial Audio playback must be tested on a Windows machine with a compatible HDMI/eARC endpoint.
+The repository builds the Windows tools and foobar2000 component with GitHub Actions on `windows-2022`. The action can verify MSVC/CMake compilation, but real Spatial Audio playback must be tested on a Windows machine with a compatible HDMI/eARC endpoint.
 
 ## Requirements
 
@@ -43,9 +43,9 @@ The foobar2000 component is built by the GitHub Actions workflow using the offic
 ## Standalone Tools
 
 ```powershell
-.\build\Release\SpatialAudioHomeTheaterExperiment.exe --probe --config .\config\spatial_audio_profile.ini
-.\build\Release\SpatialAudioHomeTheaterExperiment.exe --static-test --config .\config\spatial_audio_profile.ini
-.\build\Release\SpatialAudioHomeTheaterExperiment.exe --custom --config .\config\spatial_audio_profile.ini
+.\build\Release\SpatialAudioDiagnostics.exe --probe --config .\config\spatial_audio_profile.ini
+.\build\Release\SpatialAudioDiagnostics.exe --static-test --config .\config\spatial_audio_profile.ini
+.\build\Release\SpatialAudioDiagnostics.exe --custom --config .\config\spatial_audio_profile.ini
 .\build\Release\StereoSpatialPlayer.exe --wav C:\path\to\stereo-48k.wav --mode bed --config .\config\spatial_audio_profile.ini
 .\build\Release\StereoSpatialPlayer.exe --wav C:\path\to\stereo-48k.wav --mode objects --config .\config\spatial_audio_profile.ini
 ```
@@ -64,7 +64,7 @@ Release ZIPs include the standalone executables and `config/spatial_audio_profil
 
 If `max dynamic objects` is `0`, Windows Spatial Audio is not enabled for the selected endpoint, the endpoint is not compatible, or only static bed playback is available.
 
-The experiment uses Windows Spatial Audio endpoint APIs, not a private encoder.
+The tools use Windows Spatial Audio endpoint APIs, not a private encoder.
 
 ## Roadmap
 
