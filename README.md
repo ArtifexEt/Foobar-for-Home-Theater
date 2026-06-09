@@ -6,6 +6,16 @@ Windows Spatial Audio output component for foobar2000 home theater setups, plus 
 
 The repository builds the Windows tools and foobar2000 component with GitHub Actions on `windows-2022`. The action can verify MSVC/CMake compilation, but real Spatial Audio playback must be tested on a Windows machine with a compatible HDMI/eARC endpoint.
 
+## Download and install
+
+1. Download the latest component from the nightly release: [`foo_out_spatial_audio.fb2k-component`](https://github.com/ArtifexEt/Foobar-for-Home-Theater/releases/download/nightly/foo_out_spatial_audio.fb2k-component).
+2. In foobar2000, open Preferences > Components, click Install, choose the downloaded `.fb2k-component`, then Apply.
+3. Restart foobar2000 when prompted.
+4. Open Preferences > Playback > Output and select `Spatial Audio for Home Theater`.
+5. Open Preferences > Playback > Output > Spatial Audio if you want to probe the Windows endpoint, run directional tests, or adjust channel gains. New installs use beginner-safe defaults, so no setup is required before first playback.
+
+The release ZIP contains standalone diagnostics and test executables. The foobar2000 plugin itself is the `.fb2k-component` file linked above.
+
 ## Requirements
 
 - Windows 10/11 with a recent Windows SDK.
@@ -14,10 +24,6 @@ The repository builds the Windows tools and foobar2000 component with GitHub Act
 - A real HDMI/eARC endpoint with Windows Spatial Audio support selected as the default output device.
 - Spatial sound enabled for that endpoint in Windows sound settings.
 - foobar2000 2.x 64-bit for the component package.
-
-## Install
-
-Download `foo_out_spatial_audio.fb2k-component` from the `nightly` release and install it from foobar2000 Preferences > Components. After restart, select `Spatial Audio for Home Theater` as the output device.
 
 The component settings live under Preferences > Playback > Output > Spatial Audio.
 
