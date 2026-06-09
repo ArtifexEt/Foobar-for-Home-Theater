@@ -828,7 +828,7 @@ private:
             return reinterpret_cast<LRESULT>(editBrush_ != nullptr ? editBrush_ : background_brush());
         }
 
-        return reinterpret_cast<LRESULT>(background_brush_);
+        return reinterpret_cast<LRESULT>(background_brush());
     }
 
     LRESULT on_command(WPARAM wp, LPARAM) {
