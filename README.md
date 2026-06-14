@@ -22,35 +22,41 @@ The component version shown inside foobar2000 is embedded during the GitHub Acti
 
 The component is configured from Preferences > Playback > Output > Spatial Audio. The defaults are intended to work for a first run, while the tabs below expose the parts most home-theater users usually need to tune.
 
-### Layout and endpoint probe
+### Layout
 
-Choose the Windows Spatial Audio bed, render rate, and limiter behavior. `Probe endpoint` asks Windows what the selected HDMI/eARC endpoint exposes, including supported float32 rates and native static bed channels.
+Choose the Windows Spatial Audio bed, render rate, and limiter behavior. Copy profile and Paste profile share the full component setup as plain text through the clipboard.
 
-![Layout and endpoint probe](docs/screenshots/layout-endpoint-probe.png)
+![Layout](docs/screenshots/layout.png)
 
-### Upmix controls
+### Upmix
 
-Select the listening mode and tune how stereo is spread into center, surround, rear, height, and optional LFE channels. `Reference` is the safer default; `Full spatial` is wider and more aggressive.
+Select the listening mode and tune how stereo is spread into center, surround, rear, height, and optional LFE channels. `Reference` is the safer default; `Full spatial` is wider and more aggressive. `Beginner defaults` resets the page to conservative starting values.
 
 ![Upmix controls](docs/screenshots/upmix-controls.png)
 
-### Per-channel trims
+### Channels
 
-Adjust bed channels independently with gain, delay, and polarity inversion. This is useful when matching a receiver, speaker distance compensation, or a room correction profile.
+Adjust each output bed channel independently with gain, delay, and polarity inversion. Useful for matching a receiver, compensating for speaker distance, or applying a room correction offset.
 
 ![Per-channel trims](docs/screenshots/channel-trims.png)
 
-### 5.1 source mapping
+### Channel Mapping
 
-Map each 5.1 input channel to the Spatial Audio bed. This lets SL/SR, LFE, or center-heavy sources be routed to the speaker layout that works best for a specific receiver.
+Map each 5.1 source channel to any output bed channel. Useful when a SL/SR, LFE, or center-heavy source needs to be routed differently for a specific receiver or speaker layout.
 
-![5.1 source mapping](docs/screenshots/five-one-mapping.png)
+![Channel Mapping](docs/screenshots/channel-mapping.png)
 
-### Directional test pad
+### Testing
 
-Play short tones from front, side, rear, height, and LFE directions. Positional channels can use dynamic Spatial Audio objects when supported; LFE always uses the static low-frequency bed channel.
+Play short tones from any bed direction. A 4×3 grid covers all front, side, rear, height, and LFE positions. Positional channels can use dynamic Spatial Audio objects when supported; LFE always uses the static low-frequency bed channel.
 
-![Directional test pad](docs/screenshots/directional-test-pad.png)
+![Testing](docs/screenshots/testing.png)
+
+### About
+
+Shows the plugin version and links. `Probe endpoint` asks Windows what the selected HDMI/eARC endpoint exposes — supported float32 rates and native static bed channels — and prints the result in the text area below.
+
+![About](docs/screenshots/about.png)
 
 ## Requirements
 
@@ -67,11 +73,11 @@ Stereo input is upmixed into the selected Windows Spatial Audio bed. 5.1 input c
 
 Supported output beds are Auto, Stereo, 5.1, 7.1, 5.1.2, 5.1.4, and 7.1.4. New installs start with beginner-safe defaults: Auto bed, 48 kHz compatible render rate, Reference upmix, limiter on, and conservative gains.
 
-Use the settings tabs above for endpoint probing, upmix tuning, per-channel trims, 5.1 source mapping, and directional tests. Copy/Paste profile buttons can share the full component setup through the clipboard.
+Use the settings tabs above for upmix tuning, per-channel trims, channel source mapping, directional tests, and endpoint probing. Copy/Paste profile can share the full component setup through the clipboard.
 
 ## Quality
 
-The component renders Windows Spatial Audio objects as mono float32 streams and keeps internal mix math in double precision. `Render rate` defaults to `48 kHz compatible` for broad HDMI/eARC receiver compatibility; use `Probe endpoint` to see which float32 object rates the selected Windows Spatial Audio endpoint accepts, then switch to `Auto highest supported` if your endpoint handles it cleanly.
+The component renders Windows Spatial Audio objects as mono float32 streams and keeps internal mix math in double precision. `Render rate` defaults to `48 kHz compatible` for broad HDMI/eARC receiver compatibility; use `Probe endpoint` in the About tab to see which float32 object rates the selected Windows Spatial Audio endpoint accepts, then switch to `Auto highest supported` if your endpoint handles it cleanly.
 
 For cleanest output, keep enough headroom for stereo upmixing, leave `Limiter` enabled in `Transparent soft` mode, and keep per-channel trims at or below 0 dB unless you are compensating for real speaker calibration.
 
