@@ -6,16 +6,12 @@
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 #pragma code_page(1252)
 
-IDD_SPATIAL_AUDIO_PREFERENCES DIALOGEX 0, 0, 507, 320
+IDD_SPATIAL_AUDIO_PREFERENCES DIALOGEX 0, 0, 507, 290
 STYLE DS_SHELLFONT | DS_CONTROL | WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN | WS_CLIPSIBLINGS
 EXSTYLE WS_EX_CONTROLPARENT
 FONT 8, "MS Shell Dlg", 400, 0, 1
 {
     CONTROL     "", idTabs, "SysTabControl32", TCS_TABS | WS_TABSTOP, 5, 5, 496, 280
-    PUSHBUTTON  "Support: Buy me a coffee", idSupportButton, 8, 295, 147, 17
-    PUSHBUTTON  "GitHub repo", idRepoButton, 165, 295, 93, 17
-    PUSHBUTTON  "Copy profile", idCopyProfileButton, 269, 295, 80, 17
-    PUSHBUTTON  "Paste profile", idPasteProfileButton, 360, 295, 80, 17
 }
 
 IDD_SPATIAL_AUDIO_PAGE_LAYOUT DIALOGEX 0, 0, 480, 305
@@ -212,4 +208,15 @@ FONT 8, "MS Shell Dlg", 400, 0, 1
     PUSHBUTTON  "Back R", idTestButtonBackRight, 253, 207, 60, 18
     PUSHBUTTON  "Top BL", idTestButtonTopBackLeft, 103, 235, 60, 18
     PUSHBUTTON  "Top BR", idTestButtonTopBackRight, 225, 235, 60, 18
+}
+
+IDD_SPATIAL_AUDIO_PAGE_ABOUT DIALOGEX 0, 0, 480, 305
+STYLE DS_SHELLFONT | DS_CONTROL | WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_VSCROLL
+EXSTYLE WS_EX_CONTROLPARENT
+FONT 8, "MS Shell Dlg", 400, 0, 1
+{
+    PUSHBUTTON  "Support: Buy me a coffee", idSupportButton, 11, 16, 147, 17
+    PUSHBUTTON  "GitHub repo", idRepoButton, 165, 16, 93, 17
+    PUSHBUTTON  "Copy profile", idCopyProfileButton, 11, 42, 100, 17
+    PUSHBUTTON  "Paste profile", idPasteProfileButton, 118, 42, 100, 17
 }

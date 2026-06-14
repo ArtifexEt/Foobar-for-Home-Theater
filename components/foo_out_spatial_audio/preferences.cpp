@@ -25,6 +25,7 @@ enum class Page {
     Channels,
     Mapping,
     Test,
+    About,
     Count,
 };
 
@@ -889,11 +890,16 @@ void set_upmix_mode(HWND wnd, UpmixMode mode) {
     combo_set_cur_sel(combo, 0);
 }
 
+static const CDialogResizeHelper::Param kMainResizeParams[] = {
+    {idTabs, 0.f, 0.f, 1.f, 1.f},
+};
+
 class preferences_instance : public CDialogImpl<preferences_instance>, public preferences_page_instance {
 public:
     enum { IDD = IDD_SPATIAL_AUDIO_PREFERENCES };
 
     preferences_instance(preferences_page_callback::ptr callback) : callback_(callback), initial_(ReadConfig()) {
+        m_resizer.m_autoSizeGrip = false;
         INITCOMMONCONTROLSEX commonControls = {};
         commonControls.dwSize = sizeof(commonControls);
         commonControls.dwICC = ICC_BAR_CLASSES | ICC_TAB_CLASSES | ICC_WIN95_CLASSES;
@@ -910,6 +916,7 @@ public:
     }
 
     BEGIN_MSG_MAP_EX(preferences_instance)
+        CHAIN_MSG_MAP_MEMBER(m_resizer)
         MESSAGE_HANDLER(WM_INITDIALOG, on_init_dialog_message)
         MESSAGE_HANDLER(WM_ERASEBKGND, on_erase_message)
         MESSAGE_HANDLER(WM_SIZE, on_size_message)
@@ -1295,12 +1302,14 @@ private:
         add_tab(tabs, 2, L"Channels");
         add_tab(tabs, 3, L"5.1 map");
         add_tab(tabs, 4, L"Test");
+        add_tab(tabs, 5, L"About");
 
         create_page(Page::Layout, IDD_SPATIAL_AUDIO_PAGE_LAYOUT);
         create_page(Page::Upmix, IDD_SPATIAL_AUDIO_PAGE_UPMIX);
         create_page(Page::Channels, IDD_SPATIAL_AUDIO_PAGE_CHANNELS);
         create_page(Page::Mapping, IDD_SPATIAL_AUDIO_PAGE_MAPPING);
         create_page(Page::Test, IDD_SPATIAL_AUDIO_PAGE_TEST);
+        create_page(Page::About, IDD_SPATIAL_AUDIO_PAGE_ABOUT);
         position_pages();
 
         populate_layout_page();
@@ -1308,15 +1317,7 @@ private:
         populate_channels_page();
         populate_mapping_page();
         populate_test_page();
-
-        HWND supportButton = find_dlg_item(wnd_, idSupportButton);
-        HWND repoButton = find_dlg_item(wnd_, idRepoButton);
-        HWND copyProfileButton = find_dlg_item(wnd_, idCopyProfileButton);
-        HWND pasteProfileButton = find_dlg_item(wnd_, idPasteProfileButton);
-        add_tooltip(supportButton, L"Open the project support page.");
-        add_tooltip(repoButton, L"Open the GitHub repository.");
-        add_tooltip(copyProfileButton, L"Copy every setting as a shareable text profile.");
-        add_tooltip(pasteProfileButton, L"Load a copied profile into this page. Use Apply to save it.");
+        populate_about_page();
 
         write_to_controls(initial_);
         normalize_combo_heights();
@@ -1498,6 +1499,17 @@ private:
         add_tooltip(find_dlg_item(wnd_, idTestGainSlider), L"Level of generated test tones.");
         add_tooltip(find_dlg_item(wnd_, idTestFrequency), L"Frequency of generated test tones. LFE tests always use a low 55 Hz tone.");
         add_tooltip(find_dlg_item(wnd_, idTestFrequencySlider), L"Frequency of generated test tones. LFE tests always use a low 55 Hz tone.");
+    }
+
+    void populate_about_page() {
+        HWND supportButton = find_dlg_item(wnd_, idSupportButton);
+        HWND repoButton = find_dlg_item(wnd_, idRepoButton);
+        HWND copyProfileButton = find_dlg_item(wnd_, idCopyProfileButton);
+        HWND pasteProfileButton = find_dlg_item(wnd_, idPasteProfileButton);
+        add_tooltip(supportButton, L"Open the project support page.");
+        add_tooltip(repoButton, L"Open the GitHub repository.");
+        add_tooltip(copyProfileButton, L"Copy every setting as a shareable text profile.");
+        add_tooltip(pasteProfileButton, L"Load a copied profile into this page. Use Apply to save it.");
     }
 
     void populate_mapping_combo(HWND combo) {
@@ -1745,6 +1757,7 @@ private:
     preferences_page_callback::ptr callback_;
     RuntimeConfig initial_;
     fb2k::CCoreDarkModeHooks dark_;
+    CDialogResizeHelper m_resizer{kMainResizeParams};
     HWND tooltip_ = nullptr;
     std::array<HWND, static_cast<size_t>(Page::Count)> pageWnds_ = {};
     std::vector<SliderBinding> sliders_;

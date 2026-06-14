@@ -17,6 +17,7 @@
 
 #include <helpers/foobar2000+atl.h>
 #include <SDK/coreDarkMode.h>
+#include <libPPUI/CDialogResizeHelper.h>
 
 #include <audioclient.h>
 #include <comdef.h>
