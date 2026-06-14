@@ -558,6 +558,56 @@ std::wstring query_endpoint_summary(LayoutMode layoutMode, SampleRateMode sample
     }
 }
 
+struct PageEnumData {
+    HWND parent = nullptr;
+    int maxBottom = 0;
+};
+
+static BOOL CALLBACK page_max_bottom_proc(HWND child, LPARAM lp) {
+    auto* data = reinterpret_cast<PageEnumData*>(lp);
+    if (::GetParent(child) != data->parent) {
+        return TRUE;
+    }
+    RECT r = {};
+    ::GetWindowRect(child, &r);
+    ::MapWindowPoints(nullptr, data->parent, reinterpret_cast<POINT*>(&r), 2);
+    wchar_t cls[16] = {};
+    if (::GetClassNameW(child, cls, _countof(cls)) > 0 && _wcsicmp(cls, L"ComboBox") == 0) {
+        COMBOBOXINFO cbi = {};
+        cbi.cbSize = sizeof(cbi);
+        if (::GetComboBoxInfo(child, &cbi)) {
+            r.bottom = r.top + std::max(cbi.rcItem.bottom, cbi.rcButton.bottom);
+        }
+    }
+    if (r.bottom > data->maxBottom) {
+        data->maxBottom = r.bottom;
+    }
+    return TRUE;
+}
+
+static int measure_content_height(HWND pageWnd) {
+    PageEnumData data = {pageWnd, 0};
+    ::EnumChildWindows(pageWnd, page_max_bottom_proc, reinterpret_cast<LPARAM>(&data));
+    return data.maxBottom > 0 ? data.maxBottom + 8 : 0;
+}
+
+struct ComboHeightData {
+    HWND parent = nullptr;
+    int height = 0;
+};
+
+static BOOL CALLBACK set_combo_height_proc(HWND child, LPARAM lp) {
+    auto* data = reinterpret_cast<ComboHeightData*>(lp);
+    if (::GetParent(child) != data->parent) {
+        return TRUE;
+    }
+    wchar_t cls[16] = {};
+    if (::GetClassNameW(child, cls, _countof(cls)) > 0 && _wcsicmp(cls, L"ComboBox") == 0) {
+        ::SendMessageW(child, CB_SETITEMHEIGHT, static_cast<WPARAM>(-1), static_cast<LPARAM>(data->height));
+    }
+    return TRUE;
+}
+
 struct FindControlData {
     int id = 0;
     HWND control = nullptr;
@@ -946,6 +996,8 @@ private:
         if (msg == WM_INITDIALOG) {
             self = reinterpret_cast<preferences_instance*>(lp);
             ::SetWindowLongPtrW(wnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(self));
+            const int ch = measure_content_height(wnd);
+            ::SetPropW(wnd, L"fsa_ch", reinterpret_cast<HANDLE>(static_cast<LONG_PTR>(ch)));
             return FALSE;
         }
 
@@ -966,6 +1018,15 @@ private:
             return self->on_control_color(reinterpret_cast<HDC>(wp), reinterpret_cast<HWND>(lp), msg);
         case WM_HSCROLL:
             self->on_scroll(reinterpret_cast<HWND>(lp));
+            return TRUE;
+        case WM_SIZE:
+            self->on_page_size(wnd, static_cast<int>(HIWORD(lp)));
+            return FALSE;
+        case WM_VSCROLL:
+            self->on_page_vscroll(wnd, wp);
+            return TRUE;
+        case WM_MOUSEWHEEL:
+            self->on_page_mousewheel(wnd, wp);
             return TRUE;
         case WM_DPICHANGED:
         case WM_DPICHANGED_AFTERPARENT:
@@ -1000,6 +1061,92 @@ private:
         pageWnds_[page_index(page)] = pageWnd;
         dark_.AddDialogWithControls(pageWnd);
         return pageWnd;
+    }
+
+    void on_page_size(HWND pageWnd, int windowHeight) {
+        const int contentH = static_cast<int>(reinterpret_cast<LONG_PTR>(::GetPropW(pageWnd, L"fsa_ch")));
+        if (contentH <= 0) return;
+
+        SCROLLINFO si = {};
+        si.cbSize = sizeof(si);
+        si.fMask = SIF_ALL;
+        ::GetScrollInfo(pageWnd, SB_VERT, &si);
+        const int prevPos = si.nPos;
+
+        si.nMin = 0;
+        si.nMax = contentH - 1;
+        si.nPage = static_cast<UINT>(std::max(1, windowHeight));
+        si.fMask = SIF_RANGE | SIF_PAGE;
+        ::SetScrollInfo(pageWnd, SB_VERT, &si, TRUE);
+
+        ::GetScrollInfo(pageWnd, SB_VERT, &si);
+        if (si.nPos != prevPos) {
+            ::ScrollWindowEx(pageWnd, 0, prevPos - si.nPos, nullptr, nullptr, nullptr, nullptr, SW_SCROLLCHILDREN | SW_INVALIDATE | SW_ERASE);
+            ::UpdateWindow(pageWnd);
+        }
+    }
+
+    void on_page_vscroll(HWND pageWnd, WPARAM wp) {
+        SCROLLINFO si = {};
+        si.cbSize = sizeof(si);
+        si.fMask = SIF_ALL;
+        ::GetScrollInfo(pageWnd, SB_VERT, &si);
+        const int prevPos = si.nPos;
+
+        switch (LOWORD(wp)) {
+        case SB_LINEUP:     si.nPos -= 20; break;
+        case SB_LINEDOWN:   si.nPos += 20; break;
+        case SB_PAGEUP:     si.nPos -= static_cast<int>(si.nPage); break;
+        case SB_PAGEDOWN:   si.nPos += static_cast<int>(si.nPage); break;
+        case SB_TOP:        si.nPos = si.nMin; break;
+        case SB_BOTTOM:     si.nPos = si.nMax; break;
+        case SB_THUMBTRACK: si.nPos = si.nTrackPos; break;
+        default: break;
+        }
+
+        si.fMask = SIF_POS;
+        ::SetScrollInfo(pageWnd, SB_VERT, &si, TRUE);
+        ::GetScrollInfo(pageWnd, SB_VERT, &si);
+        if (si.nPos != prevPos) {
+            ::ScrollWindowEx(pageWnd, 0, prevPos - si.nPos, nullptr, nullptr, nullptr, nullptr, SW_SCROLLCHILDREN | SW_INVALIDATE | SW_ERASE);
+            ::UpdateWindow(pageWnd);
+        }
+    }
+
+    void on_page_mousewheel(HWND pageWnd, WPARAM wp) {
+        const int delta = GET_WHEEL_DELTA_WPARAM(wp);
+        SCROLLINFO si = {};
+        si.cbSize = sizeof(si);
+        si.fMask = SIF_ALL;
+        ::GetScrollInfo(pageWnd, SB_VERT, &si);
+        const int prevPos = si.nPos;
+        si.nPos -= (delta / WHEEL_DELTA) * 40;
+        si.fMask = SIF_POS;
+        ::SetScrollInfo(pageWnd, SB_VERT, &si, TRUE);
+        ::GetScrollInfo(pageWnd, SB_VERT, &si);
+        if (si.nPos != prevPos) {
+            ::ScrollWindowEx(pageWnd, 0, prevPos - si.nPos, nullptr, nullptr, nullptr, nullptr, SW_SCROLLCHILDREN | SW_INVALIDATE | SW_ERASE);
+            ::UpdateWindow(pageWnd);
+        }
+    }
+
+    void normalize_combo_heights() {
+        HWND refBtn = find_dlg_item(wnd_, idProbeEndpoint);
+        if (refBtn == nullptr) return;
+        RECT r = {};
+        ::GetWindowRect(refBtn, &r);
+        const int targetH = (r.bottom - r.top) - 2;
+        if (targetH <= 0) return;
+
+        for (HWND pageWnd : pageWnds_) {
+            if (pageWnd == nullptr) continue;
+            ComboHeightData data = {pageWnd, targetH};
+            ::EnumChildWindows(pageWnd, set_combo_height_proc, reinterpret_cast<LPARAM>(&data));
+            const int newH = measure_content_height(pageWnd);
+            if (newH > 0) {
+                ::SetPropW(pageWnd, L"fsa_ch", reinterpret_cast<HANDLE>(static_cast<LONG_PTR>(newH)));
+            }
+        }
     }
 
     void position_pages() {
@@ -1172,6 +1319,8 @@ private:
         add_tooltip(pasteProfileButton, L"Load a copied profile into this page. Use Apply to save it.");
 
         write_to_controls(initial_);
+        normalize_combo_heights();
+        position_pages();
         selectedPage_ = 0;
         show_selected_page();
     }
