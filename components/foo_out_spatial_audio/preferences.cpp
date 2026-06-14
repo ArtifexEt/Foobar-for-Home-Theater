@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "component_config.h"
+#include "component_version.h"
 #include "preferences_resource.h"
 
 #include <helpers/atl-misc.h>
@@ -1300,8 +1301,8 @@ private:
         add_tab(tabs, 0, L"Layout");
         add_tab(tabs, 1, L"Upmix");
         add_tab(tabs, 2, L"Channels");
-        add_tab(tabs, 3, L"5.1 map");
-        add_tab(tabs, 4, L"Test");
+        add_tab(tabs, 3, L"Channel Mapping");
+        add_tab(tabs, 4, L"Testing");
         add_tab(tabs, 5, L"About");
 
         create_page(Page::Layout, IDD_SPATIAL_AUDIO_PAGE_LAYOUT);
@@ -1397,10 +1398,8 @@ private:
         add_tooltip(find_dlg_item(wnd_, idLimiterCeiling), L"Peak ceiling for the limiter. -1 dB is a safe default.");
         add_tooltip(find_dlg_item(wnd_, idLimiterCeilingSlider), L"Peak ceiling for the limiter. -1 dB is a safe default.");
 
-        HWND probeButton = find_dlg_item(wnd_, idProbeEndpoint);
-        add_tooltip(probeButton, L"Ask Windows which Spatial Audio channels, objects, and sample rates are available.");
-        HWND summary = find_dlg_item(wnd_, idEndpointSummary);
-        add_tooltip(summary, L"Endpoint diagnostics from Windows Spatial Audio.");
+        add_tooltip(find_dlg_item(wnd_, idCopyProfileButton), L"Copy every setting as a shareable text profile.");
+        add_tooltip(find_dlg_item(wnd_, idPasteProfileButton), L"Load a copied profile into this page. Use Apply to save it.");
     }
 
     void populate_upmix_page() {
@@ -1502,14 +1501,11 @@ private:
     }
 
     void populate_about_page() {
-        HWND supportButton = find_dlg_item(wnd_, idSupportButton);
-        HWND repoButton = find_dlg_item(wnd_, idRepoButton);
-        HWND copyProfileButton = find_dlg_item(wnd_, idCopyProfileButton);
-        HWND pasteProfileButton = find_dlg_item(wnd_, idPasteProfileButton);
-        add_tooltip(supportButton, L"Open the project support page.");
-        add_tooltip(repoButton, L"Open the GitHub repository.");
-        add_tooltip(copyProfileButton, L"Copy every setting as a shareable text profile.");
-        add_tooltip(pasteProfileButton, L"Load a copied profile into this page. Use Apply to save it.");
+        set_control_text(wnd_, idAboutVersion, (std::wstring(L"v") + widen(SPATIAL_AUDIO_COMPONENT_VERSION)).c_str());
+        add_tooltip(find_dlg_item(wnd_, idSupportButton), L"Open the project support page.");
+        add_tooltip(find_dlg_item(wnd_, idRepoButton), L"Open the GitHub repository.");
+        add_tooltip(find_dlg_item(wnd_, idProbeEndpoint), L"Ask Windows which Spatial Audio channels, objects, and sample rates are available.");
+        add_tooltip(find_dlg_item(wnd_, idEndpointSummary), L"Endpoint diagnostics from Windows Spatial Audio.");
     }
 
     void populate_mapping_combo(HWND combo) {

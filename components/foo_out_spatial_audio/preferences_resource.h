@@ -33,6 +33,7 @@
 #define idTestTarget 1023
 #define idTestRunSelected 1024
 #define idTestButtonBase 1400
+#define idAboutVersion 1025
 
 #define idMasterGain 2000
 #define idHeadroom 2001
