@@ -9,14 +9,13 @@
 #endif
 
 #include <windows.h>
-#include <windowsx.h>
 #include <objbase.h>
 #include <objidl.h>
 #include <shellapi.h>
 #include <timeapi.h>
 #include <commctrl.h>
 
-#include <SDK/foobar2000.h>
+#include <helpers/foobar2000+atl.h>
 #include <SDK/coreDarkMode.h>
 
 #include <audioclient.h>
