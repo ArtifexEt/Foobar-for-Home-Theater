@@ -851,8 +851,8 @@ public:
     }
 
     ~preferences_instance() {
-        if (tooltip_ != nullptr && IsWindow(tooltip_)) {
-            DestroyWindow(tooltip_);
+        if (tooltip_ != nullptr && ::IsWindow(tooltip_)) {
+            ::DestroyWindow(tooltip_);
             tooltip_ = nullptr;
         }
         DeleteObject(backgroundBrush_);
@@ -921,7 +921,7 @@ private:
     LRESULT on_theme_changed_message(UINT, WPARAM, LPARAM, BOOL&) {
         update_tooltip_width();
         position_pages();
-        RedrawWindow(m_hWnd, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
+        ::RedrawWindow(m_hWnd, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
         return TRUE;
     }
 
@@ -942,10 +942,10 @@ private:
     }
 
     static INT_PTR CALLBACK page_dialog_proc(HWND wnd, UINT msg, WPARAM wp, LPARAM lp) {
-        preferences_instance* self = reinterpret_cast<preferences_instance*>(GetWindowLongPtrW(wnd, GWLP_USERDATA));
+        preferences_instance* self = reinterpret_cast<preferences_instance*>(::GetWindowLongPtrW(wnd, GWLP_USERDATA));
         if (msg == WM_INITDIALOG) {
             self = reinterpret_cast<preferences_instance*>(lp);
-            SetWindowLongPtrW(wnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(self));
+            ::SetWindowLongPtrW(wnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(self));
             return FALSE;
         }
 
@@ -970,7 +970,7 @@ private:
         case WM_DPICHANGED:
         case WM_DPICHANGED_AFTERPARENT:
             self->update_tooltip_width();
-            RedrawWindow(wnd, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
+            ::RedrawWindow(wnd, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
             return TRUE;
         case WM_NOTIFY:
             self->on_notify(reinterpret_cast<NMHDR*>(lp));
@@ -1009,8 +1009,8 @@ private:
         }
 
         RECT tabRect = {};
-        GetWindowRect(tabs, &tabRect);
-        MapWindowPoints(nullptr, wnd_, reinterpret_cast<POINT*>(&tabRect), 2);
+        ::GetWindowRect(tabs, &tabRect);
+        ::MapWindowPoints(nullptr, wnd_, reinterpret_cast<POINT*>(&tabRect), 2);
 
         RECT pageRect = {0, 0, tabRect.right - tabRect.left, tabRect.bottom - tabRect.top};
         TabCtrl_AdjustRect(tabs, FALSE, &pageRect);
@@ -1020,15 +1020,15 @@ private:
         const int height = pageRect.bottom - pageRect.top;
 
         for (HWND pageWnd : pageWnds_) {
-            if (pageWnd != nullptr && IsWindow(pageWnd)) {
-                SetWindowPos(pageWnd, HWND_TOP, x, y, width, height, SWP_NOACTIVATE);
+            if (pageWnd != nullptr && ::IsWindow(pageWnd)) {
+                ::SetWindowPos(pageWnd, HWND_TOP, x, y, width, height, SWP_NOACTIVATE);
             }
         }
     }
 
     LRESULT on_erase(HWND target, HDC dc) {
         RECT rc = {};
-        GetClientRect(target, &rc);
+        ::GetClientRect(target, &rc);
         FillRect(dc, &rc, background_brush());
         return 1;
     }
@@ -1071,7 +1071,7 @@ private:
         if (id == idCopyProfileButton && code == BN_CLICKED) {
             const std::string profile = SerializeConfig(read_from_controls());
             if (!set_clipboard_text(wnd_, widen(profile))) {
-                MessageBoxW(wnd_, L"Could not copy profile to clipboard.", L"Spatial Audio", MB_ICONWARNING | MB_OK);
+                ::MessageBoxW(wnd_, L"Could not copy profile to clipboard.", L"Spatial Audio", MB_ICONWARNING | MB_OK);
             }
             return 0;
         }
@@ -1079,7 +1079,7 @@ private:
             std::wstring clipboard;
             RuntimeConfig imported = read_from_controls();
             if (!get_clipboard_text(wnd_, clipboard) || !DeserializeConfig(narrow(clipboard.c_str()), imported)) {
-                MessageBoxW(wnd_, L"Clipboard does not contain a Spatial Audio profile.", L"Spatial Audio", MB_ICONWARNING | MB_OK);
+                ::MessageBoxW(wnd_, L"Clipboard does not contain a Spatial Audio profile.", L"Spatial Audio", MB_ICONWARNING | MB_OK);
                 return 0;
             }
             write_to_controls(imported);
@@ -1120,7 +1120,7 @@ private:
         if (source == nullptr || updatingControls_) {
             return 0;
         }
-        const int sliderId = GetDlgCtrlID(source);
+        const int sliderId = ::GetDlgCtrlID(source);
         if (sync_edit_from_slider(sliderId)) {
             callback_->on_state_changed();
         }
@@ -1193,7 +1193,7 @@ private:
         }
         tooltip_ = CreateWindowExW(WS_EX_TOPMOST, TOOLTIPS_CLASSW, nullptr, WS_POPUP | TTS_ALWAYSTIP | TTS_NOPREFIX, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, wnd_, nullptr, core_api::get_my_instance(), nullptr);
         if (tooltip_ != nullptr) {
-            SetWindowPos(tooltip_, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+            ::SetWindowPos(tooltip_, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
             update_tooltip_width();
         }
     }
@@ -1205,7 +1205,8 @@ private:
         TOOLINFOW tool = {};
         tool.cbSize = sizeof(tool);
         tool.uFlags = TTF_IDISHWND | TTF_SUBCLASS;
-        tool.hwnd = GetParent(control) != nullptr ? GetParent(control) : wnd_;
+        HWND tooltipOwner = ::GetParent(control);
+        tool.hwnd = tooltipOwner != nullptr ? tooltipOwner : wnd_;
         tool.uId = reinterpret_cast<UINT_PTR>(control);
         tool.lpszText = const_cast<wchar_t*>(text);
         SendMessageW(tooltip_, TTM_ADDTOOLW, 0, reinterpret_cast<LPARAM>(&tool));
@@ -1376,13 +1377,13 @@ private:
             if (pageWnd == nullptr) {
                 continue;
             }
-            ShowWindow(pageWnd, command);
+            ::ShowWindow(pageWnd, command);
             if (command == SW_SHOW) {
-                SetWindowPos(pageWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-                InvalidateRect(pageWnd, nullptr, TRUE);
+                ::SetWindowPos(pageWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+                ::InvalidateRect(pageWnd, nullptr, TRUE);
             }
         }
-        RedrawWindow(wnd_, nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
+        ::RedrawWindow(wnd_, nullptr, nullptr, RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
     }
 
     HBRUSH background_brush() const {
