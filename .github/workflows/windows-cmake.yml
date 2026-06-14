@@ -54,8 +54,9 @@ jobs:
           Invoke-WebRequest -Uri $wtlUrl -OutFile external/wtl.nupkg
           7z x external/foobar2000-sdk.7z -oexternal/foobar2000-sdk -y
           7z x external/wtl.nupkg -oexternal/wtl -y
-          $wtlInclude = Resolve-Path external/wtl/lib/native/include
+          $wtlInclude = (Resolve-Path external/wtl/lib/native/include).Path
           $env:INCLUDE = "$wtlInclude;$env:INCLUDE"
+          $env:CL = "/I`"$wtlInclude`" $env:CL"
           Copy-Item -Recurse components/foo_out_spatial_audio external/foobar2000-sdk/foobar2000/
           @"
           #pragma once
