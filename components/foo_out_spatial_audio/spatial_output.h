@@ -29,23 +29,6 @@ public:
     pfc::eventHandle_t get_trigger_event() override;
 
 private:
-    enum class InputLayout {
-        Stereo,
-        FivePointOne,
-        SevenPointOne,
-    };
-
-    struct InputFrame {
-        float frontLeft = 0.0f;
-        float frontRight = 0.0f;
-        float frontCenter = 0.0f;
-        float lfe = 0.0f;
-        float surroundLeft = 0.0f;
-        float surroundRight = 0.0f;
-        float backLeft = 0.0f;
-        float backRight = 0.0f;
-    };
-
     struct ChannelState {
         std::string key;
         AudioObjectType type = AudioObjectType_None;
@@ -67,23 +50,17 @@ private:
     void render_loop(uint32_t sampleRate);
     void clear_queue();
 
-    double bed_value(const std::string& key, const InputFrame& frame, double& lfeState) const;
-    double stereo_bed_value(const std::string& key, const InputFrame& frame, double& lfeState) const;
-    double mapped_5point1_value(const std::string& key, const InputFrame& frame) const;
-    double mapped_7point1_value(const std::string& key, const InputFrame& frame) const;
     double test_signal_value(double& phase) const;
     double test_frequency_hz() const;
-    double apply_limiter(double value) const;
-    double apply_channel_delay(ChannelState& channel, double value) const;
     static bool is_5point1_mask(unsigned mask);
     static bool is_7point1_mask(unsigned mask);
     static uint32_t fixed_sample_rate(SampleRateMode mode);
     static uint32_t highest_supported_sample_rate();
     static bool spatial_sample_rate_supported(uint32_t sampleRate);
-    static uint32_t forced_sample_rate(const RuntimeConfig& config);
-    static float sample_by_flag(const audio_sample* samples, size_t frame, unsigned channels, unsigned mask, unsigned flag, unsigned fallbackIndex);
+    static uint32_t forced_sample_rate(const OutputConfig& config);
     static int target_from_key(const std::string& key);
-    static AudioObjectType requested_static_mask(const RuntimeConfig& config, AudioObjectType nativeMask);
+    static int channel_index(const std::string& key);
+    static AudioObjectType requested_static_mask(const OutputConfig& config, AudioObjectType nativeMask);
     static bool target_coordinates(int target, float& x, float& y, float& z);
     static float clamp_sample(double value);
     static double db_to_linear(double db);
@@ -91,24 +68,23 @@ private:
     static std::string hresult_text(HRESULT hr);
     static void throw_if_failed(HRESULT hr, const char* action);
 
-    RuntimeConfig config_;
+    OutputConfig config_;
     GUID device_ = {};
     double bufferLength_ = 1.0;
     uint32_t sampleRate_ = 48000;
-    InputLayout inputLayout_ = InputLayout::Stereo;
 
     mutable std::mutex mutex_;
-    std::deque<InputFrame> queue_;
+    std::deque<std::array<float, 12>> queue_;
     size_t capacityFrames_ = 48000;
     bool stopping_ = false;
-    bool paused_ = false;
-    bool started_ = false;
+    bool paused_   = false;
+    bool started_  = false;
 
-    std::atomic<double> volumeDb_ = 0.0;
-    std::atomic<size_t> queuedFrames_ = 0;
-    std::atomic<size_t> lastRenderFrames_ = 0;
+    std::atomic<double> volumeDb_        = 0.0;
+    std::atomic<size_t> queuedFrames_    = 0;
+    std::atomic<size_t> lastRenderFrames_= 0;
 
-    HANDLE wakeEvent_ = nullptr;
+    HANDLE wakeEvent_    = nullptr;
     HANDLE spatialEvent_ = nullptr;
     std::thread renderThread_;
 };

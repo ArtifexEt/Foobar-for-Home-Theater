@@ -43,45 +43,9 @@ enum class SampleRateMode {
     Fixed192000 = 7,
 };
 
-enum class LimiterMode {
-    TransparentSoft = 0,
-    HardCeiling = 1,
-};
-
-enum class UpmixMode {
-    Full = 0,
-    Reference = 1,
-    FrontOnly = 2,
-};
-
-struct RuntimeConfig {
+struct OutputConfig {
     LayoutMode layoutMode = LayoutMode::Auto;
     SampleRateMode sampleRateMode = SampleRateMode::Fixed48000;
-    UpmixMode upmixMode = UpmixMode::Reference;
-    double masterGainDb = -12.0;
-    double headroomDb = 0.0;
-    bool limiterEnabled = true;
-    LimiterMode limiterMode = LimiterMode::TransparentSoft;
-    double limiterCeilingDb = -1.0;
-    double centerGainDb = -6.0;
-    double surroundGainDb = -9.0;
-    double rearGainDb = -12.0;
-    double heightGainDb = -12.0;
-    double sideAmount = 0.75;
-    double heightFromMid = 0.20;
-    double decorrelationAmount = 0.20;
-    bool enableLfe = false;
-    double lfeGainDb = -24.0;
-    double lfeLowpassHz = 120.0;
-    std::array<double, target_count> channelGainDb = {};
-    std::array<double, target_count> channelDelayMs = {};
-    std::array<bool, target_count> channelInvert = {};
-    int map51FrontLeft = target_front_left;
-    int map51FrontRight = target_front_right;
-    int map51FrontCenter = target_front_center;
-    int map51Lfe = target_low_frequency;
-    int map51SurroundLeft = target_side_left;
-    int map51SurroundRight = target_side_right;
     bool directionalTestEnabled = false;
     bool directionalTestUseDynamicObject = true;
     int directionalTestTarget = target_front_center;
@@ -89,10 +53,10 @@ struct RuntimeConfig {
     double directionalTestFrequencyHz = 660.0;
 };
 
-RuntimeConfig ReadConfig();
-void WriteConfig(const RuntimeConfig& config);
-RuntimeConfig DefaultConfig();
-std::string SerializeConfig(const RuntimeConfig& config);
-bool DeserializeConfig(const std::string& text, RuntimeConfig& config);
+OutputConfig ReadConfig();
+void WriteConfig(const OutputConfig& config);
+OutputConfig DefaultConfig();
+std::string SerializeConfig(const OutputConfig& config);
+bool DeserializeConfig(const std::string& text, OutputConfig& config);
 
 }  // namespace spatial_audio
