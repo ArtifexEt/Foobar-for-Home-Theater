@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+      - feature/**
+      - claude/**
   pull_request:
     branches:
       - main
@@ -44,7 +46,7 @@ jobs:
       - name: Build
         run: cmake --build build --config Release
 
-      - name: Build foobar2000 component
+      - name: Build foobar2000 components
         shell: pwsh
         run: |
           $sdkUrl = "https://www.foobar2000.org/downloads/SDK-2025-03-07.7z"
@@ -57,6 +59,8 @@ jobs:
           $wtlInclude = (Resolve-Path external/wtl/lib/native/include).Path
           $env:INCLUDE = "$wtlInclude;$env:INCLUDE"
           $env:CL = "/I`"$wtlInclude`" $env:CL"
+
+          # Build output component
           Copy-Item -Recurse components/foo_out_spatial_audio external/foobar2000-sdk/foobar2000/
           @"
           #pragma once
@@ -64,6 +68,17 @@ jobs:
           #define SPATIAL_AUDIO_COMPONENT_VERSION "$env:COMPONENT_VERSION"
           "@ | Set-Content -Path external/foobar2000-sdk/foobar2000/foo_out_spatial_audio/component_version.h -Encoding ascii
           msbuild external/foobar2000-sdk/foobar2000/foo_out_spatial_audio/foo_out_spatial_audio.vcxproj /m /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143
+
+          # Build DSP component
+          Copy-Item -Recurse components/foo_dsp_spatial external/foobar2000-sdk/foobar2000/
+          @"
+          #pragma once
+
+          #ifndef SPATIAL_DSP_COMPONENT_VERSION
+          #define SPATIAL_DSP_COMPONENT_VERSION "$env:COMPONENT_VERSION"
+          #endif
+          "@ | Set-Content -Path external/foobar2000-sdk/foobar2000/foo_dsp_spatial/component_version.h -Encoding ascii
+          msbuild external/foobar2000-sdk/foobar2000/foo_dsp_spatial/foo_dsp_spatial.vcxproj /m /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143
 
       - name: Package
         shell: pwsh
@@ -76,6 +91,7 @@ jobs:
           Copy-Item README.md dist/
           Compress-Archive -Path dist/* -DestinationPath Foobar-for-Home-Theater-windows-x64.zip -Force
           Compress-Archive -Path external/foobar2000-sdk/foobar2000/foo_out_spatial_audio/bin/x64/Release/foo_out_spatial_audio.dll -DestinationPath foo_out_spatial_audio.fb2k-component -Force
+          Compress-Archive -Path external/foobar2000-sdk/foobar2000/foo_dsp_spatial/bin/x64/Release/foo_dsp_spatial.dll -DestinationPath foo_dsp_spatial.fb2k-component -Force
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
@@ -84,6 +100,7 @@ jobs:
           path: |
             Foobar-for-Home-Theater-windows-x64.zip
             foo_out_spatial_audio.fb2k-component
+            foo_dsp_spatial.fb2k-component
 
       - name: Publish release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -92,7 +109,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $asset = "Foobar-for-Home-Theater-windows-x64.zip"
-          $componentAsset = "foo_out_spatial_audio.fb2k-component"
+          $outputAsset = "foo_out_spatial_audio.fb2k-component"
+          $dspAsset = "foo_dsp_spatial.fb2k-component"
 
           $tag = $env:RELEASE_TAG
           $title = "Foobar for Home Theater $tag"
@@ -140,11 +158,12 @@ jobs:
             "Component version: ``$env:COMPONENT_VERSION``.",
             "",
             "## Downloads",
-            "- ``foo_out_spatial_audio.fb2k-component`` - foobar2000 output component",
+            "- ``foo_dsp_spatial.fb2k-component`` - foobar2000 spatial upmix DSP component",
+            "- ``foo_out_spatial_audio.fb2k-component`` - foobar2000 Windows Spatial Audio output component",
             "- ``Foobar-for-Home-Theater-windows-x64.zip`` - standalone diagnostics and test tools",
             "",
             "## $changesHeader",
             $changes
           ) | Set-Content -Path release-notes.md -Encoding utf8
 
-          gh release create $tag $asset $componentAsset --title $title --notes-file release-notes.md --target $env:GITHUB_SHA
+          gh release create $tag $asset $outputAsset $dspAsset --title $title --notes-file release-notes.md --target $env:GITHUB_SHA
