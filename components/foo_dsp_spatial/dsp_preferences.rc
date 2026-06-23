@@ -20,39 +20,39 @@ EXSTYLE WS_EX_CONTROLPARENT
 FONT 8, "MS Shell Dlg", 400, 0, 1
 {
     LTEXT       "Output bed", IDC_STATIC, 11, 11, 65, 13
-    COMBOBOX    idLayoutMode, 80, 9, 145, 98, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    LTEXT       "Mode", IDC_STATIC, 240, 11, 35, 13
-    COMBOBOX    idUpmixMode, 278, 9, 90, 74, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    LTEXT       "Master gain (dB)", IDC_STATIC, 11, 30, 95, 13
-    EDITTEXT    idMasterGain, 109, 30, 37, 13, ES_AUTOHSCROLL
-    CONTROL     "", idMasterGainSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 150, 30, 125, 13
-    LTEXT       "Headroom (dB)", IDC_STATIC, 11, 49, 95, 13
-    EDITTEXT    idHeadroom, 109, 49, 37, 13, ES_AUTOHSCROLL
-    CONTROL     "", idHeadroomSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 150, 49, 125, 13
-    LTEXT       "Center gain (dB)", IDC_STATIC, 11, 68, 95, 13
-    EDITTEXT    idCenterGain, 109, 68, 37, 13, ES_AUTOHSCROLL
-    CONTROL     "", idCenterGainSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 150, 68, 125, 13
-    LTEXT       "Surround gain (dB)", IDC_STATIC, 11, 87, 95, 13
-    EDITTEXT    idSurroundGain, 109, 87, 37, 13, ES_AUTOHSCROLL
-    CONTROL     "", idSurroundGainSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 150, 87, 125, 13
-    LTEXT       "Rear gain (dB)", IDC_STATIC, 11, 106, 95, 13
-    EDITTEXT    idRearGain, 109, 106, 37, 13, ES_AUTOHSCROLL
-    CONTROL     "", idRearGainSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 150, 106, 125, 13
-    LTEXT       "Height gain (dB)", IDC_STATIC, 11, 125, 95, 13
-    EDITTEXT    idHeightGain, 109, 125, 37, 13, ES_AUTOHSCROLL
-    CONTROL     "", idHeightGainSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 150, 125, 125, 13
-    LTEXT       "Side amount", IDC_STATIC, 11, 144, 95, 13
-    EDITTEXT    idSideAmount, 109, 144, 37, 13, ES_AUTOHSCROLL
-    CONTROL     "", idSideAmountSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 150, 144, 125, 13
-    LTEXT       "Height from mid", IDC_STATIC, 11, 163, 95, 13
-    EDITTEXT    idHeightFromMid, 109, 163, 37, 13, ES_AUTOHSCROLL
-    CONTROL     "", idHeightFromMidSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 150, 163, 125, 13
-    LTEXT       "Decorrelate", IDC_STATIC, 11, 182, 95, 13
-    EDITTEXT    idDecorrelation, 109, 182, 37, 13, ES_AUTOHSCROLL
-    CONTROL     "", idDecorrelationSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 150, 182, 125, 13
-    PUSHBUTTON  "Copy profile", idCopyProfileButton, 11, 201, 85, 14
-    PUSHBUTTON  "Paste profile", idPasteProfileButton, 100, 201, 85, 14
-    PUSHBUTTON  "Beginner defaults", idBeginnerDefaultsButton, 189, 201, 95, 14
+    COMBOBOX    idLayoutMode, 109, 9, 180, 98, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT       "Mode", IDC_STATIC, 11, 30, 65, 13
+    COMBOBOX    idUpmixMode, 109, 28, 120, 74, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT       "Master gain (dB)", IDC_STATIC, 11, 49, 95, 13
+    EDITTEXT    idMasterGain, 109, 49, 37, 13, ES_AUTOHSCROLL
+    CONTROL     "", idMasterGainSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 150, 49, 125, 13
+    LTEXT       "Headroom (dB)", IDC_STATIC, 11, 68, 95, 13
+    EDITTEXT    idHeadroom, 109, 68, 37, 13, ES_AUTOHSCROLL
+    CONTROL     "", idHeadroomSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 150, 68, 125, 13
+    LTEXT       "Center gain (dB)", IDC_STATIC, 11, 87, 95, 13
+    EDITTEXT    idCenterGain, 109, 87, 37, 13, ES_AUTOHSCROLL
+    CONTROL     "", idCenterGainSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 150, 87, 125, 13
+    LTEXT       "Surround gain (dB)", IDC_STATIC, 11, 106, 95, 13
+    EDITTEXT    idSurroundGain, 109, 106, 37, 13, ES_AUTOHSCROLL
+    CONTROL     "", idSurroundGainSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 150, 106, 125, 13
+    LTEXT       "Rear gain (dB)", IDC_STATIC, 11, 125, 95, 13
+    EDITTEXT    idRearGain, 109, 125, 37, 13, ES_AUTOHSCROLL
+    CONTROL     "", idRearGainSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 150, 125, 125, 13
+    LTEXT       "Height gain (dB)", IDC_STATIC, 11, 144, 95, 13
+    EDITTEXT    idHeightGain, 109, 144, 37, 13, ES_AUTOHSCROLL
+    CONTROL     "", idHeightGainSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 150, 144, 125, 13
+    LTEXT       "Side amount", IDC_STATIC, 11, 163, 95, 13
+    EDITTEXT    idSideAmount, 109, 163, 37, 13, ES_AUTOHSCROLL
+    CONTROL     "", idSideAmountSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 150, 163, 125, 13
+    LTEXT       "Height from mid", IDC_STATIC, 11, 182, 95, 13
+    EDITTEXT    idHeightFromMid, 109, 182, 37, 13, ES_AUTOHSCROLL
+    CONTROL     "", idHeightFromMidSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 150, 182, 125, 13
+    LTEXT       "Decorrelate", IDC_STATIC, 11, 201, 95, 13
+    EDITTEXT    idDecorrelation, 109, 201, 37, 13, ES_AUTOHSCROLL
+    CONTROL     "", idDecorrelationSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 150, 201, 125, 13
+    PUSHBUTTON  "Copy profile", idCopyProfileButton, 11, 220, 85, 14
+    PUSHBUTTON  "Paste profile", idPasteProfileButton, 100, 220, 85, 14
+    PUSHBUTTON  "Beginner defaults", idBeginnerDefaultsButton, 189, 220, 95, 14
 }
 
 IDD_DSP_PAGE_CHANNELS DIALOGEX 0, 0, 480, 305
