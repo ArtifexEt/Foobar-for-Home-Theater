@@ -33,8 +33,6 @@ private:
         std::string key;
         AudioObjectType type = AudioObjectType_None;
         Microsoft::WRL::ComPtr<ISpatialAudioObject> object;
-        std::vector<float> delayBuffer;
-        size_t delayIndex = 0;
     };
 
     void on_update() override;
