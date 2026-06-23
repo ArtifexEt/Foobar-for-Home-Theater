@@ -478,7 +478,8 @@ private:
         const int dpiY = ::GetDeviceCaps(dc, LOGPIXELSY);
         if (oldFont != nullptr) ::SelectObject(dc, oldFont);
         ::ReleaseDC(refWnd, dc);
-        return std::max(20, tm.tmHeight + tm.tmExternalLeading + MulDiv(7, dpiY > 0 ? dpiY : 96, 96));
+        const int textHeight = static_cast<int>(tm.tmHeight + tm.tmExternalLeading);
+        return std::max(20, textHeight + MulDiv(7, dpiY > 0 ? dpiY : 96, 96));
     }
 
     void position_pages() {
