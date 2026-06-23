@@ -18,9 +18,11 @@ enum ChannelTarget {
     target_top_front_right = 9,
     target_top_back_left = 10,
     target_top_back_right = 11,
+    target_front_wide_left = 12,
+    target_front_wide_right = 13,
 };
 
-static constexpr size_t target_count = 12;
+static constexpr size_t target_count = 14;
 
 enum class LayoutMode {
     Auto = 0,
@@ -30,6 +32,9 @@ enum class LayoutMode {
     FivePointOneTwo = 4,
     FivePointOneFour = 5,
     SevenPointOneFour = 6,
+    NinePointOne = 7,
+    NinePointOneTwo = 8,
+    NinePointOneFour = 9,
 };
 
 enum class SampleRateMode {

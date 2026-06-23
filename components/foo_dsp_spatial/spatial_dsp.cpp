@@ -41,11 +41,39 @@ static constexpr std::array<int, 8> kOutputTargets71 = {
     target_side_right,
 };
 
+static constexpr std::array<int, 10> kOutputTargets91 = {
+    target_front_left,
+    target_front_right,
+    target_front_center,
+    target_low_frequency,
+    target_back_left,
+    target_back_right,
+    target_front_wide_left,
+    target_front_wide_right,
+    target_side_left,
+    target_side_right,
+};
+
 static constexpr std::array<int, 8> kOutputTargets512 = {
     target_front_left,
     target_front_right,
     target_front_center,
     target_low_frequency,
+    target_side_left,
+    target_side_right,
+    target_top_front_left,
+    target_top_front_right,
+};
+
+static constexpr std::array<int, 12> kOutputTargets912 = {
+    target_front_left,
+    target_front_right,
+    target_front_center,
+    target_low_frequency,
+    target_back_left,
+    target_back_right,
+    target_front_wide_left,
+    target_front_wide_right,
     target_side_left,
     target_side_right,
     target_top_front_left,
@@ -65,6 +93,23 @@ static constexpr std::array<int, 10> kOutputTargets514 = {
     target_top_back_right,
 };
 
+static constexpr std::array<int, 14> kOutputTargets914 = {
+    target_front_left,
+    target_front_right,
+    target_front_center,
+    target_low_frequency,
+    target_back_left,
+    target_back_right,
+    target_front_wide_left,
+    target_front_wide_right,
+    target_side_left,
+    target_side_right,
+    target_top_front_left,
+    target_top_front_right,
+    target_top_back_left,
+    target_top_back_right,
+};
+
 static constexpr unsigned kOutputMask512 =
     audio_chunk::channel_config_5point1_side |
     audio_chunk::channel_top_front_left |
@@ -72,6 +117,21 @@ static constexpr unsigned kOutputMask512 =
 
 static constexpr unsigned kOutputMask514 =
     kOutputMask512 |
+    audio_chunk::channel_top_back_left |
+    audio_chunk::channel_top_back_right;
+
+static constexpr unsigned kOutputMask91 =
+    audio_chunk::channel_config_7point1 |
+    audio_chunk::channel_front_center_left |
+    audio_chunk::channel_front_center_right;
+
+static constexpr unsigned kOutputMask912 =
+    kOutputMask91 |
+    audio_chunk::channel_top_front_left |
+    audio_chunk::channel_top_front_right;
+
+static constexpr unsigned kOutputMask914 =
+    kOutputMask912 |
     audio_chunk::channel_top_back_left |
     audio_chunk::channel_top_back_right;
 
@@ -86,6 +146,9 @@ OutputBedDef output_bed_def(DspOutputLayout layout) {
     case DspOutputLayout::SevenPointOne: return make_output_bed(kOutputTargets71, audio_chunk::channel_config_7point1);
     case DspOutputLayout::FivePointOneTwo: return make_output_bed(kOutputTargets512, kOutputMask512);
     case DspOutputLayout::FivePointOneFour: return make_output_bed(kOutputTargets514, kOutputMask514);
+    case DspOutputLayout::NinePointOne: return make_output_bed(kOutputTargets91, kOutputMask91);
+    case DspOutputLayout::NinePointOneTwo: return make_output_bed(kOutputTargets912, kOutputMask912);
+    case DspOutputLayout::NinePointOneFour: return make_output_bed(kOutputTargets914, kOutputMask914);
     case DspOutputLayout::SevenPointOneFour:
     default:
         return make_output_bed(kOutputChannelTargets, kOutputChannelMask);
@@ -266,6 +329,8 @@ double spatial_upmix_dsp::stereo_bed_value(int outputChannel, const InputFrame& 
     if (strcmp(key, "side_right")      == 0) return -side * db_to_linear(config_.surroundGainDb) * surroundTrim;
     if (strcmp(key, "back_left")       == 0) return (side * (1.0 + decorrelation * 0.35) + left  * 0.10) * db_to_linear(config_.rearGainDb) * rearTrim;
     if (strcmp(key, "back_right")      == 0) return (-side * (1.0 - decorrelation * 0.35) + right * 0.10) * db_to_linear(config_.rearGainDb) * rearTrim;
+    if (strcmp(key, "front_wide_left") == 0) return (left * 0.55 + side * (0.75 + decorrelation * 0.15)) * db_to_linear(config_.surroundGainDb) * surroundTrim;
+    if (strcmp(key, "front_wide_right")== 0) return (right * 0.55 - side * (0.75 - decorrelation * 0.15)) * db_to_linear(config_.surroundGainDb) * surroundTrim;
     if (strcmp(key, "top_front_left")  == 0) return (side * (1.0 - decorrelation * 0.20) + mid * heightFromMid) * db_to_linear(config_.heightGainDb) * heightTrim;
     if (strcmp(key, "top_front_right") == 0) return (-side * (1.0 + decorrelation * 0.20) + mid * heightFromMid) * db_to_linear(config_.heightGainDb) * heightTrim;
     if (strcmp(key, "top_back_left")   == 0) return (side * (0.7 + decorrelation * 0.25) + mid * heightFromMid) * db_to_linear(config_.heightGainDb) * heightTrim;
@@ -293,14 +358,14 @@ double spatial_upmix_dsp::mapped_5point1_value(int outputChannel, const InputFra
 
 double spatial_upmix_dsp::mapped_7point1_value(int outputChannel, const InputFrame& frame) const {
     switch (outputChannel) {
-    case 0: return frame.frontLeft;
-    case 1: return frame.frontRight;
-    case 2: return frame.frontCenter;
-    case 3: return frame.lfe;
-    case 4: return frame.surroundLeft;
-    case 5: return frame.surroundRight;
-    case 6: return frame.backLeft;
-    case 7: return frame.backRight;
+    case target_front_left: return frame.frontLeft;
+    case target_front_right: return frame.frontRight;
+    case target_front_center: return frame.frontCenter;
+    case target_low_frequency: return frame.lfe;
+    case target_side_left: return frame.surroundLeft;
+    case target_side_right: return frame.surroundRight;
+    case target_back_left: return frame.backLeft;
+    case target_back_right: return frame.backRight;
     default: return 0.0;
     }
 }

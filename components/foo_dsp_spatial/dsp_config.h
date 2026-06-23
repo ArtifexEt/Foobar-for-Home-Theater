@@ -11,9 +11,12 @@ enum class DspOutputLayout {
     FivePointOneTwo = 2,
     FivePointOneFour = 3,
     SevenPointOneFour = 4,
+    NinePointOne = 5,
+    NinePointOneTwo = 6,
+    NinePointOneFour = 7,
 };
 
-static constexpr size_t target_count = 12;
+static constexpr size_t target_count = 14;
 
 enum ChannelTarget {
     target_disabled = -1,
@@ -22,6 +25,7 @@ enum ChannelTarget {
     target_back_left = 6, target_back_right = 7,
     target_top_front_left = 8, target_top_front_right = 9,
     target_top_back_left = 10, target_top_back_right = 11,
+    target_front_wide_left = 12, target_front_wide_right = 13,
 };
 
 struct DspConfig {
@@ -59,13 +63,14 @@ DspConfig DefaultDspConfig();
 std::string SerializeDspConfig(const DspConfig& config);
 bool DeserializeDspConfig(const std::string& text, DspConfig& config);
 
-static const char* const kTargetKeys[12] = {
+static const char* const kTargetKeys[target_count] = {
     "front_left","front_right","front_center","low_frequency",
     "side_left","side_right","back_left","back_right",
-    "top_front_left","top_front_right","top_back_left","top_back_right"
+    "top_front_left","top_front_right","top_back_left","top_back_right",
+    "front_wide_left","front_wide_right"
 };
 
-static constexpr std::array<int, target_count> kOutputChannelTargets = {
+static constexpr std::array<int, 12> kOutputChannelTargets = {
     target_front_left,
     target_front_right,
     target_front_center,
@@ -94,6 +99,6 @@ static constexpr unsigned kOutputChannelMask =
     audio_chunk::channel_top_back_left |
     audio_chunk::channel_top_back_right;
 
-static_assert(audio_chunk::g_count_channels(kOutputChannelMask) == target_count, "Spatial DSP output mask must match target count.");
+static_assert(audio_chunk::g_count_channels(kOutputChannelMask) == kOutputChannelTargets.size(), "Spatial DSP output mask must match target count.");
 
 } // namespace spatial_audio

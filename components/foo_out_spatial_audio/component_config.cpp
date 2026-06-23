@@ -27,6 +27,9 @@ static LayoutMode layout_from_int(int value) {
     case static_cast<int>(LayoutMode::FivePointOneTwo): return LayoutMode::FivePointOneTwo;
     case static_cast<int>(LayoutMode::FivePointOneFour):return LayoutMode::FivePointOneFour;
     case static_cast<int>(LayoutMode::SevenPointOneFour):return LayoutMode::SevenPointOneFour;
+    case static_cast<int>(LayoutMode::NinePointOne): return LayoutMode::NinePointOne;
+    case static_cast<int>(LayoutMode::NinePointOneTwo): return LayoutMode::NinePointOneTwo;
+    case static_cast<int>(LayoutMode::NinePointOneFour): return LayoutMode::NinePointOneFour;
     default: return LayoutMode::Auto;
     }
 }
@@ -104,7 +107,7 @@ OutputConfig ReadConfig() {
     OutputConfig config;
     config.layoutMode    = layout_from_int(static_cast<int>(cfg_layout_mode.get()));
     config.sampleRateMode= sample_rate_mode_from_int(static_cast<int>(cfg_sample_rate_mode.get()));
-    config.directionalTestEnabled          = cfg_directional_test_enabled.get();
+    config.directionalTestEnabled          = false;
     config.directionalTestUseDynamicObject = cfg_directional_test_dynamic.get();
     config.directionalTestTarget           = static_cast<int>(cfg_directional_test_target.get());
     config.directionalTestGainDb           = cfg_directional_test_gain.get();
@@ -115,7 +118,7 @@ OutputConfig ReadConfig() {
 void WriteConfig(const OutputConfig& config) {
     cfg_layout_mode      = static_cast<int>(config.layoutMode);
     cfg_sample_rate_mode = static_cast<int>(config.sampleRateMode);
-    cfg_directional_test_enabled          = config.directionalTestEnabled;
+    cfg_directional_test_enabled          = false;
     cfg_directional_test_dynamic          = config.directionalTestUseDynamicObject;
     cfg_directional_test_target           = config.directionalTestTarget;
     cfg_directional_test_gain             = static_cast<float>(config.directionalTestGainDb);
@@ -129,7 +132,7 @@ std::string SerializeConfig(const OutputConfig& config) {
     output << "version=1\n";
     output << "layout_mode=" << static_cast<int>(config.layoutMode) << "\n";
     output << "sample_rate_mode=" << static_cast<int>(config.sampleRateMode) << "\n";
-    output << "directional_test_enabled=" << (config.directionalTestEnabled ? 1 : 0) << "\n";
+    output << "directional_test_enabled=0\n";
     output << "directional_test_dynamic=" << (config.directionalTestUseDynamicObject ? 1 : 0) << "\n";
     output << "directional_test_target=" << config.directionalTestTarget << "\n";
     output << "directional_test_gain_db=" << config.directionalTestGainDb << "\n";
@@ -149,7 +152,7 @@ bool DeserializeConfig(const std::string& text, OutputConfig& config) {
     int intValue = 0;
     if (read_int_key(values, "layout_mode", intValue)) next.layoutMode = layout_from_int(intValue);
     if (read_int_key(values, "sample_rate_mode", intValue)) next.sampleRateMode = sample_rate_mode_from_int(intValue);
-    read_bool_key(values, "directional_test_enabled", next.directionalTestEnabled);
+    next.directionalTestEnabled = false;
     read_bool_key(values, "directional_test_dynamic", next.directionalTestUseDynamicObject);
     read_int_key(values, "directional_test_target", next.directionalTestTarget);
     read_double_key(values, "directional_test_gain_db", next.directionalTestGainDb);

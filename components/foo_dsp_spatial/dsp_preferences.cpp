@@ -38,6 +38,8 @@ const MappingOption kMappingOptions[] = {
     {target_top_front_right, L"Top front right"},
     {target_top_back_left,   L"Top back left"},
     {target_top_back_right,  L"Top back right"},
+    {target_front_wide_left, L"Front wide left"},
+    {target_front_wide_right,L"Front wide right"},
     {target_disabled,        L"Disabled"},
 };
 
@@ -62,6 +64,9 @@ const LayoutOption kLayoutOptions[] = {
     {DspOutputLayout::FivePointOneTwo,   L"Surround + height (5.1.2)"},
     {DspOutputLayout::FivePointOneFour,  L"Surround + height (5.1.4)"},
     {DspOutputLayout::SevenPointOneFour, L"Surround + height (7.1.4)"},
+    {DspOutputLayout::NinePointOne,      L"Front wide (9.1)"},
+    {DspOutputLayout::NinePointOneTwo,   L"Front wide + height (9.1.2)"},
+    {DspOutputLayout::NinePointOneFour,  L"Front wide + height (9.1.4)"},
 };
 
 struct SliderBinding {

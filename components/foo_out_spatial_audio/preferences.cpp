@@ -50,6 +50,8 @@ const TargetDef kTargets[] = {
     {target_top_front_right, "top_front_right", L"Top front right",  AudioObjectType_TopFrontRight,  587.33, 0.8f,  1.4f, -0.9f},
     {target_top_back_left,   "top_back_left",   L"Top back left",    AudioObjectType_TopBackLeft,    659.25,-0.8f,  1.4f,  0.9f},
     {target_top_back_right,  "top_back_right",  L"Top back right",   AudioObjectType_TopBackRight,   739.99, 0.8f,  1.4f,  0.9f},
+    {target_front_wide_left, "front_wide_left", L"Front wide left",  AudioObjectType_Dynamic,        466.16,-1.2f,  0.0f, -0.65f},
+    {target_front_wide_right,"front_wide_right",L"Front wide right", AudioObjectType_Dynamic,        493.88, 1.2f,  0.0f, -0.65f},
 };
 
 struct LayoutOption { LayoutMode mode; const wchar_t* label; };
@@ -63,6 +65,9 @@ const LayoutOption kLayoutOptions[] = {
     {LayoutMode::FivePointOneTwo, L"Surround + height (5.1.2)"},
     {LayoutMode::FivePointOneFour,L"Surround + height (5.1.4)"},
     {LayoutMode::SevenPointOneFour,L"Surround + height (7.1.4)"},
+    {LayoutMode::NinePointOne,    L"Front wide (9.1)"},
+    {LayoutMode::NinePointOneTwo, L"Front wide + height (9.1.2)"},
+    {LayoutMode::NinePointOneFour,L"Front wide + height (9.1.4)"},
 };
 
 const SampleRateOption kSampleRateOptions[] = {
@@ -86,7 +91,8 @@ const TargetDef* target_def_from_target(int target) {
 }
 
 bool supports_dynamic_test_target(int target) {
-    return target != target_low_frequency;
+    const auto* def = target_def_from_target(target);
+    return def != nullptr && (target != target_low_frequency || def->type == AudioObjectType_Dynamic);
 }
 
 AudioObjectType add_mask(AudioObjectType mask, AudioObjectType value) {
@@ -104,7 +110,7 @@ AudioObjectType requested_static_mask(LayoutMode mode, AudioObjectType nativeMas
     auto include = [&](std::initializer_list<int> targets) {
         for (const int target : targets) {
             const auto* def = target_def_from_target(target);
-            if (def != nullptr) mask = add_mask(mask, def->type);
+            if (def != nullptr && def->type != AudioObjectType_Dynamic) mask = add_mask(mask, def->type);
         }
     };
 
@@ -125,12 +131,43 @@ AudioObjectType requested_static_mask(LayoutMode mode, AudioObjectType nativeMas
         include({target_front_left, target_front_right, target_front_center, target_low_frequency, target_side_left, target_side_right, target_top_front_left, target_top_front_right, target_top_back_left, target_top_back_right});
         break;
     case LayoutMode::SevenPointOneFour:
+        include({target_front_left, target_front_right, target_front_center, target_low_frequency, target_side_left, target_side_right, target_back_left, target_back_right, target_top_front_left, target_top_front_right, target_top_back_left, target_top_back_right});
+        break;
+    case LayoutMode::NinePointOne:
+        include({target_front_left, target_front_right, target_front_center, target_low_frequency, target_side_left, target_side_right, target_back_left, target_back_right});
+        break;
+    case LayoutMode::NinePointOneTwo:
+        include({target_front_left, target_front_right, target_front_center, target_low_frequency, target_side_left, target_side_right, target_back_left, target_back_right, target_top_front_left, target_top_front_right});
+        break;
+    case LayoutMode::NinePointOneFour:
     default:
         include({target_front_left, target_front_right, target_front_center, target_low_frequency, target_side_left, target_side_right, target_back_left, target_back_right, target_top_front_left, target_top_front_right, target_top_back_left, target_top_back_right});
         break;
     }
 
     return mask;
+}
+
+std::vector<int> requested_dynamic_targets(LayoutMode mode) {
+    switch (mode) {
+    case LayoutMode::NinePointOne:
+    case LayoutMode::NinePointOneTwo:
+    case LayoutMode::NinePointOneFour:
+        return {target_front_wide_left, target_front_wide_right};
+    default:
+        return {};
+    }
+}
+
+std::wstring target_list_text(const std::vector<int>& targets) {
+    std::wstring text;
+    for (const int target : targets) {
+        const auto* def = target_def_from_target(target);
+        if (def == nullptr) continue;
+        if (!text.empty()) text += L", ";
+        text += def->label;
+    }
+    return text.empty() ? L"none" : text;
 }
 
 std::wstring mask_text(AudioObjectType mask) {
@@ -302,7 +339,10 @@ void run_directional_test_worker(int target, bool preferDynamicObject, double ga
         AudioObjectType nativeMask = AudioObjectType_None;
         throw_if_failed(spatialClient->GetNativeStaticObjectTypeMask(&nativeMask), "Get native static object mask");
 
-        const bool useDynamicObject = preferDynamicObject && supports_dynamic_test_target(target) && maxDynamicObjectCount > 0;
+        const bool useDynamicObject = targetDef->type == AudioObjectType_Dynamic
+            || (preferDynamicObject && supports_dynamic_test_target(target) && maxDynamicObjectCount > 0);
+        if (useDynamicObject && maxDynamicObjectCount == 0)
+            throw std::runtime_error("Selected direction requires a dynamic Spatial Audio object, but this endpoint reports none.");
         const AudioObjectType staticMask = useDynamicObject ? AudioObjectType_None : targetDef->type;
         if (!useDynamicObject && !mask_contains(nativeMask, targetDef->type))
             throw std::runtime_error("Selected static direction is not exposed by this endpoint.");
@@ -400,6 +440,7 @@ std::wstring query_endpoint_summary(LayoutMode layoutMode, SampleRateMode sample
         throw_if_failed(spatialClient->GetMaxDynamicObjectCount(&maxDynamicObjectCount), "Get max dynamic object count");
 
         const AudioObjectType requestedMask = requested_static_mask(layoutMode, nativeMask);
+        const std::vector<int> dynamicTargets = requested_dynamic_targets(layoutMode);
         AudioObjectType activeMask = AudioObjectType_None;
         AudioObjectType missingMask = AudioObjectType_None;
         for (const auto& target : kTargets) {
@@ -422,10 +463,13 @@ std::wstring query_endpoint_summary(LayoutMode layoutMode, SampleRateMode sample
         if (firstRate) text << L"none";
         text << L"\r\n";
         text << L"Native static bed: " << mask_text(nativeMask) << L"\r\n";
-        text << L"Requested bed: " << mask_text(requestedMask) << L"\r\n";
-        text << L"Active bed after fallback: " << mask_text(activeMask) << L"\r\n";
-        text << L"Missing channels: " << mask_text(missingMask) << L"\r\n";
-        text << L"Max dynamic objects: " << maxDynamicObjectCount;
+        text << L"Requested static bed: " << mask_text(requestedMask) << L"\r\n";
+        text << L"Active static bed after fallback: " << mask_text(activeMask) << L"\r\n";
+        text << L"Missing static channels: " << mask_text(missingMask) << L"\r\n";
+        text << L"Dynamic channels required: " << target_list_text(dynamicTargets) << L"\r\n";
+        text << L"Max dynamic objects: " << maxDynamicObjectCount << L"\r\n";
+        if (!dynamicTargets.empty())
+            text << L"Dynamic channel status: " << (maxDynamicObjectCount >= dynamicTargets.size() ? L"available" : L"not enough dynamic objects");
         return text.str();
     } catch (const std::exception& error) {
         return L"Endpoint probe failed: " + widen(error.what());
@@ -780,7 +824,6 @@ private:
         HWND testTargetCombo = find_dlg_item(wnd_, idDirectionalTestTarget);
         for (const auto& target : kTargets)
             add_combo_item(testTargetCombo, target.label, target.target);
-        add_tooltip(find_dlg_item(wnd_, idDirectionalTestEnabled), L"Play a test tone through a single speaker to verify routing.");
         add_tooltip(find_dlg_item(wnd_, idDirectionalTestDynamic), L"Use Windows dynamic spatial object instead of a static bed channel. May be more accurate on some hardware.");
         add_tooltip(find_dlg_item(wnd_, idDirectionalTestRunSelected), L"Play a short tone in the selected direction without changing playback.");
     }
@@ -892,7 +935,7 @@ private:
         OutputConfig config;
         config.layoutMode = read_layout_mode();
         config.sampleRateMode = read_sample_rate_mode();
-        config.directionalTestEnabled = read_check(wnd_, idDirectionalTestEnabled);
+        config.directionalTestEnabled = false;
         config.directionalTestUseDynamicObject = read_check(wnd_, idDirectionalTestDynamic);
         config.directionalTestTarget = read_test_target();
         config.directionalTestGainDb = read_double(wnd_, idDirectionalTestGain, -18.0);
@@ -903,7 +946,6 @@ private:
     void write_to_controls(const OutputConfig& config) const {
         set_layout_mode(config.layoutMode);
         set_sample_rate_mode(config.sampleRateMode);
-        set_check(wnd_, idDirectionalTestEnabled, config.directionalTestEnabled);
         set_check(wnd_, idDirectionalTestDynamic, config.directionalTestUseDynamicObject);
         set_test_target(config.directionalTestTarget);
         set_double_text(wnd_, idDirectionalTestGain, config.directionalTestGainDb, 1);
@@ -924,7 +966,6 @@ private:
         const OutputConfig current = read_from_controls();
         return current.layoutMode    != initial_.layoutMode
             || current.sampleRateMode!= initial_.sampleRateMode
-            || current.directionalTestEnabled           != initial_.directionalTestEnabled
             || current.directionalTestUseDynamicObject  != initial_.directionalTestUseDynamicObject
             || current.directionalTestTarget            != initial_.directionalTestTarget
             || different(current.directionalTestGainDb, initial_.directionalTestGainDb)

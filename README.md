@@ -1,28 +1,27 @@
 # Foobar for Home Theater
 
-Foobar for Home Theater is a foobar2000 component package for Windows home theater playback. It combines a spatial upmix DSP with a Windows Spatial Audio output, so foobar2000 can play stereo, 5.1, and 7.1 music through a real HDMI/eARC spatial audio endpoint.
+Foobar for Home Theater is a foobar2000 component package for Windows home theater playback. It combines a spatial upmix DSP with a Windows Spatial Audio output, so foobar2000 can play stereo, 5.1, 7.1, height, and front-wide layouts through an HDMI/eARC Spatial Audio endpoint.
 
-The package is built as two foobar2000 components:
+The package contains two components:
 
-- `foo_dsp_spatial` - Spatial Audio DSP. This is where audio is processed: stereo upmix, 5.1/7.1 channel handling, LFE extraction, limiter, channel trims, delays, polarity, and output bed selection.
-- `foo_out_spatial_audio` - Spatial Audio Output. This sends the channel bed from foobar2000 to the Windows Spatial Audio API using static bed objects and optional dynamic test objects.
+- `foo_dsp_spatial` - `Spatial Audio DSP`. This creates and shapes the speaker bed: stereo upmix, 5.1/7.1 mapping, height channels, front-wide channels, LFE extraction, limiter, gain, delay, and polarity.
+- `foo_out_spatial_audio` - `Spatial Audio Output`. This sends the bed to Windows Spatial Audio using static bed objects, plus dynamic objects only when the selected/incoming layout needs front-wide channels.
 
-Use both components together for the intended experience: the DSP prepares the bed, and the output component sends that bed to Windows Spatial Audio.
+Use both components together. The DSP decides what bed exists; the output sends that bed to Windows.
 
-## Main Features
+## Features
 
-- Correct spatial upmix from stereo into surround and height beds.
-- Output bed selection in the DSP: 5.1, 7.1, 5.1.2, 5.1.4, and 7.1.4.
-- Output Auto mode that follows the channel bed produced by the playing audio or DSP.
-- Windows Spatial Audio static bed rendering through `ISpatialAudioClient`.
-- Endpoint probe inside the output preferences to show Windows Spatial Audio capabilities.
-- Directional test tone controls for speaker routing checks.
-- LFE extraction for stereo sources, enabled by beginner defaults.
-- Transparent soft limiter to protect against clipping after upmixing.
-- Per-channel gain, delay, and polarity controls.
-- 5.1 source channel mapping to the chosen output bed.
-- Copy/paste DSP profiles for sharing or backup.
-- Same package naming and About tabs for the DSP and output components.
+- Correct stereo upmix into surround and height beds.
+- 5.1, 7.1, 5.1.2, 5.1.4, 7.1.4, 9.1, 9.1.2, and 9.1.4 DSP output layouts.
+- Output `Auto` mode that follows the audio bed produced by the DSP.
+- Front-wide support through explicit 9.x layouts. Windows has no static front-wide Spatial Audio bed object, so front-wide channels are sent as dynamic objects when available.
+- Endpoint probe that shows supported static bed channels, requested channels, missing channels, dynamic object count, and dynamic front-wide status.
+- One-shot directional test controls for routing checks.
+- LFE extraction for stereo sources.
+- Transparent soft limiter for clipping protection after upmixing.
+- Per-channel gain, delay, and polarity.
+- 5.1 source channel mapping.
+- Copy/paste DSP profiles.
 
 ## Download
 
@@ -31,152 +30,177 @@ Download the latest release assets:
 - [`foo_dsp_spatial.fb2k-component`](https://github.com/ArtifexEt/Foobar-for-Home-Theater/releases/latest/download/foo_dsp_spatial.fb2k-component)
 - [`foo_out_spatial_audio.fb2k-component`](https://github.com/ArtifexEt/Foobar-for-Home-Theater/releases/latest/download/foo_out_spatial_audio.fb2k-component)
 
-Release notes and older builds are available on the [GitHub releases page](https://github.com/ArtifexEt/Foobar-for-Home-Theater/releases).
-
-The workflow artifact also contains standalone diagnostic tools. The foobar2000 plugins are the two `.fb2k-component` files above.
+Release notes and older builds are on the [GitHub releases page](https://github.com/ArtifexEt/Foobar-for-Home-Theater/releases).
 
 ## Requirements
 
 - foobar2000 2.x 64-bit.
 - Windows 10 or Windows 11.
-- A Windows Spatial Audio compatible endpoint, usually HDMI or eARC through an AVR, TV, or soundbar.
+- A Windows Spatial Audio compatible HDMI/eARC endpoint, usually an AVR, TV, or soundbar.
 - Spatial sound enabled for the endpoint in Windows sound settings.
-- A playback chain that can run foobar2000 DSP components before output.
+- A DSP chain where `Spatial Audio DSP` runs before `Spatial Audio Output`.
 
-Real Spatial Audio playback must be tested on a Windows machine with a compatible endpoint. If Windows reports zero spatial objects or no supported bed, the output component cannot make the device spatial by itself.
+The plugin cannot make a non-Spatial endpoint spatial. If Windows reports no static bed and no dynamic objects, the output component has nothing useful to address.
 
 ## Install
 
 1. Install both `.fb2k-component` files in `Preferences > Components`.
 2. Restart foobar2000 when prompted.
 3. Open `Preferences > Playback > DSP Manager`.
-4. Add `Spatial Audio DSP` to the active DSP chain.
+4. Add `Spatial Audio DSP` to `Active DSPs`.
 5. Open `Preferences > Playback > Output`.
 6. Select `Spatial Audio Output`.
-7. Open the DSP preferences and press `Beginner defaults` if you are starting fresh.
-8. In the output preferences, keep `Output bed` on `Auto` unless you need to force a specific bed.
-9. Use the endpoint probe and test tone page to verify your receiver/soundbar routing.
+7. Open `Preferences > Playback > DSP Manager > Spatial Audio DSP`.
+8. Press `Beginner defaults` if you are starting fresh.
+9. Open `Preferences > Playback > Output > Spatial Audio Output`.
+10. Keep `Output bed` on `Auto (follow audio bed)` for normal use.
+11. Press `Probe endpoint` and confirm that the active bed matches what your AVR/Windows endpoint reports.
 
-## Recommended First Setup
+![DSP Manager](docs/screenshots/dsp-manager.png)
 
-For a normal home theater setup:
+The smaller DSP Manager popup is informational only. The real DSP settings live under `Preferences > Playback > DSP Manager > Spatial Audio DSP`.
 
-- DSP `Output bed`: start with `Surround + height (7.1.4)` if your device supports it, otherwise choose the largest bed your endpoint supports.
+## Recommended Setup
+
+Start with this setup for a typical AVR:
+
+- DSP `Output bed`: `Surround + height (7.1.4)` if your endpoint supports it, otherwise use the largest supported bed shown by the probe.
 - Output `Output bed`: `Auto (follow audio bed)`.
-- Render rate: `48000 Hz`.
-- Upmix mode: `Reference`.
-- Master gain: `0 dB`.
-- Channel gains: `0 dB`.
-- LFE extraction: enabled.
-- Limiter: enabled, `Transparent soft`.
+- Output `Render rate`: `48000 Hz`.
+- DSP `Mode`: `Reference`.
+- DSP `Master gain`: `0.0 dB`.
+- DSP channel gains: `0.0 dB`.
+- DSP `LFE extraction`: enabled.
+- DSP `Limiter`: enabled, `Transparent soft`.
 
-These are the beginner defaults. They avoid unnecessary global volume loss while keeping clipping protection active.
+`Beginner defaults` restores a safe starter profile with unity speaker trims. If the sound becomes harsh or too tall, reduce `Height gain` and `Height from mid` first.
 
 ## How It Works
 
-The DSP and output components have separate jobs.
+`Spatial Audio DSP` receives normal foobar2000 PCM. Stereo is upmixed into the selected layout. 5.1 input is mapped through the Channel Mapping page. 7.1 and height-capable input keeps matching channels where possible. The DSP then emits a real channel bed with a foobar2000 channel mask.
 
-`foo_dsp_spatial` receives normal foobar2000 PCM chunks. For stereo input, it creates a surround/height bed using the selected upmix mode. For 5.1 input, it maps the source channels to the selected bed. For 7.1 input, it preserves the matching surround channels. It then outputs PCM with a real channel count and channel mask for the selected bed: 5.1, 7.1, 5.1.2, 5.1.4, or 7.1.4.
+`Spatial Audio Output` opens a Windows Spatial Audio stream. In `Auto`, it inspects the incoming channel mask and activates matching Windows static bed objects. If the incoming bed contains front-wide channels (`FCL`/`FCR`), the output requests dynamic objects for those front-wide channels because Windows Spatial Audio does not expose front-wide as static bed objects.
 
-`foo_out_spatial_audio` receives that bed and opens a Windows Spatial Audio stream. In Auto mode, it detects the incoming channel bed and activates the matching Windows Spatial Audio static objects. Each source channel is copied to its matching spatial bed object: front, center, LFE, side, back, and top channels.
+That keeps dynamic objects explicit: they are used for selected or incoming 9.x front-wide layouts, not as a hidden replacement for the normal static bed path.
 
-That means the DSP decides what bed should be produced, and the output follows it. If the DSP is set to 5.1, the output sends a 5.1 bed. If the DSP is set to 7.1.4 and the endpoint supports it, the output sends 7.1.4.
+## 9.x, 9.4.4, and Bass Channels
 
-## Correct Upmix
+The plugin supports front-wide layouts as 9.1, 9.1.2, and 9.1.4. These are the practical Windows Spatial Audio forms of a 9.x AVR speaker layout:
 
-The DSP is not a simple channel duplicator. It separates the work into predictable stages:
+- Static bed: front, center, LFE, side, back, and height channels.
+- Dynamic objects: front wide left and front wide right.
 
-- Front left and right remain the main stereo anchors.
-- Center is created from mid content.
-- Surround and rear channels use side/difference content and decorrelation controls.
-- Height channels are derived from controlled mid and side content.
-- LFE extraction is optional and low-pass filtered.
-- Per-channel trims, delays, and polarity are applied after the bed is generated.
-- The limiter runs at the end to catch peaks created by summing and upmixing.
+For a 9.4.4 physical room, configure the plugin as 9.1.4 and let the AVR handle bass management. Windows Spatial Audio exposes one static LFE object to this plugin. It does not provide separate addressable LFE objects for four independent subwoofers through this API path. Multiple physical subs are normally managed by the AVR or room correction system from the single LFE/bass-managed signal.
 
-`Reference` mode is the beginner-friendly mode. It keeps the upmix controlled and avoids excessive surround or height energy. `Full spatial` is wider and more aggressive. `Front only` is useful for A/B checks.
+Use the output probe to confirm your actual endpoint. Different AVRs can report different static beds and different dynamic object counts.
 
-## Preferences
+## Configuration Guide
 
 ### DSP: Upmix
 
-Controls the generated bed and upmix behavior.
+![DSP Upmix](docs/screenshots/upmix-controls.png)
 
-- `Output bed` chooses how many channels the DSP produces.
-- `Mode` chooses the upmix style.
-- `Master gain` controls the global DSP level.
+This page decides what the plugin creates.
+
+- `Output bed` chooses the DSP channel bed. Use 7.1.4 for most height systems; use 9.1.x only when you want front-wide output and the output probe reports enough dynamic objects.
+- `Mode` controls the upmix style. `Reference` is the recommended default. `Full spatial` is wider and more aggressive. `Front only` is useful for A/B checks.
+- `Master gain` should normally stay at `0.0 dB`.
+- `Headroom` can be lowered if you want extra safety before the limiter.
 - `Center`, `Surround`, `Rear`, and `Height` gains tune generated channels.
-- `Side amount`, `Height from mid`, and `Decorrelate` shape the stereo upmix.
-- `Beginner defaults` restores the recommended unity-gain starter profile.
-- `Copy profile` and `Paste profile` export/import all DSP settings as text.
+- `Side amount`, `Height from mid`, and `Decorrelate` shape stereo extraction.
+- `Beginner defaults` restores the recommended starter profile.
 
 ### DSP: Channels
 
-Fine-tunes each output bed channel independently:
+![DSP Channels](docs/screenshots/channel-trims.png)
 
-- gain
-- delay in milliseconds
-- polarity inversion
+Use this page for room/system correction after the upmix is basically right.
+
+- `Gain` changes individual channel level.
+- `Delay ms` delays a channel.
+- `Inv` flips polarity.
+
+Leave all gains at `0.0 dB` until you have a reason to change them.
 
 ### DSP: Channel Mapping
 
-Maps 5.1 source channels to output bed targets. This is useful when a source uses a different surround convention or when you want 5.1 input to feed side/back channels differently.
+![DSP Channel Mapping](docs/screenshots/channel-mapping.png)
+
+This page maps 5.1 source channels into the DSP bed. It does not replace the Output page. Use it when a 5.1 source should feed side speakers, back speakers, or another target differently.
 
 ### DSP: LFE
 
-Controls optional low-frequency extraction from stereo input:
+![DSP LFE](docs/screenshots/lfe.png)
 
-- enable/disable LFE extraction
-- LFE gain
-- low-pass frequency
+LFE extraction creates optional low-frequency content from stereo input.
+
+- `Enable LFE extraction`: creates an LFE feed from stereo bass.
+- `LFE gain`: level of the extracted LFE feed.
+- `LFE low-pass`: cutoff for extracted bass.
+
+This is one LFE feed. Multi-sub distribution is handled by the AVR.
 
 ### DSP: Limiter
 
-Keeps the generated upmix from clipping:
+![DSP Limiter](docs/screenshots/limiter.png)
+
+The limiter catches peaks created by summing and upmixing.
 
 - `Transparent soft` is the recommended default.
-- `Hard ceiling` is stricter and more obvious.
+- `Hard ceiling` is stricter but more audible.
+- Keep the ceiling below `0 dB` if you hear clipping.
+
+### DSP: About
+
+![DSP About](docs/screenshots/dsp-about.png)
+
+The DSP About tab shows the installed component version and support links.
 
 ### Output: Layout
 
-Controls the Windows Spatial Audio output:
+![Output Layout](docs/screenshots/layout.png)
 
-- `Auto (follow audio bed)` follows the incoming channel bed.
-- Fixed modes can force stereo, 5.1, 7.1, 5.1.2, 5.1.4, or 7.1.4.
-- `Render rate` defaults to `48000 Hz`, which is the safest HDMI/eARC choice.
-- `Probe endpoint` asks Windows what the selected endpoint supports.
+Use `Auto (follow audio bed)` for normal playback. It follows the bed from the DSP, including 9.x front-wide beds when the incoming channel mask contains front-wide channels and the endpoint has enough dynamic objects.
+
+Use fixed output modes only for testing or when you want to force a specific output shape. `Probe endpoint` is the most important diagnostic on this page:
+
+- `Native static bed`: what Windows says the endpoint exposes as static speaker objects.
+- `Requested static bed`: what the selected output layout asks for.
+- `Active static bed after fallback`: what the plugin can actually activate.
+- `Missing static channels`: requested static channels not exposed by the endpoint.
+- `Dynamic channels required`: front-wide channels needed by 9.x layouts.
+- `Max dynamic objects`: dynamic object count reported by Windows.
 
 ### Output: Test
 
-Plays test tones through selected directions. Use this to confirm that Windows, the endpoint, and the speaker layout agree.
-
-## Screenshots
-
-The screenshots below are stored in `docs/screenshots/`. Replace them after a new build if the UI changes.
-
-### Output Layout
-
-![Output Layout](docs/screenshots/layout.png)
-
-### Output Test
-
 ![Output Test](docs/screenshots/testing.png)
 
-### Output About
+The test page plays short one-shot tones. It is for routing checks only and does not save a continuous test tone into normal playback.
 
-![Output About](docs/screenshots/about.png)
+- `Direction` selects a speaker target.
+- `Run selected` plays the chosen target.
+- The speaker buttons play common directions quickly.
+- `Prefer dynamic object` tests movable object positioning when possible. Front-wide test directions always require dynamic objects.
 
-### DSP Upmix
+### Peak Meter
 
-![DSP Upmix](docs/screenshots/upmix-controls.png)
+![Peak Meter](docs/screenshots/peak-meter.png)
 
-### DSP Channels
+Use foobar2000 meters to check whether the DSP is producing the expected channels and whether any channel is hitting 0 dB too often. If the meter is constantly pinned, reduce aggressive upmix gains or add headroom.
 
-![DSP Channels](docs/screenshots/channel-trims.png)
+## Sound Quality Notes
 
-### DSP Channel Mapping
+If a new setting sounds worse, test in this order:
 
-![DSP Channel Mapping](docs/screenshots/channel-mapping.png)
+1. Press `Beginner defaults`.
+2. Set `Mode` to `Reference`.
+3. Keep all channel gains at `0.0 dB`.
+4. Keep output on `Auto`.
+5. Probe the endpoint.
+6. Use one-shot tests to confirm routing.
+7. Watch the peak meter for clipping.
+
+Most quality problems come from routing mismatch, excessive height/surround gain, clipping, or forcing an output bed the endpoint does not really expose.
 
 ## Build
 
@@ -205,25 +229,19 @@ Release ZIPs include standalone diagnostics:
 .\StereoSpatialPlayer.exe --wav C:\path\to\stereo-48k.wav --mode objects --config .\config\spatial_audio_profile.ini
 ```
 
-- `--probe` prints endpoint capabilities.
-- `--static-test` plays tone bursts through the configured static bed.
-- `--custom` creates dynamic spatial objects from the config file.
-- `StereoSpatialPlayer --mode bed` plays stereo WAV through a static bed.
-- `StereoSpatialPlayer --mode objects` plays stereo WAV through dynamic spatial objects.
-
 ## Troubleshooting
 
-- If the output is silent, confirm that Windows Spatial Audio is enabled for the selected endpoint.
-- If endpoint probe reports no supported spatial bed, select another Windows output device or enable spatial sound in Windows settings.
-- If playback is too quiet after upgrading from older builds, press `Beginner defaults` in the DSP page or set `Master gain` to `0 dB`.
-- If channels are routed incorrectly, use the output test tone page first, then adjust 5.1 channel mapping if the problem is source-specific.
-- If changing DSP layout causes output issues, keep the output component on `Auto (follow audio bed)`.
+- If output is silent, confirm that Windows Spatial Audio is enabled for the selected endpoint.
+- If the probe reports no supported spatial bed, select another Windows output device or enable spatial sound in Windows settings.
+- If playback is too quiet after upgrading, press `Beginner defaults` or set `Master gain` to `0.0 dB`.
+- If playback contains a tone after upgrading from an older test build, open and apply the output preferences once. New builds no longer persist continuous test tone playback.
+- If channels are routed incorrectly, use the Output Test page first, then adjust DSP Channel Mapping only if the issue is source-specific.
+- If 9.x front-wide output fails, run `Probe endpoint` and check `Max dynamic objects`. Front-wide channels need two dynamic objects.
+- If a forced layout behaves badly, switch Output back to `Auto (follow audio bed)`.
 
 ## Notes
 
 This project uses Windows Spatial Audio endpoint APIs. It does not encode Dolby Atmos, DTS:X, or any private bitstream format.
-
-The largest static bed currently supported by the package is 7.1.4. More channels would require a different object-based panning model rather than a normal channel-bed DSP.
 
 ## Support
 

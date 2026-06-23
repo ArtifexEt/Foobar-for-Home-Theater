@@ -45,7 +45,7 @@ private:
     double lfeState_       = 0.0;
     uint32_t sampleRate_   = 48000;
     InputLayout inputLayout_ = InputLayout::Stereo;
-    std::array<DelayLine, 12> delays_;
+    std::array<DelayLine, target_count> delays_;
 
     void reset_state();
     InputFrame extract_frame(const audio_sample* samples, size_t frameIdx,

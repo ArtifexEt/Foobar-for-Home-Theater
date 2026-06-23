@@ -136,6 +136,18 @@ FONT 8, "MS Shell Dlg", 400, 0, 1
     EDITTEXT    idChannelDelayEditTopBackRight, 164, 213, 30, 13, ES_AUTOHSCROLL
     CONTROL     "", idChannelDelaySliderTopBackRight, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 196, 213, 44, 13
     CONTROL     "", idChannelInvertTopBackRight, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 243, 213, 14, 13
+    LTEXT       "Front wide left", IDC_STATIC, 11, 230, 72, 13
+    EDITTEXT    idChannelGainEditFrontWideLeft, 86, 230, 30, 13, ES_AUTOHSCROLL
+    CONTROL     "", idChannelGainSliderFrontWideLeft, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 118, 230, 44, 13
+    EDITTEXT    idChannelDelayEditFrontWideLeft, 164, 230, 30, 13, ES_AUTOHSCROLL
+    CONTROL     "", idChannelDelaySliderFrontWideLeft, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 196, 230, 44, 13
+    CONTROL     "", idChannelInvertFrontWideLeft, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 243, 230, 14, 13
+    LTEXT       "Front wide right", IDC_STATIC, 11, 247, 72, 13
+    EDITTEXT    idChannelGainEditFrontWideRight, 86, 247, 30, 13, ES_AUTOHSCROLL
+    CONTROL     "", idChannelGainSliderFrontWideRight, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 118, 247, 44, 13
+    EDITTEXT    idChannelDelayEditFrontWideRight, 164, 247, 30, 13, ES_AUTOHSCROLL
+    CONTROL     "", idChannelDelaySliderFrontWideRight, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 196, 247, 44, 13
+    CONTROL     "", idChannelInvertFrontWideRight, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 243, 247, 14, 13
 }
 
 IDD_DSP_PAGE_MAPPING DIALOGEX 0, 0, 480, 305

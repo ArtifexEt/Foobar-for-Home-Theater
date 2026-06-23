@@ -35,6 +35,14 @@ private:
         Microsoft::WRL::ComPtr<ISpatialAudioObject> object;
     };
 
+    struct DynamicChannelState {
+        int target = target_disabled;
+        float x = 0.0f;
+        float y = 0.0f;
+        float z = 0.0f;
+        Microsoft::WRL::ComPtr<ISpatialAudioObject> object;
+    };
+
     void on_update() override;
     void write(const audio_chunk& data) override;
     t_size can_write_samples() override;
@@ -43,9 +51,9 @@ private:
     void on_force_play() override;
     void open(audio_chunk::spec_t const& spec) override;
 
-    void start_stream(uint32_t sampleRate, AudioObjectType audioBedMask);
+    void start_stream(uint32_t sampleRate, AudioObjectType audioBedMask, unsigned audioChannelMask);
     void stop_stream();
-    void render_loop(uint32_t sampleRate, AudioObjectType audioBedMask);
+    void render_loop(uint32_t sampleRate, AudioObjectType audioBedMask, unsigned audioChannelMask);
     void clear_queue();
 
     OutputConfig current_config() const;
@@ -60,6 +68,7 @@ private:
     static int target_from_key(const std::string& key);
     static int channel_index(const std::string& key);
     static AudioObjectType requested_static_mask(const OutputConfig& config, AudioObjectType nativeMask, AudioObjectType audioBedMask);
+    static std::vector<int> requested_dynamic_targets(const OutputConfig& config, unsigned audioChannelMask);
     static bool target_coordinates(int target, float& x, float& y, float& z);
     static float clamp_sample(double value);
     static double db_to_linear(double db);
@@ -75,7 +84,7 @@ private:
     uint32_t sampleRate_ = 48000;
 
     mutable std::mutex mutex_;
-    std::deque<std::array<float, 12>> queue_;
+    std::deque<std::array<float, target_count>> queue_;
     size_t capacityFrames_ = 48000;
     bool stopping_ = false;
     bool paused_   = false;

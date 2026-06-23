@@ -32,8 +32,7 @@ STYLE DS_SHELLFONT | DS_CONTROL | WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS
 EXSTYLE WS_EX_CONTROLPARENT
 FONT 8, "MS Shell Dlg", 400, 0, 1
 {
-    CONTROL     "Enable test tone", idDirectionalTestEnabled, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 11, 9, 120, 13
-    CONTROL     "Prefer dynamic object", idDirectionalTestDynamic, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 140, 9, 120, 13
+    CONTROL     "Prefer dynamic object", idDirectionalTestDynamic, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 11, 9, 120, 13
     LTEXT       "Direction", IDC_STATIC, 11, 31, 55, 13
     COMBOBOX    idDirectionalTestTarget, 69, 29, 110, 135, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON  "Run selected", idDirectionalTestRunSelected, 183, 29, 75, 14
