@@ -60,6 +60,73 @@ unsigned target_channel_flag(size_t target) {
     return target < target_count ? flags[target] : 0;
 }
 
+unsigned fallback_channel_mask(unsigned channels) {
+    switch (channels) {
+    case 1:
+        return audio_chunk::channel_config_mono;
+    case 2:
+        return audio_chunk::channel_config_stereo;
+    case 6:
+        return audio_chunk::channel_config_5point1_side;
+    case 8:
+        return audio_chunk::channel_config_7point1;
+    case 10:
+        return audio_chunk::channel_config_5point1_side
+            | audio_chunk::channel_top_front_left
+            | audio_chunk::channel_top_front_right
+            | audio_chunk::channel_top_back_left
+            | audio_chunk::channel_top_back_right;
+    case 12:
+        return audio_chunk::channel_config_7point1
+            | audio_chunk::channel_top_front_left
+            | audio_chunk::channel_top_front_right
+            | audio_chunk::channel_top_back_left
+            | audio_chunk::channel_top_back_right;
+    default:
+        return audio_chunk::g_guess_channel_config(channels);
+    }
+}
+
+unsigned normalized_channel_mask(unsigned channels, unsigned mask) {
+    if (channels == 0 || channels > 32) return 0;
+    if (mask != 0 && audio_chunk::g_count_channels(mask) == channels) return mask;
+    return fallback_channel_mask(channels);
+}
+
+AudioObjectType object_type_from_channel_flag(unsigned flag) {
+    switch (flag) {
+    case audio_chunk::channel_front_left:      return AudioObjectType_FrontLeft;
+    case audio_chunk::channel_front_right:     return AudioObjectType_FrontRight;
+    case audio_chunk::channel_front_center:    return AudioObjectType_FrontCenter;
+    case audio_chunk::channel_lfe:             return AudioObjectType_LowFrequency;
+    case audio_chunk::channel_side_left:       return AudioObjectType_SideLeft;
+    case audio_chunk::channel_side_right:      return AudioObjectType_SideRight;
+    case audio_chunk::channel_back_left:       return AudioObjectType_BackLeft;
+    case audio_chunk::channel_back_right:      return AudioObjectType_BackRight;
+    case audio_chunk::channel_top_front_left:  return AudioObjectType_TopFrontLeft;
+    case audio_chunk::channel_top_front_right: return AudioObjectType_TopFrontRight;
+    case audio_chunk::channel_top_back_left:   return AudioObjectType_TopBackLeft;
+    case audio_chunk::channel_top_back_right:  return AudioObjectType_TopBackRight;
+    default: return AudioObjectType_None;
+    }
+}
+
+AudioObjectType object_mask_from_channel_mask(unsigned channelMask) {
+    AudioObjectType mask = AudioObjectType_None;
+    for (unsigned bit = 0; bit < 32; ++bit) {
+        const unsigned flag = 1u << bit;
+        if ((channelMask & flag) == 0) continue;
+        const AudioObjectType type = object_type_from_channel_flag(flag);
+        if (type != AudioObjectType_None) mask = add_mask(mask, type);
+    }
+    return mask;
+}
+
+AudioObjectType audio_bed_mask(unsigned channels, unsigned mask) {
+    if (channels == 0) return AudioObjectType_None;
+    return object_mask_from_channel_mask(normalized_channel_mask(channels, mask));
+}
+
 std::string narrow(const wchar_t* text) {
     if (text == nullptr || *text == L'\0') return {};
     const int required = WideCharToMultiByte(CP_UTF8, 0, text, -1, nullptr, 0, nullptr, nullptr);
@@ -148,7 +215,8 @@ void spatial_audio_output::open(audio_chunk::spec_t const& spec) {
     sampleRate_     = spec.sampleRate;
     capacityFrames_ = static_cast<size_t>(std::max(0.2, bufferLength_) * static_cast<double>(sampleRate_));
     clear_queue();
-    start_stream(sampleRate_);
+    const AudioObjectType detectedBedMask = audio_bed_mask(spec.chanCount, spec.chanMask);
+    start_stream(sampleRate_, detectedBedMask);
 }
 
 void spatial_audio_output::write(const audio_chunk& data) {
@@ -161,19 +229,20 @@ void spatial_audio_output::write(const audio_chunk& data) {
     std::lock_guard<std::mutex> lock(mutex_);
     const size_t free    = capacityFrames_ > queue_.size() ? capacityFrames_ - queue_.size() : 0;
     const size_t toCopy  = std::min(frameCount, free);
-    const bool useMaskedChannelOrder = channels == target_count
-        && mask != 0
-        && audio_chunk::g_count_channels(mask) == channels;
+    const unsigned sourceMask = normalized_channel_mask(channels, mask);
+    const bool useMaskedChannelOrder = sourceMask != 0
+        && audio_chunk::g_count_channels(sourceMask) == channels;
     for (size_t i = 0; i < toCopy; ++i) {
         std::array<float, 12> frame = {};
-        if (channels == target_count) {
+        if (useMaskedChannelOrder) {
             for (size_t ch = 0; ch < target_count; ++ch) {
-                size_t source = ch;
-                if (useMaskedChannelOrder) {
-                    const unsigned index = audio_chunk::g_channel_index_from_flag(mask, target_channel_flag(ch));
-                    if (index != static_cast<unsigned>(-1) && index < channels) source = index;
-                }
-                frame[ch] = static_cast<float>(samples[i * channels + source]);
+                const unsigned index = audio_chunk::g_channel_index_from_flag(sourceMask, target_channel_flag(ch));
+                if (index != static_cast<unsigned>(-1) && index < channels)
+                    frame[ch] = static_cast<float>(samples[i * channels + index]);
+            }
+        } else if (channels == target_count) {
+            for (size_t ch = 0; ch < target_count; ++ch) {
+                frame[ch] = static_cast<float>(samples[i * channels + ch]);
             }
         } else if (channels >= 2) {
             frame[0] = static_cast<float>(samples[i * channels + 0]);
@@ -198,11 +267,11 @@ t_size spatial_audio_output::get_latency_samples() {
 void spatial_audio_output::on_flush()      { clear_queue(); SetEvent(wakeEvent_); }
 void spatial_audio_output::on_force_play() { SetEvent(wakeEvent_); }
 
-void spatial_audio_output::start_stream(uint32_t sampleRate) {
+void spatial_audio_output::start_stream(uint32_t sampleRate, AudioObjectType audioBedMask) {
     spatialEvent_ = CreateEvent(nullptr, FALSE, FALSE, nullptr);
     if (spatialEvent_ == nullptr) throw_if_failed(HRESULT_FROM_WIN32(GetLastError()), "Create spatial completion event");
     { std::lock_guard<std::mutex> lock(mutex_); stopping_ = false; paused_ = false; started_ = true; }
-    renderThread_ = std::thread([this, sampleRate]() { render_loop(sampleRate); });
+    renderThread_ = std::thread([this, sampleRate, audioBedMask]() { render_loop(sampleRate, audioBedMask); });
 }
 
 void spatial_audio_output::stop_stream() {
@@ -249,7 +318,7 @@ void spatial_audio_output::throw_if_failed(HRESULT hr, const char* action) {
     }
 }
 
-void spatial_audio_output::render_loop(uint32_t sampleRate) {
+void spatial_audio_output::render_loop(uint32_t sampleRate, AudioObjectType audioBedMask) {
     HRESULT coInit = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     if (FAILED(coInit)) {
         FB2K_console_formatter() << "foo_out_spatial_audio: COM init failed: " << hresult_text(coInit).c_str();
@@ -276,7 +345,7 @@ void spatial_audio_output::render_loop(uint32_t sampleRate) {
         throw_if_failed(spatialClient->GetMaxDynamicObjectCount(&maxDynamicObjectCount), "Get max dynamic object count");
 
         OutputConfig streamConfig = current_config();
-        const AudioObjectType requestedMask = requested_static_mask(streamConfig, nativeMask);
+        const AudioObjectType requestedMask = requested_static_mask(streamConfig, nativeMask, audioBedMask);
         AudioObjectType activeMask = AudioObjectType_None;
         std::vector<ChannelState> channels;
         for (const auto& ch : all_channels()) {
@@ -510,8 +579,11 @@ int spatial_audio_output::channel_index(const std::string& key) {
     return -1;
 }
 
-AudioObjectType spatial_audio_output::requested_static_mask(const OutputConfig& config, AudioObjectType nativeMask) {
-    if (config.layoutMode == LayoutMode::Auto) return nativeMask;
+AudioObjectType spatial_audio_output::requested_static_mask(const OutputConfig& config, AudioObjectType nativeMask, AudioObjectType audioBedMask) {
+    if (config.layoutMode == LayoutMode::Auto) {
+        const auto detected = static_cast<AudioObjectType>(static_cast<uint32_t>(audioBedMask) & static_cast<uint32_t>(nativeMask));
+        return detected != AudioObjectType_None ? detected : nativeMask;
+    }
 
     AudioObjectType mask = AudioObjectType_None;
     auto include = [&](AudioObjectType type) { mask = add_mask(mask, type); };

@@ -43,6 +43,7 @@ const MappingOption kMappingOptions[] = {
 
 struct LimiterOption { LimiterMode mode; const wchar_t* label; };
 struct UpmixOption   { UpmixMode mode;   const wchar_t* label; };
+struct LayoutOption  { DspOutputLayout layout; const wchar_t* label; };
 
 const LimiterOption kLimiterOptions[] = {
     {LimiterMode::TransparentSoft, L"Transparent soft"},
@@ -53,6 +54,14 @@ const UpmixOption kUpmixOptions[] = {
     {UpmixMode::Reference, L"Reference"},
     {UpmixMode::Full,      L"Full spatial"},
     {UpmixMode::FrontOnly, L"Front only"},
+};
+
+const LayoutOption kLayoutOptions[] = {
+    {DspOutputLayout::FivePointOne,      L"Surround (5.1)"},
+    {DspOutputLayout::SevenPointOne,     L"Surround (7.1)"},
+    {DspOutputLayout::FivePointOneTwo,   L"Surround + height (5.1.2)"},
+    {DspOutputLayout::FivePointOneFour,  L"Surround + height (5.1.4)"},
+    {DspOutputLayout::SevenPointOneFour, L"Surround + height (7.1.4)"},
 };
 
 struct SliderBinding {
@@ -255,6 +264,25 @@ void set_upmix_mode(HWND wnd, UpmixMode mode) {
     if (combo == nullptr) return;
     for (int i = 0; i < combo_get_count(combo); ++i) {
         if (static_cast<UpmixMode>(combo_get_item_data(combo, i)) == mode) {
+            combo_set_cur_sel(combo, i); return;
+        }
+    }
+    combo_set_cur_sel(combo, 0);
+}
+
+DspOutputLayout read_output_layout(HWND wnd) {
+    HWND combo = find_dlg_item(wnd, idLayoutMode);
+    if (combo == nullptr) return DspOutputLayout::SevenPointOneFour;
+    const int index = combo_get_cur_sel(combo);
+    if (index == CB_ERR) return DspOutputLayout::SevenPointOneFour;
+    return static_cast<DspOutputLayout>(combo_get_item_data(combo, index));
+}
+
+void set_output_layout(HWND wnd, DspOutputLayout layout) {
+    HWND combo = find_dlg_item(wnd, idLayoutMode);
+    if (combo == nullptr) return;
+    for (int i = 0; i < combo_get_count(combo); ++i) {
+        if (static_cast<DspOutputLayout>(combo_get_item_data(combo, i)) == layout) {
             combo_set_cur_sel(combo, i); return;
         }
     }
@@ -649,11 +677,16 @@ private:
     }
 
     void populate_upmix_page() {
+        HWND layoutCombo = find_dlg_item(wnd_, idLayoutMode);
+        for (const auto& option : kLayoutOptions)
+            add_combo_item(layoutCombo, option.label, static_cast<LPARAM>(option.layout));
+        add_tooltip(layoutCombo, L"Controls how many channels the DSP produces. Output Auto follows this bed.");
+
         HWND upmixCombo = find_dlg_item(wnd_, idUpmixMode);
         for (const auto& option : kUpmixOptions)
             add_combo_item(upmixCombo, option.label, static_cast<LPARAM>(option.mode));
         add_tooltip(upmixCombo, L"Reference is the beginner default. Full spatial is wider. Front only is useful for A/B comparison.");
-        add_tooltip(find_dlg_item(wnd_, idBeginnerDefaultsButton), L"Restore safe defaults: Reference upmix, limiter on, conservative gains.");
+        add_tooltip(find_dlg_item(wnd_, idBeginnerDefaultsButton), L"Restore beginner defaults: Reference upmix, unity gains, LFE extraction and limiter on.");
 
         bind_slider(idMasterGain,    idMasterGainSlider,    -60.0, 12.0, 10.0, 1);
         bind_slider(idHeadroom,      idHeadroomSlider,      -24.0,  6.0, 10.0, 1);
@@ -785,6 +818,7 @@ private:
 
     DspConfig read_from_controls() const {
         DspConfig config;
+        config.outputLayout      = read_output_layout(wnd_);
         config.upmixMode         = read_upmix_mode(wnd_);
         config.masterGainDb      = read_double(wnd_, idMasterGain,    config.masterGainDb);
         config.headroomDb        = read_double(wnd_, idHeadroom,      config.headroomDb);
@@ -817,6 +851,7 @@ private:
 
     void write_to_controls(const DspConfig& config) {
         updatingControls_ = true;
+        set_output_layout(wnd_, config.outputLayout);
         set_upmix_mode(wnd_, config.upmixMode);
         set_numeric(idMasterGain,   config.masterGainDb);
         set_numeric(idHeadroom,     config.headroomDb);
@@ -851,7 +886,8 @@ private:
 
     bool has_changed() const {
         const DspConfig current = read_from_controls();
-        if (current.upmixMode != initial_.upmixMode
+        if (current.outputLayout != initial_.outputLayout
+            || current.upmixMode != initial_.upmixMode
             || different(current.masterGainDb, initial_.masterGainDb)
             || different(current.headroomDb, initial_.headroomDb)
             || current.limiterEnabled != initial_.limiterEnabled

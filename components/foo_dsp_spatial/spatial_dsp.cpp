@@ -15,6 +15,83 @@ void config_to_preset(const DspConfig& config, dsp_preset& preset) {
     preset.set_data(text.data(), text.size());
 }
 
+struct OutputBedDef {
+    const int* targets;
+    size_t count;
+    unsigned mask;
+};
+
+static constexpr std::array<int, 6> kOutputTargets51 = {
+    target_front_left,
+    target_front_right,
+    target_front_center,
+    target_low_frequency,
+    target_side_left,
+    target_side_right,
+};
+
+static constexpr std::array<int, 8> kOutputTargets71 = {
+    target_front_left,
+    target_front_right,
+    target_front_center,
+    target_low_frequency,
+    target_back_left,
+    target_back_right,
+    target_side_left,
+    target_side_right,
+};
+
+static constexpr std::array<int, 8> kOutputTargets512 = {
+    target_front_left,
+    target_front_right,
+    target_front_center,
+    target_low_frequency,
+    target_side_left,
+    target_side_right,
+    target_top_front_left,
+    target_top_front_right,
+};
+
+static constexpr std::array<int, 10> kOutputTargets514 = {
+    target_front_left,
+    target_front_right,
+    target_front_center,
+    target_low_frequency,
+    target_side_left,
+    target_side_right,
+    target_top_front_left,
+    target_top_front_right,
+    target_top_back_left,
+    target_top_back_right,
+};
+
+static constexpr unsigned kOutputMask512 =
+    audio_chunk::channel_config_5point1_side |
+    audio_chunk::channel_top_front_left |
+    audio_chunk::channel_top_front_right;
+
+static constexpr unsigned kOutputMask514 =
+    kOutputMask512 |
+    audio_chunk::channel_top_back_left |
+    audio_chunk::channel_top_back_right;
+
+template <size_t N>
+OutputBedDef make_output_bed(const std::array<int, N>& targets, unsigned mask) {
+    return {targets.data(), targets.size(), mask};
+}
+
+OutputBedDef output_bed_def(DspOutputLayout layout) {
+    switch (layout) {
+    case DspOutputLayout::FivePointOne: return make_output_bed(kOutputTargets51, audio_chunk::channel_config_5point1_side);
+    case DspOutputLayout::SevenPointOne: return make_output_bed(kOutputTargets71, audio_chunk::channel_config_7point1);
+    case DspOutputLayout::FivePointOneTwo: return make_output_bed(kOutputTargets512, kOutputMask512);
+    case DspOutputLayout::FivePointOneFour: return make_output_bed(kOutputTargets514, kOutputMask514);
+    case DspOutputLayout::SevenPointOneFour:
+    default:
+        return make_output_bed(kOutputChannelTargets, kOutputChannelMask);
+    }
+}
+
 class dsp_config_popup : public CDialogImpl<dsp_config_popup> {
 public:
     enum { IDD = IDD_DSP_CONFIG_POPUP };
@@ -104,24 +181,25 @@ bool spatial_upmix_dsp::on_chunk(audio_chunk* chunk, abort_callback&) {
         inputLayout_ = InputLayout::SevenPointOne;
     }
 
+    const OutputBedDef outputBed = output_bed_def(config_.outputLayout);
     const double masterGain = db_to_linear(config_.masterGainDb + config_.headroomDb);
-    std::vector<audio_sample> out(frameCount * target_count, 0.0f);
+    std::vector<audio_sample> out(frameCount * outputBed.count, 0.0f);
 
     for (size_t i = 0; i < frameCount; ++i) {
         InputFrame frame = extract_frame(in, i, channels, mask, inputLayout_);
-        for (size_t outCh = 0; outCh < target_count; ++outCh) {
-            const int target = kOutputChannelTargets[outCh];
+        for (size_t outCh = 0; outCh < outputBed.count; ++outCh) {
+            const int target = outputBed.targets[outCh];
             const size_t targetIndex = static_cast<size_t>(target);
             double value = bed_value(target, frame);
             value *= masterGain * db_to_linear(config_.channelGainDb[targetIndex]);
             if (config_.channelInvert[targetIndex]) value = -value;
             float delayed = apply_channel_delay(target, static_cast<float>(value));
             delayed = static_cast<float>(apply_limiter(delayed));
-            out[i * target_count + outCh] = delayed;
+            out[i * outputBed.count + outCh] = delayed;
         }
     }
 
-    chunk->set_data(out.data(), frameCount, static_cast<unsigned>(target_count), sampleRate_, kOutputChannelMask);
+    chunk->set_data(out.data(), frameCount, static_cast<unsigned>(outputBed.count), sampleRate_, outputBed.mask);
     return true;
 }
 

@@ -56,7 +56,7 @@ struct LayoutOption { LayoutMode mode; const wchar_t* label; };
 struct SampleRateOption { SampleRateMode mode; const wchar_t* label; };
 
 const LayoutOption kLayoutOptions[] = {
-    {LayoutMode::Auto,            L"Auto (use all available)"},
+    {LayoutMode::Auto,            L"Auto (follow audio bed)"},
     {LayoutMode::Stereo,          L"Stereo (2.0)"},
     {LayoutMode::FivePointOne,    L"Surround (5.1)"},
     {LayoutMode::SevenPointOne,   L"Surround (7.1)"},
@@ -766,7 +766,7 @@ private:
         HWND layoutCombo = find_dlg_item(wnd_, idLayoutMode);
         for (const auto& option : kLayoutOptions)
             add_combo_item(layoutCombo, option.label, static_cast<LPARAM>(option.mode));
-        add_tooltip(layoutCombo, L"Choose which spatial bed channels to activate. Auto uses everything the endpoint exposes.");
+        add_tooltip(layoutCombo, L"Choose which spatial bed channels to activate. Auto follows the channel bed of the playing audio.");
 
         HWND srCombo = find_dlg_item(wnd_, idSampleRateMode);
         for (const auto& option : kSampleRateOptions)

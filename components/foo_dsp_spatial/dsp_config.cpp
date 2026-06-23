@@ -4,6 +4,7 @@
 namespace spatial_audio {
 
 static constexpr GUID guid_cfg_master_gain         = { 0xe84f6d6e, 0xf21a, 0x4d07, { 0x94, 0x9e, 0xde, 0x37, 0xb1, 0x02, 0x1c, 0x56 } };
+static constexpr GUID guid_cfg_output_layout       = { 0xbbd71693, 0x5d73, 0x4f7b, { 0xaa, 0x11, 0x31, 0x4c, 0xa0, 0x58, 0x8c, 0x6e } };
 static constexpr GUID guid_cfg_upmix_mode          = { 0x7ee6e772, 0x6f02, 0x49e6, { 0xb5, 0x4a, 0x34, 0xe7, 0x7d, 0xcf, 0x7c, 0xf6 } };
 static constexpr GUID guid_cfg_headroom            = { 0x810b1a63, 0xf065, 0x417d, { 0x84, 0x66, 0x07, 0xce, 0x0f, 0xf5, 0x68, 0xf0 } };
 static constexpr GUID guid_cfg_limiter_enabled     = { 0x26f390c3, 0xf665, 0x4cd1, { 0x96, 0x72, 0x44, 0xaa, 0xa8, 0xa4, 0xe1, 0x7a } };
@@ -51,21 +52,22 @@ static constexpr GUID guid_cfg_map51_lfe                     = { 0xcb0694d1, 0xd
 static constexpr GUID guid_cfg_map51_surround_left           = { 0x98f8a0f9, 0xb867, 0x47a8, { 0x8b, 0x04, 0xfe, 0xc6, 0xbd, 0x6e, 0x76, 0x6e } };
 static constexpr GUID guid_cfg_map51_surround_right          = { 0xce34eb76, 0xb3ee, 0x4e50, { 0xbb, 0xb6, 0x36, 0x07, 0x11, 0x35, 0x68, 0x0d } };
 
+static cfg_int   cfg_output_layout(guid_cfg_output_layout, static_cast<int>(DspOutputLayout::SevenPointOneFour));
 static cfg_int   cfg_upmix_mode(guid_cfg_upmix_mode, static_cast<int>(UpmixMode::Reference));
-static cfg_float cfg_master_gain(guid_cfg_master_gain, -12.0);
+static cfg_float cfg_master_gain(guid_cfg_master_gain, 0.0);
 static cfg_float cfg_headroom(guid_cfg_headroom, 0.0);
 static cfg_bool  cfg_limiter_enabled(guid_cfg_limiter_enabled, true);
 static cfg_int   cfg_limiter_mode(guid_cfg_limiter_mode, static_cast<int>(LimiterMode::TransparentSoft));
 static cfg_float cfg_limiter_ceiling(guid_cfg_limiter_ceiling, -1.0);
-static cfg_float cfg_center_gain(guid_cfg_center_gain, -6.0);
-static cfg_float cfg_surround_gain(guid_cfg_surround_gain, -9.0);
-static cfg_float cfg_rear_gain(guid_cfg_rear_gain, -12.0);
-static cfg_float cfg_height_gain(guid_cfg_height_gain, -12.0);
+static cfg_float cfg_center_gain(guid_cfg_center_gain, 0.0);
+static cfg_float cfg_surround_gain(guid_cfg_surround_gain, 0.0);
+static cfg_float cfg_rear_gain(guid_cfg_rear_gain, 0.0);
+static cfg_float cfg_height_gain(guid_cfg_height_gain, 0.0);
 static cfg_float cfg_side_amount(guid_cfg_side_amount, 0.75);
 static cfg_float cfg_height_from_mid(guid_cfg_height_from_mid, 0.20);
 static cfg_float cfg_decorrelation(guid_cfg_decorrelation, 0.20);
-static cfg_bool  cfg_enable_lfe(guid_cfg_enable_lfe, false);
-static cfg_float cfg_lfe_gain(guid_cfg_lfe_gain, -24.0);
+static cfg_bool  cfg_enable_lfe(guid_cfg_enable_lfe, true);
+static cfg_float cfg_lfe_gain(guid_cfg_lfe_gain, 0.0);
 static cfg_float cfg_lfe_lowpass(guid_cfg_lfe_lowpass, 120.0);
 static cfg_float cfg_channel_gain_front_left(guid_cfg_channel_gain_front_left, 0.0);
 static cfg_float cfg_channel_gain_front_right(guid_cfg_channel_gain_front_right, 0.0);
@@ -141,6 +143,16 @@ static UpmixMode upmix_mode_from_int(int value) {
     }
 }
 
+static DspOutputLayout output_layout_from_int(int value) {
+    switch (value) {
+    case static_cast<int>(DspOutputLayout::FivePointOne): return DspOutputLayout::FivePointOne;
+    case static_cast<int>(DspOutputLayout::SevenPointOne): return DspOutputLayout::SevenPointOne;
+    case static_cast<int>(DspOutputLayout::FivePointOneTwo): return DspOutputLayout::FivePointOneTwo;
+    case static_cast<int>(DspOutputLayout::FivePointOneFour): return DspOutputLayout::FivePointOneFour;
+    default: return DspOutputLayout::SevenPointOneFour;
+    }
+}
+
 static std::string trim(std::string text) {
     const auto first = text.find_first_not_of(" \t\r\n");
     if (first == std::string::npos) return {};
@@ -199,6 +211,7 @@ DspConfig DefaultDspConfig() {
 
 DspConfig ReadDspConfig() {
     DspConfig config;
+    config.outputLayout   = output_layout_from_int(static_cast<int>(cfg_output_layout.get()));
     config.upmixMode      = upmix_mode_from_int(static_cast<int>(cfg_upmix_mode.get()));
     config.masterGainDb   = cfg_master_gain.get();
     config.headroomDb     = cfg_headroom.get();
@@ -230,6 +243,7 @@ DspConfig ReadDspConfig() {
 }
 
 void WriteDspConfig(const DspConfig& config) {
+    cfg_output_layout = static_cast<int>(config.outputLayout);
     cfg_upmix_mode    = static_cast<int>(config.upmixMode);
     cfg_master_gain   = static_cast<float>(config.masterGainDb);
     cfg_headroom      = static_cast<float>(config.headroomDb);
@@ -268,6 +282,7 @@ std::string SerializeDspConfig(const DspConfig& config) {
     output << std::setprecision(10);
     output << "[foo_dsp_spatial]\n";
     output << "version=1\n";
+    output << "output_layout=" << static_cast<int>(config.outputLayout) << "\n";
     output << "upmix_mode=" << static_cast<int>(config.upmixMode) << "\n";
     output << "master_gain_db=" << config.masterGainDb << "\n";
     output << "headroom_db=" << config.headroomDb << "\n";
@@ -302,6 +317,7 @@ bool DeserializeDspConfig(const std::string& text, DspConfig& config) {
     const auto values = parse_profile_values(text);
     if (values.empty()) return false;
     const bool hasKnownKey = values.find("version") != values.end()
+        || values.find("output_layout") != values.end()
         || values.find("upmix_mode") != values.end()
         || values.find("master_gain_db") != values.end()
         || values.find("map51_front_left") != values.end();
@@ -309,6 +325,7 @@ bool DeserializeDspConfig(const std::string& text, DspConfig& config) {
 
     DspConfig next = config;
     int intValue = 0;
+    if (read_int_key(values, "output_layout", intValue)) next.outputLayout = output_layout_from_int(intValue);
     if (read_int_key(values, "upmix_mode", intValue)) next.upmixMode = upmix_mode_from_int(intValue);
     read_double_key(values, "master_gain_db", next.masterGainDb);
     read_double_key(values, "headroom_db", next.headroomDb);

@@ -43,9 +43,9 @@ private:
     void on_force_play() override;
     void open(audio_chunk::spec_t const& spec) override;
 
-    void start_stream(uint32_t sampleRate);
+    void start_stream(uint32_t sampleRate, AudioObjectType audioBedMask);
     void stop_stream();
-    void render_loop(uint32_t sampleRate);
+    void render_loop(uint32_t sampleRate, AudioObjectType audioBedMask);
     void clear_queue();
 
     OutputConfig current_config() const;
@@ -59,7 +59,7 @@ private:
     static uint32_t forced_sample_rate(const OutputConfig& config);
     static int target_from_key(const std::string& key);
     static int channel_index(const std::string& key);
-    static AudioObjectType requested_static_mask(const OutputConfig& config, AudioObjectType nativeMask);
+    static AudioObjectType requested_static_mask(const OutputConfig& config, AudioObjectType nativeMask, AudioObjectType audioBedMask);
     static bool target_coordinates(int target, float& x, float& y, float& z);
     static float clamp_sample(double value);
     static double db_to_linear(double db);

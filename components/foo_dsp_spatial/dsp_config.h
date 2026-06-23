@@ -5,6 +5,13 @@ namespace spatial_audio {
 
 enum class UpmixMode   { Full = 0, Reference = 1, FrontOnly = 2 };
 enum class LimiterMode { TransparentSoft = 0, HardCeiling = 1 };
+enum class DspOutputLayout {
+    FivePointOne = 0,
+    SevenPointOne = 1,
+    FivePointOneTwo = 2,
+    FivePointOneFour = 3,
+    SevenPointOneFour = 4,
+};
 
 static constexpr size_t target_count = 12;
 
@@ -18,21 +25,22 @@ enum ChannelTarget {
 };
 
 struct DspConfig {
+    DspOutputLayout outputLayout = DspOutputLayout::SevenPointOneFour;
     UpmixMode upmixMode = UpmixMode::Reference;
-    double masterGainDb = -12.0;
+    double masterGainDb = 0.0;
     double headroomDb = 0.0;
     bool limiterEnabled = true;
     LimiterMode limiterMode = LimiterMode::TransparentSoft;
     double limiterCeilingDb = -1.0;
-    double centerGainDb = -6.0;
-    double surroundGainDb = -9.0;
-    double rearGainDb = -12.0;
-    double heightGainDb = -12.0;
+    double centerGainDb = 0.0;
+    double surroundGainDb = 0.0;
+    double rearGainDb = 0.0;
+    double heightGainDb = 0.0;
     double sideAmount = 0.75;
     double heightFromMid = 0.20;
     double decorrelationAmount = 0.20;
-    bool enableLfe = false;
-    double lfeGainDb = -24.0;
+    bool enableLfe = true;
+    double lfeGainDb = 0.0;
     double lfeLowpassHz = 120.0;
     std::array<double, target_count> channelGainDb = {};
     std::array<double, target_count> channelDelayMs = {};
