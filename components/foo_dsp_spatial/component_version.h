@@ -1,0 +1,5 @@
+#pragma once
+
+#ifndef SPATIAL_DSP_COMPONENT_VERSION
+#define SPATIAL_DSP_COMPONENT_VERSION "0.1.0"
+#endif
