@@ -676,6 +676,14 @@ private:
             if (endpointSummary != nullptr) ::SetWindowTextW(endpointSummary, summary.c_str());
             return 0;
         }
+        if (id == idGitHubButton && code == BN_CLICKED) {
+            ::ShellExecuteW(wnd_, L"open", L"https://github.com/ArtifexEt/Foobar-for-Home-Theater", nullptr, nullptr, SW_SHOWNORMAL);
+            return 0;
+        }
+        if (id == idSupportButton && code == BN_CLICKED) {
+            ::ShellExecuteW(wnd_, L"open", L"https://buymeacoffee.com/szymonrybka", nullptr, nullptr, SW_SHOWNORMAL);
+            return 0;
+        }
         if (id == idDirectionalTestRunSelected && code == BN_CLICKED) {
             run_selected_test();
             return 0;
@@ -784,8 +792,9 @@ private:
             const char* ver = SPATIAL_AUDIO_COMPONENT_VERSION;
             int len = MultiByteToWideChar(CP_UTF8, 0, ver, -1, nullptr, 0);
             if (len > 0) {
-                versionText.resize(static_cast<size_t>(len - 1));
+                versionText.resize(static_cast<size_t>(len));
                 MultiByteToWideChar(CP_UTF8, 0, ver, -1, versionText.data(), len);
+                versionText.resize(static_cast<size_t>(len - 1));
             }
             ::SetWindowTextW(versionLabel, versionText.c_str());
         }
@@ -936,7 +945,7 @@ private:
 
 class preferences_page_spatial_audio : public preferences_page_impl<preferences_instance> {
 public:
-    const char* get_name() override { return "Spatial Audio for Home Theater"; }
+    const char* get_name() override { return "Spatial Audio for Home Theater Output"; }
     GUID get_guid() override { return guid_preferences; }
     GUID get_parent_guid() override { return preferences_page::guid_output; }
 };

@@ -57,4 +57,35 @@ static const char* const kTargetKeys[12] = {
     "top_front_left","top_front_right","top_back_left","top_back_right"
 };
 
+static constexpr std::array<int, target_count> kOutputChannelTargets = {
+    target_front_left,
+    target_front_right,
+    target_front_center,
+    target_low_frequency,
+    target_back_left,
+    target_back_right,
+    target_side_left,
+    target_side_right,
+    target_top_front_left,
+    target_top_front_right,
+    target_top_back_left,
+    target_top_back_right,
+};
+
+static constexpr unsigned kOutputChannelMask =
+    audio_chunk::channel_front_left |
+    audio_chunk::channel_front_right |
+    audio_chunk::channel_front_center |
+    audio_chunk::channel_lfe |
+    audio_chunk::channel_back_left |
+    audio_chunk::channel_back_right |
+    audio_chunk::channel_side_left |
+    audio_chunk::channel_side_right |
+    audio_chunk::channel_top_front_left |
+    audio_chunk::channel_top_front_right |
+    audio_chunk::channel_top_back_left |
+    audio_chunk::channel_top_back_right;
+
+static_assert(audio_chunk::g_count_channels(kOutputChannelMask) == target_count, "Spatial DSP output mask must match target count.");
+
 } // namespace spatial_audio

@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "component_version.h"
 #include "dsp_config.h"
 #include "dsp_preferences_resource.h"
 
@@ -17,7 +18,7 @@ static constexpr COLORREF kDarkEditBackground = RGB(24, 24, 24);
 static constexpr COLORREF kDarkText        = RGB(232, 232, 232);
 static constexpr int kTooltipMaxWidthPixels = 360;
 
-enum class Page { Upmix = 0, Channels, Mapping, Lfe, Limiter, Count };
+enum class Page { Upmix = 0, Channels, Mapping, Lfe, Limiter, About, Count };
 
 struct MappingOption {
     int target;
@@ -87,14 +88,16 @@ static int measure_content_height(HWND pageWnd) {
     return data.maxBottom > 0 ? data.maxBottom + 8 : 0;
 }
 
-struct ComboHeightData { HWND parent = nullptr; int height = 0; };
+struct ComboHeightData { HWND parent = nullptr; int selectionHeight = 0; int listHeight = 0; };
 
 static BOOL CALLBACK set_combo_height_proc(HWND child, LPARAM lp) {
     auto* data = reinterpret_cast<ComboHeightData*>(lp);
     if (::GetParent(child) != data->parent) return TRUE;
     wchar_t cls[16] = {};
-    if (::GetClassNameW(child, cls, _countof(cls)) > 0 && _wcsicmp(cls, L"ComboBox") == 0)
-        ::SendMessageW(child, CB_SETITEMHEIGHT, static_cast<WPARAM>(-1), static_cast<LPARAM>(data->height));
+    if (::GetClassNameW(child, cls, _countof(cls)) > 0 && _wcsicmp(cls, L"ComboBox") == 0) {
+        ::SendMessageW(child, CB_SETITEMHEIGHT, static_cast<WPARAM>(-1), static_cast<LPARAM>(data->selectionHeight));
+        ::SendMessageW(child, CB_SETITEMHEIGHT, 0, static_cast<LPARAM>(data->listHeight));
+    }
     return TRUE;
 }
 
@@ -207,6 +210,16 @@ std::wstring widen(const std::string& text) {
     if (required <= 0) return {};
     std::wstring result(static_cast<size_t>(required), L'\0');
     MultiByteToWideChar(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), result.data(), required);
+    return result;
+}
+
+std::wstring widen_ascii(const char* text) {
+    if (text == nullptr || *text == '\0') return {};
+    const int required = MultiByteToWideChar(CP_UTF8, 0, text, -1, nullptr, 0);
+    if (required <= 1) return {};
+    std::wstring result(static_cast<size_t>(required), L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, text, -1, result.data(), required);
+    result.resize(static_cast<size_t>(required - 1));
     return result;
 }
 
@@ -438,21 +451,34 @@ private:
     }
 
     void normalize_combo_heights() {
-        RECT r = {}; HWND refWnd = nullptr;
+        HWND refWnd = nullptr;
         for (HWND pw : pageWnds_) {
             if (pw != nullptr) { refWnd = pw; break; }
         }
         if (refWnd == nullptr) return;
-        const int targetH = 16;
+        const int targetH = combo_selection_height(refWnd);
 
         for (HWND pageWnd : pageWnds_) {
             if (pageWnd == nullptr) continue;
-            ComboHeightData data = {pageWnd, targetH};
+            ComboHeightData data = {pageWnd, targetH, targetH};
             ::EnumChildWindows(pageWnd, set_combo_height_proc, reinterpret_cast<LPARAM>(&data));
             const int newH = measure_content_height(pageWnd);
             if (newH > 0)
                 ::SetPropW(pageWnd, L"dsp_ch", reinterpret_cast<HANDLE>(static_cast<LONG_PTR>(newH)));
         }
+    }
+
+    int combo_selection_height(HWND refWnd) const {
+        HDC dc = ::GetDC(refWnd);
+        if (dc == nullptr) return 20;
+        HFONT font = reinterpret_cast<HFONT>(::SendMessageW(refWnd, WM_GETFONT, 0, 0));
+        HGDIOBJ oldFont = font != nullptr ? ::SelectObject(dc, font) : nullptr;
+        TEXTMETRICW tm = {};
+        ::GetTextMetricsW(dc, &tm);
+        const int dpiY = ::GetDeviceCaps(dc, LOGPIXELSY);
+        if (oldFont != nullptr) ::SelectObject(dc, oldFont);
+        ::ReleaseDC(refWnd, dc);
+        return std::max(20, tm.tmHeight + tm.tmExternalLeading + MulDiv(7, dpiY > 0 ? dpiY : 96, 96));
     }
 
     void position_pages() {
@@ -500,18 +526,26 @@ private:
         if (id == idCopyProfileButton && code == BN_CLICKED) {
             const std::string profile = SerializeDspConfig(read_from_controls());
             if (!set_clipboard_text(wnd_, widen(profile)))
-                ::MessageBoxW(wnd_, L"Could not copy profile to clipboard.", L"Spatial Audio DSP", MB_ICONWARNING | MB_OK);
+                ::MessageBoxW(wnd_, L"Could not copy profile to clipboard.", L"Spatial Audio for Home Theater DSP", MB_ICONWARNING | MB_OK);
             return 0;
         }
         if (id == idPasteProfileButton && code == BN_CLICKED) {
             std::wstring clipboard;
             DspConfig imported = read_from_controls();
             if (!get_clipboard_text(wnd_, clipboard) || !DeserializeDspConfig(narrow(clipboard.c_str()), imported)) {
-                ::MessageBoxW(wnd_, L"Clipboard does not contain a Spatial Audio DSP profile.", L"Spatial Audio DSP", MB_ICONWARNING | MB_OK);
+                ::MessageBoxW(wnd_, L"Clipboard does not contain a Spatial Audio for Home Theater DSP profile.", L"Spatial Audio for Home Theater DSP", MB_ICONWARNING | MB_OK);
                 return 0;
             }
             write_to_controls(imported);
             callback_->on_state_changed();
+            return 0;
+        }
+        if (id == idRepoButton && code == BN_CLICKED) {
+            ::ShellExecuteW(wnd_, L"open", L"https://github.com/ArtifexEt/Foobar-for-Home-Theater", nullptr, nullptr, SW_SHOWNORMAL);
+            return 0;
+        }
+        if (id == idSupportButton && code == BN_CLICKED) {
+            ::ShellExecuteW(wnd_, L"open", L"https://buymeacoffee.com/szymonrybka", nullptr, nullptr, SW_SHOWNORMAL);
             return 0;
         }
         if (id == idBeginnerDefaultsButton && code == BN_CLICKED) {
@@ -555,12 +589,14 @@ private:
         add_tab(tabs, 2, L"Channel Mapping");
         add_tab(tabs, 3, L"LFE");
         add_tab(tabs, 4, L"Limiter");
+        add_tab(tabs, 5, L"About");
 
         create_page(Page::Upmix,    IDD_DSP_PAGE_UPMIX);
         create_page(Page::Channels, IDD_DSP_PAGE_CHANNELS);
         create_page(Page::Mapping,  IDD_DSP_PAGE_MAPPING);
         create_page(Page::Lfe,      IDD_DSP_PAGE_LFE);
         create_page(Page::Limiter,  IDD_DSP_PAGE_LIMITER);
+        create_page(Page::About,    IDD_DSP_PAGE_ABOUT);
         position_pages();
 
         populate_upmix_page();
@@ -568,6 +604,7 @@ private:
         populate_mapping_page();
         populate_lfe_page();
         populate_limiter_page();
+        populate_about_page();
 
         write_to_controls(initial_);
         normalize_combo_heights();
@@ -658,6 +695,16 @@ private:
         for (const auto& option : kLimiterOptions)
             add_combo_item(limiterCombo, option.label, static_cast<LPARAM>(option.mode));
         bind_slider(idLimiterCeiling, idLimiterCeilingSlider, -12.0, 0.0, 10.0, 1);
+    }
+
+    void populate_about_page() {
+        HWND versionLabel = find_dlg_item(wnd_, idAboutVersion);
+        if (versionLabel != nullptr) {
+            const std::wstring versionText = widen_ascii(SPATIAL_DSP_COMPONENT_VERSION);
+            ::SetWindowTextW(versionLabel, versionText.c_str());
+        }
+        add_tooltip(find_dlg_item(wnd_, idRepoButton), L"Open the GitHub repository in your default browser.");
+        add_tooltip(find_dlg_item(wnd_, idSupportButton), L"Open the support page.");
     }
 
     void populate_mapping_combo(HWND combo) {
@@ -850,7 +897,7 @@ private:
 
 class preferences_page_dsp_spatial : public preferences_page_impl<dsp_preferences_instance> {
 public:
-    const char* get_name() override { return "Spatial Audio DSP"; }
+    const char* get_name() override { return "Spatial Audio for Home Theater DSP"; }
     GUID get_guid() override { return guid_dsp_preferences; }
     GUID get_parent_guid() override { return preferences_page::guid_dsp; }
 };

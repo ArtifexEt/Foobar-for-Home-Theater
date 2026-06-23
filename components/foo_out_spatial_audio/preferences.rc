@@ -61,7 +61,7 @@ STYLE DS_SHELLFONT | DS_CONTROL | WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS
 EXSTYLE WS_EX_CONTROLPARENT
 FONT 8, "MS Shell Dlg", 400, 0, 1
 {
-    LTEXT       "Spatial Audio Output for Foobar2000", IDC_STATIC, 11, 9, 250, 13
+    LTEXT       "Spatial Audio for Home Theater Output", IDC_STATIC, 11, 9, 250, 13
     LTEXT       "", idAboutVersion, 11, 25, 250, 13
     PUSHBUTTON  "Buy me a coffee", idSupportButton, 11, 44, 110, 14
     PUSHBUTTON  "GitHub repo", idGitHubButton, 125, 44, 110, 14
