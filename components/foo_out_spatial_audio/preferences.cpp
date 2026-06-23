@@ -673,7 +673,7 @@ private:
         if (id == idProbeEndpoint && code == BN_CLICKED) {
             const std::wstring summary = query_endpoint_summary(read_layout_mode(), read_sample_rate_mode());
             HWND endpointSummary = find_dlg_item(wnd_, idEndpointSummary);
-            if (endpointSummary != nullptr) SetWindowTextW(endpointSummary, summary.c_str());
+            if (endpointSummary != nullptr) ::SetWindowTextW(endpointSummary, summary.c_str());
             return 0;
         }
         if (id == idDirectionalTestRunSelected && code == BN_CLICKED) {
