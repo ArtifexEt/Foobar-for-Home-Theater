@@ -113,11 +113,33 @@ bool spatial_audio_output::is_progressing() {
 }
 
 pfc::eventHandle_t spatial_audio_output::get_trigger_event() { return wakeEvent_; }
-void spatial_audio_output::on_update() {}
+
+void spatial_audio_output::on_update() {
+    const OutputConfig next = ReadConfig();
+    bool needsReopen = false;
+    {
+        std::lock_guard<std::mutex> lock(configMutex_);
+        needsReopen = stream_shape_changed(config_, next);
+        config_ = next;
+    }
+    bool renderStopped = false;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        renderStopped = renderThread_.joinable() && !started_;
+    }
+    if (needsReopen || renderStopped) {
+        on_need_reopen();
+        SetEvent(wakeEvent_);
+    }
+}
 
 void spatial_audio_output::open(audio_chunk::spec_t const& spec) {
-    config_ = ReadConfig();
-    const uint32_t configuredRate = forced_sample_rate(config_);
+    const OutputConfig nextConfig = ReadConfig();
+    {
+        std::lock_guard<std::mutex> lock(configMutex_);
+        config_ = nextConfig;
+    }
+    const uint32_t configuredRate = forced_sample_rate(nextConfig);
     const bool rateMatchesConfig  = configuredRate == 0 || spec.sampleRate == configuredRate;
     if (!rateMatchesConfig || !spatial_sample_rate_supported(spec.sampleRate) || spec.chanCount < 2) {
         throw exception_output_unsupported_stream_format();
@@ -170,7 +192,7 @@ t_size spatial_audio_output::can_write_samples() {
 }
 
 t_size spatial_audio_output::get_latency_samples() {
-    return queuedFrames_.load() + lastRenderFrames_.load();
+    return queuedFrames_.load();
 }
 
 void spatial_audio_output::on_flush()      { clear_queue(); SetEvent(wakeEvent_); }
@@ -253,7 +275,8 @@ void spatial_audio_output::render_loop(uint32_t sampleRate) {
         UINT32 maxDynamicObjectCount = 0;
         throw_if_failed(spatialClient->GetMaxDynamicObjectCount(&maxDynamicObjectCount), "Get max dynamic object count");
 
-        const AudioObjectType requestedMask = requested_static_mask(config_, nativeMask);
+        OutputConfig streamConfig = current_config();
+        const AudioObjectType requestedMask = requested_static_mask(streamConfig, nativeMask);
         AudioObjectType activeMask = AudioObjectType_None;
         std::vector<ChannelState> channels;
         for (const auto& ch : all_channels()) {
@@ -317,11 +340,12 @@ void spatial_audio_output::render_loop(uint32_t sampleRate) {
             }
 
             const double vol = db_to_linear(volumeDb_.load());
-            const bool dynamicTestActive = config_.directionalTestEnabled
-                && config_.directionalTestUseDynamicObject
-                && config_.directionalTestTarget != target_low_frequency
+            const OutputConfig frameConfig = current_config();
+            const bool dynamicTestActive = frameConfig.directionalTestEnabled
+                && frameConfig.directionalTestUseDynamicObject
+                && frameConfig.directionalTestTarget != target_low_frequency
                 && maxDynamicObjectCount > 0;
-            const bool staticTestActive = config_.directionalTestEnabled && !dynamicTestActive;
+            const bool staticTestActive = frameConfig.directionalTestEnabled && !dynamicTestActive;
 
             for (auto& channel : channels) {
                 BYTE* byteBuffer = nullptr;
@@ -336,8 +360,8 @@ void spatial_audio_output::render_loop(uint32_t sampleRate) {
                     double value = (!paused && idx >= 0 && i < input.size())
                         ? static_cast<double>(input[i][static_cast<size_t>(idx)])
                         : 0.0;
-                    if (!paused && staticTestActive && target == config_.directionalTestTarget) {
-                        value += test_signal_value(testPhase);
+                    if (!paused && staticTestActive && target == frameConfig.directionalTestTarget) {
+                        value += test_signal_value(testPhase, frameConfig);
                     }
                     value *= vol;
                     samples[i] = clamp_sample(value);
@@ -355,10 +379,10 @@ void spatial_audio_output::render_loop(uint32_t sampleRate) {
                 auto* samples = reinterpret_cast<float*>(byteBuffer);
                 const UINT32 framesToWrite = std::min(frameCount, bufferLength / static_cast<UINT32>(sizeof(float)));
                 for (UINT32 i = 0; i < framesToWrite; ++i)
-                    samples[i] = clamp_sample(test_signal_value(testPhase));
+                    samples[i] = clamp_sample(test_signal_value(testPhase, frameConfig));
 
                 float x = 0.0f, y = 0.0f, z = -1.0f;
-                if (!target_coordinates(config_.directionalTestTarget, x, y, z))
+                if (!target_coordinates(frameConfig.directionalTestTarget, x, y, z))
                     throw std::runtime_error("Selected test target cannot be positioned as a dynamic object.");
                 throw_if_failed(dynamicTestObject->SetPosition(x, y, z), "Set dynamic test position");
                 throw_if_failed(dynamicTestObject->SetVolume(1.0f), "Set dynamic test volume");
@@ -380,18 +404,23 @@ void spatial_audio_output::render_loop(uint32_t sampleRate) {
     CoUninitialize();
 }
 
-double spatial_audio_output::test_signal_value(double& phase) const {
-    const double frequency = test_frequency_hz();
-    const double gain  = db_to_linear(std::clamp(config_.directionalTestGainDb, -60.0, 0.0));
+OutputConfig spatial_audio_output::current_config() const {
+    std::lock_guard<std::mutex> lock(configMutex_);
+    return config_;
+}
+
+double spatial_audio_output::test_signal_value(double& phase, const OutputConfig& config) const {
+    const double frequency = test_frequency_hz(config);
+    const double gain  = db_to_linear(std::clamp(config.directionalTestGainDb, -60.0, 0.0));
     const double value = std::sin(phase) * gain;
     phase += 2.0 * kPi * frequency / static_cast<double>(sampleRate_);
     if (phase >= 2.0 * kPi) phase -= 2.0 * kPi;
     return value;
 }
 
-double spatial_audio_output::test_frequency_hz() const {
-    if (config_.directionalTestTarget == target_low_frequency) return 55.0;
-    return std::clamp(config_.directionalTestFrequencyHz, 40.0, 2000.0);
+double spatial_audio_output::test_frequency_hz(const OutputConfig& config) const {
+    if (config.directionalTestTarget == target_low_frequency) return 55.0;
+    return std::clamp(config.directionalTestFrequencyHz, 40.0, 2000.0);
 }
 
 bool spatial_audio_output::is_5point1_mask(unsigned mask) {
@@ -553,6 +582,11 @@ float spatial_audio_output::clamp_sample(double value) {
 
 double spatial_audio_output::db_to_linear(double db) {
     return std::pow(10.0, db / 20.0);
+}
+
+bool spatial_audio_output::stream_shape_changed(const OutputConfig& previous, const OutputConfig& next) {
+    return previous.layoutMode != next.layoutMode
+        || previous.sampleRateMode != next.sampleRateMode;
 }
 
 static output_factory_t<spatial_audio_output> g_spatial_audio_output_factory;

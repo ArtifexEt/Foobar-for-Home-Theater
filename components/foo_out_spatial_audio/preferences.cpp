@@ -76,6 +76,73 @@ const SampleRateOption kSampleRateOptions[] = {
     {SampleRateMode::Fixed192000,       L"192000 Hz"},
 };
 
+const uint32_t kProbeSampleRates[] = {44100, 48000, 88200, 96000, 176400, 192000};
+
+const TargetDef* target_def_from_target(int target) {
+    for (const auto& def : kTargets) {
+        if (def.target == target) return &def;
+    }
+    return nullptr;
+}
+
+bool supports_dynamic_test_target(int target) {
+    return target != target_low_frequency;
+}
+
+AudioObjectType add_mask(AudioObjectType mask, AudioObjectType value) {
+    return static_cast<AudioObjectType>(static_cast<uint32_t>(mask) | static_cast<uint32_t>(value));
+}
+
+bool mask_contains(AudioObjectType mask, AudioObjectType value) {
+    return (static_cast<uint32_t>(mask) & static_cast<uint32_t>(value)) == static_cast<uint32_t>(value);
+}
+
+AudioObjectType requested_static_mask(LayoutMode mode, AudioObjectType nativeMask) {
+    if (mode == LayoutMode::Auto) return nativeMask;
+
+    AudioObjectType mask = AudioObjectType_None;
+    auto include = [&](std::initializer_list<int> targets) {
+        for (const int target : targets) {
+            const auto* def = target_def_from_target(target);
+            if (def != nullptr) mask = add_mask(mask, def->type);
+        }
+    };
+
+    switch (mode) {
+    case LayoutMode::Stereo:
+        include({target_front_left, target_front_right});
+        break;
+    case LayoutMode::FivePointOne:
+        include({target_front_left, target_front_right, target_front_center, target_low_frequency, target_side_left, target_side_right});
+        break;
+    case LayoutMode::SevenPointOne:
+        include({target_front_left, target_front_right, target_front_center, target_low_frequency, target_side_left, target_side_right, target_back_left, target_back_right});
+        break;
+    case LayoutMode::FivePointOneTwo:
+        include({target_front_left, target_front_right, target_front_center, target_low_frequency, target_side_left, target_side_right, target_top_front_left, target_top_front_right});
+        break;
+    case LayoutMode::FivePointOneFour:
+        include({target_front_left, target_front_right, target_front_center, target_low_frequency, target_side_left, target_side_right, target_top_front_left, target_top_front_right, target_top_back_left, target_top_back_right});
+        break;
+    case LayoutMode::SevenPointOneFour:
+    default:
+        include({target_front_left, target_front_right, target_front_center, target_low_frequency, target_side_left, target_side_right, target_back_left, target_back_right, target_top_front_left, target_top_front_right, target_top_back_left, target_top_back_right});
+        break;
+    }
+
+    return mask;
+}
+
+std::wstring mask_text(AudioObjectType mask) {
+    std::wstring text;
+    for (const auto& def : kTargets) {
+        if (!mask_contains(mask, def.type)) continue;
+        if (!text.empty()) text += L", ";
+        text += def.label;
+    }
+    return text.empty() ? L"none" : text;
+}
+
 static std::string narrow(const wchar_t* text) {
     if (text == nullptr || *text == L'\0') return {};
     const int required = WideCharToMultiByte(CP_UTF8, 0, text, -1, nullptr, 0, nullptr, nullptr);
@@ -83,6 +150,286 @@ static std::string narrow(const wchar_t* text) {
     std::string result(static_cast<size_t>(required - 1), '\0');
     WideCharToMultiByte(CP_UTF8, 0, text, -1, result.data(), required, nullptr, nullptr);
     return result;
+}
+
+std::wstring widen(const std::string& text) {
+    if (text.empty()) return {};
+    const int required = MultiByteToWideChar(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), nullptr, 0);
+    if (required <= 0) return {};
+    std::wstring result(static_cast<size_t>(required), L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), result.data(), required);
+    return result;
+}
+
+std::string hresult_text(HRESULT hr) {
+    _com_error error(hr);
+    std::ostringstream stream;
+    stream << "0x" << std::hex << std::uppercase << static_cast<uint32_t>(hr);
+    const wchar_t* message = error.ErrorMessage();
+    if (message != nullptr) stream << " (" << narrow(message) << ")";
+    return stream.str();
+}
+
+void throw_if_failed(HRESULT hr, const char* action) {
+    if (FAILED(hr)) {
+        std::ostringstream stream;
+        stream << action << " failed: " << hresult_text(hr);
+        throw std::runtime_error(stream.str());
+    }
+}
+
+double db_to_linear(double db) {
+    return std::pow(10.0, db / 20.0);
+}
+
+WAVEFORMATEX make_object_format(uint32_t sampleRate) {
+    WAVEFORMATEX format = {};
+    format.wFormatTag = WAVE_FORMAT_IEEE_FLOAT;
+    format.nChannels = 1;
+    format.nSamplesPerSec = sampleRate;
+    format.wBitsPerSample = 32;
+    format.nBlockAlign = static_cast<WORD>((format.nChannels * format.wBitsPerSample) / 8);
+    format.nAvgBytesPerSec = format.nSamplesPerSec * format.nBlockAlign;
+    return format;
+}
+
+bool is_format_supported(ISpatialAudioClient* spatialClient, uint32_t sampleRate) {
+    const WAVEFORMATEX format = make_object_format(sampleRate);
+    return SUCCEEDED(spatialClient->IsAudioObjectFormatSupported(&format));
+}
+
+uint32_t fixed_sample_rate(SampleRateMode mode) {
+    switch (mode) {
+    case SampleRateMode::Fixed44100:  return 44100;
+    case SampleRateMode::Fixed48000:  return 48000;
+    case SampleRateMode::Fixed88200:  return 88200;
+    case SampleRateMode::Fixed96000:  return 96000;
+    case SampleRateMode::Fixed176400: return 176400;
+    case SampleRateMode::Fixed192000: return 192000;
+    default: return 0;
+    }
+}
+
+uint32_t highest_supported_sample_rate(ISpatialAudioClient* spatialClient) {
+    const uint32_t descendingRates[] = {192000, 176400, 96000, 88200, 48000, 44100};
+    for (const uint32_t sampleRate : descendingRates) {
+        if (is_format_supported(spatialClient, sampleRate)) return sampleRate;
+    }
+    return 48000;
+}
+
+uint32_t resolve_test_sample_rate(ISpatialAudioClient* spatialClient, SampleRateMode mode) {
+    if (mode == SampleRateMode::AutoHighest) return highest_supported_sample_rate(spatialClient);
+    const uint32_t fixedRate = fixed_sample_rate(mode);
+    if (fixedRate != 0) return fixedRate;
+    return is_format_supported(spatialClient, 48000) ? 48000 : highest_supported_sample_rate(spatialClient);
+}
+
+ComPtr<ISpatialAudioClient> create_spatial_client() {
+    ComPtr<IMMDeviceEnumerator> enumerator;
+    throw_if_failed(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL, IID_PPV_ARGS(&enumerator)), "Create MMDeviceEnumerator");
+
+    ComPtr<IMMDevice> device;
+    throw_if_failed(enumerator->GetDefaultAudioEndpoint(eRender, eMultimedia, &device), "Get default render endpoint");
+
+    ComPtr<ISpatialAudioClient> spatialClient;
+    throw_if_failed(device->Activate(__uuidof(ISpatialAudioClient), CLSCTX_INPROC_SERVER, nullptr, reinterpret_cast<void**>(spatialClient.GetAddressOf())), "Activate ISpatialAudioClient");
+    return spatialClient;
+}
+
+ComPtr<ISpatialAudioObjectRenderStream> activate_stream(
+    ISpatialAudioClient* spatialClient,
+    const WAVEFORMATEX& format,
+    AudioObjectType staticMask,
+    UINT32 minDynamicObjects,
+    UINT32 maxDynamicObjects,
+    HANDLE completionEvent) {
+    SpatialAudioObjectRenderStreamActivationParams streamParams = {};
+    streamParams.ObjectFormat = const_cast<WAVEFORMATEX*>(&format);
+    streamParams.StaticObjectTypeMask = staticMask;
+    streamParams.MinDynamicObjectCount = minDynamicObjects;
+    streamParams.MaxDynamicObjectCount = maxDynamicObjects;
+    streamParams.Category = AudioCategory_Media;
+    streamParams.EventHandle = completionEvent;
+    streamParams.NotifyObject = nullptr;
+
+    PROPVARIANT activationParams;
+    PropVariantInit(&activationParams);
+    activationParams.vt = VT_BLOB;
+    activationParams.blob.cbSize = sizeof(streamParams);
+    activationParams.blob.pBlobData = reinterpret_cast<BYTE*>(&streamParams);
+
+    ComPtr<ISpatialAudioObjectRenderStream> stream;
+    throw_if_failed(
+        spatialClient->ActivateSpatialAudioStream(&activationParams, __uuidof(ISpatialAudioObjectRenderStream), reinterpret_cast<void**>(stream.GetAddressOf())),
+        "Activate spatial stream");
+    return stream;
+}
+
+void fill_sine(float* samples, UINT32 frames, double& phase, double frequencyHz, double gain, uint32_t sampleRate) {
+    const double increment = 2.0 * kPi * frequencyHz / static_cast<double>(sampleRate);
+    for (UINT32 i = 0; i < frames; ++i) {
+        samples[i] = static_cast<float>(std::sin(phase) * gain);
+        phase += increment;
+        if (phase >= 2.0 * kPi) phase -= 2.0 * kPi;
+    }
+}
+
+std::atomic_bool g_directional_test_running = false;
+
+void run_directional_test_worker(int target, bool preferDynamicObject, double gainDb, double frequencyHz, SampleRateMode sampleRateMode) {
+    bool expected = false;
+    if (!g_directional_test_running.compare_exchange_strong(expected, true)) return;
+
+    try {
+        const HRESULT coInit = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+        throw_if_failed(coInit, "Initialize COM");
+        const auto cleanupCom = std::unique_ptr<void, void (*)(void*)>(reinterpret_cast<void*>(1), [](void*) {
+            CoUninitialize();
+        });
+
+        const auto* targetDef = target_def_from_target(target);
+        if (targetDef == nullptr) throw std::runtime_error("Unknown test target.");
+
+        ComPtr<ISpatialAudioClient> spatialClient = create_spatial_client();
+        const uint32_t sampleRate = resolve_test_sample_rate(spatialClient.Get(), sampleRateMode);
+        const WAVEFORMATEX format = make_object_format(sampleRate);
+        throw_if_failed(spatialClient->IsAudioObjectFormatSupported(&format), "Check spatial object format");
+
+        UINT32 maxDynamicObjectCount = 0;
+        throw_if_failed(spatialClient->GetMaxDynamicObjectCount(&maxDynamicObjectCount), "Get max dynamic object count");
+
+        AudioObjectType nativeMask = AudioObjectType_None;
+        throw_if_failed(spatialClient->GetNativeStaticObjectTypeMask(&nativeMask), "Get native static object mask");
+
+        const bool useDynamicObject = preferDynamicObject && supports_dynamic_test_target(target) && maxDynamicObjectCount > 0;
+        const AudioObjectType staticMask = useDynamicObject ? AudioObjectType_None : targetDef->type;
+        if (!useDynamicObject && !mask_contains(nativeMask, targetDef->type))
+            throw std::runtime_error("Selected static direction is not exposed by this endpoint.");
+
+        HANDLE completionEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+        if (completionEvent == nullptr) throw_if_failed(HRESULT_FROM_WIN32(GetLastError()), "Create completion event");
+        const auto closeEvent = std::unique_ptr<void, void (*)(void*)>(completionEvent, [](void* handle) {
+            CloseHandle(reinterpret_cast<HANDLE>(handle));
+        });
+
+        ComPtr<ISpatialAudioObjectRenderStream> stream = activate_stream(
+            spatialClient.Get(),
+            format,
+            staticMask,
+            useDynamicObject ? 1 : 0,
+            useDynamicObject ? 1 : 0,
+            completionEvent);
+
+        ComPtr<ISpatialAudioObject> object;
+        if (!useDynamicObject)
+            throw_if_failed(stream->ActivateSpatialAudioObject(targetDef->type, object.GetAddressOf()), "Activate static test object");
+
+        throw_if_failed(stream->Start(), "Start spatial stream");
+
+        double phase = 0.0;
+        double renderedSeconds = 0.0;
+        const double durationSeconds = 1.4;
+        const double gain = db_to_linear(std::clamp(gainDb, -60.0, 0.0));
+        const double requestedFrequency = target == target_low_frequency ? targetDef->frequencyHz : frequencyHz;
+        const double frequency = std::clamp(requestedFrequency <= 0.0 ? targetDef->frequencyHz : requestedFrequency, 40.0, 2000.0);
+
+        while (renderedSeconds < durationSeconds) {
+            if (WaitForSingleObject(completionEvent, 1000) != WAIT_OBJECT_0)
+                throw std::runtime_error("Timed out waiting for spatial audio buffer.");
+
+            UINT32 availableDynamicObjects = 0;
+            UINT32 frameCount = 0;
+            throw_if_failed(stream->BeginUpdatingAudioObjects(&availableDynamicObjects, &frameCount), "Begin updating audio objects");
+
+            if (useDynamicObject && !object)
+                throw_if_failed(stream->ActivateSpatialAudioObject(AudioObjectType_Dynamic, object.GetAddressOf()), "Activate dynamic test object");
+
+            BYTE* byteBuffer = nullptr;
+            UINT32 bufferLength = 0;
+            throw_if_failed(object->GetBuffer(&byteBuffer, &bufferLength), "Get test buffer");
+
+            auto* samples = reinterpret_cast<float*>(byteBuffer);
+            const UINT32 framesToWrite = std::min(frameCount, bufferLength / static_cast<UINT32>(sizeof(float)));
+            fill_sine(samples, framesToWrite, phase, frequency, gain, sampleRate);
+
+            if (useDynamicObject) {
+                throw_if_failed(object->SetPosition(targetDef->x, targetDef->y, targetDef->z), "Set dynamic test position");
+                throw_if_failed(object->SetVolume(1.0f), "Set dynamic test volume");
+            }
+
+            throw_if_failed(stream->EndUpdatingAudioObjects(), "End updating audio objects");
+            renderedSeconds += static_cast<double>(frameCount) / static_cast<double>(sampleRate);
+        }
+
+        stream->Stop();
+        stream->Reset();
+    } catch (const std::exception& error) {
+        FB2K_console_formatter() << "foo_out_spatial_audio test: " << error.what();
+    }
+
+    g_directional_test_running.store(false);
+}
+
+void run_directional_test(int target, bool preferDynamicObject, double gainDb, double frequencyHz, SampleRateMode sampleRateMode) {
+    std::thread(run_directional_test_worker, target, preferDynamicObject, gainDb, frequencyHz, sampleRateMode).detach();
+}
+
+std::wstring query_endpoint_summary(LayoutMode layoutMode, SampleRateMode sampleRateMode) {
+    HRESULT coInit = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    const bool shouldUninitialize = SUCCEEDED(coInit);
+    if (FAILED(coInit) && coInit != RPC_E_CHANGED_MODE) {
+        std::wostringstream text;
+        text << L"COM init failed: " << widen(hresult_text(coInit));
+        return text.str();
+    }
+    const auto cleanupCom = std::unique_ptr<void, void (*)(void*)>(shouldUninitialize ? reinterpret_cast<void*>(1) : nullptr, [](void* marker) {
+        if (marker != nullptr) CoUninitialize();
+    });
+
+    try {
+        ComPtr<ISpatialAudioClient> spatialClient = create_spatial_client();
+        const uint32_t selectedSampleRate = resolve_test_sample_rate(spatialClient.Get(), sampleRateMode);
+        const WAVEFORMATEX format = make_object_format(selectedSampleRate);
+        const HRESULT formatHr = spatialClient->IsAudioObjectFormatSupported(&format);
+
+        AudioObjectType nativeMask = AudioObjectType_None;
+        throw_if_failed(spatialClient->GetNativeStaticObjectTypeMask(&nativeMask), "Get native static object mask");
+
+        UINT32 maxDynamicObjectCount = 0;
+        throw_if_failed(spatialClient->GetMaxDynamicObjectCount(&maxDynamicObjectCount), "Get max dynamic object count");
+
+        const AudioObjectType requestedMask = requested_static_mask(layoutMode, nativeMask);
+        AudioObjectType activeMask = AudioObjectType_None;
+        AudioObjectType missingMask = AudioObjectType_None;
+        for (const auto& target : kTargets) {
+            if (!mask_contains(requestedMask, target.type)) continue;
+            if (mask_contains(nativeMask, target.type)) activeMask = add_mask(activeMask, target.type);
+            else missingMask = add_mask(missingMask, target.type);
+        }
+
+        std::wostringstream text;
+        text << L"Object format: float32 mono " << selectedSampleRate << L" Hz\r\n";
+        text << L"Format supported: " << (SUCCEEDED(formatHr) ? L"yes" : L"no") << L" - " << widen(hresult_text(formatHr)) << L"\r\n";
+        text << L"Supported rates: ";
+        bool firstRate = true;
+        for (const uint32_t sampleRate : kProbeSampleRates) {
+            if (!is_format_supported(spatialClient.Get(), sampleRate)) continue;
+            if (!firstRate) text << L", ";
+            text << sampleRate;
+            firstRate = false;
+        }
+        if (firstRate) text << L"none";
+        text << L"\r\n";
+        text << L"Native static bed: " << mask_text(nativeMask) << L"\r\n";
+        text << L"Requested bed: " << mask_text(requestedMask) << L"\r\n";
+        text << L"Active bed after fallback: " << mask_text(activeMask) << L"\r\n";
+        text << L"Missing channels: " << mask_text(missingMask) << L"\r\n";
+        text << L"Max dynamic objects: " << maxDynamicObjectCount;
+        return text.str();
+    } catch (const std::exception& error) {
+        return L"Endpoint probe failed: " + widen(error.what());
+    }
 }
 
 int combo_get_cur_sel(HWND combo) {
@@ -321,7 +668,28 @@ private:
     }
 
     LRESULT on_command(WPARAM wp, LPARAM) {
+        const WORD id = LOWORD(wp);
         const WORD code = HIWORD(wp);
+        if (id == idProbeEndpoint && code == BN_CLICKED) {
+            const std::wstring summary = query_endpoint_summary(read_layout_mode(), read_sample_rate_mode());
+            HWND endpointSummary = find_dlg_item(wnd_, idEndpointSummary);
+            if (endpointSummary != nullptr) SetWindowTextW(endpointSummary, summary.c_str());
+            return 0;
+        }
+        if (id == idDirectionalTestRunSelected && code == BN_CLICKED) {
+            run_selected_test();
+            return 0;
+        }
+        if (id >= idTestButtonBase && id < idTestButtonBase + static_cast<int>(target_count) && code == BN_CLICKED) {
+            const int target = static_cast<int>(id - idTestButtonBase);
+            set_test_target(target);
+            run_directional_test(target, read_check(wnd_, idDirectionalTestDynamic),
+                read_double(wnd_, idDirectionalTestGain, -18.0),
+                read_double(wnd_, idDirectionalTestFrequency, 660.0),
+                read_sample_rate_mode());
+            callback_->on_state_changed();
+            return 0;
+        }
         if (code == CBN_SELCHANGE || code == BN_CLICKED || code == EN_CHANGE)
             callback_->on_state_changed();
         return 0;
@@ -396,6 +764,8 @@ private:
         for (const auto& option : kSampleRateOptions)
             add_combo_item(srCombo, option.label, static_cast<LPARAM>(option.mode));
         add_tooltip(srCombo, L"48000 Hz is the safest default. Higher rates use more CPU on some hardware.");
+        add_tooltip(find_dlg_item(wnd_, idProbeEndpoint), L"Ask Windows which Spatial Audio channels, objects, and sample rates are available.");
+        add_tooltip(find_dlg_item(wnd_, idEndpointSummary), L"Endpoint diagnostics from Windows Spatial Audio.");
     }
 
     void populate_test_page() {
@@ -404,6 +774,7 @@ private:
             add_combo_item(testTargetCombo, target.label, target.target);
         add_tooltip(find_dlg_item(wnd_, idDirectionalTestEnabled), L"Play a test tone through a single speaker to verify routing.");
         add_tooltip(find_dlg_item(wnd_, idDirectionalTestDynamic), L"Use Windows dynamic spatial object instead of a static bed channel. May be more accurate on some hardware.");
+        add_tooltip(find_dlg_item(wnd_, idDirectionalTestRunSelected), L"Play a short tone in the selected direction without changing playback.");
     }
 
     void populate_about_page() {
@@ -528,6 +899,14 @@ private:
         set_test_target(config.directionalTestTarget);
         set_double_text(wnd_, idDirectionalTestGain, config.directionalTestGainDb, 1);
         set_double_text(wnd_, idDirectionalTestFrequency, config.directionalTestFrequencyHz, 0);
+    }
+
+    void run_selected_test() const {
+        const int target = read_test_target();
+        run_directional_test(target, read_check(wnd_, idDirectionalTestDynamic),
+            read_double(wnd_, idDirectionalTestGain, -18.0),
+            read_double(wnd_, idDirectionalTestFrequency, 660.0),
+            read_sample_rate_mode());
     }
 
     static bool different(double a, double b) { return std::fabs(a - b) > 0.0001; }

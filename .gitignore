@@ -1,5 +1,7 @@
 build/
 out/
+sdk/
+SDK-*.7z
 .vs/
 .vscode/
 CMakeUserPresets.json

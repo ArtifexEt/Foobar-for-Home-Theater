@@ -852,7 +852,7 @@ class preferences_page_dsp_spatial : public preferences_page_impl<dsp_preference
 public:
     const char* get_name() override { return "Spatial Audio DSP"; }
     GUID get_guid() override { return guid_dsp_preferences; }
-    GUID get_parent_guid() override { return preferences_page::guid_tools; }
+    GUID get_parent_guid() override { return preferences_page::guid_dsp; }
 };
 
 static preferences_page_factory_t<preferences_page_dsp_spatial> g_dsp_preferences_factory;

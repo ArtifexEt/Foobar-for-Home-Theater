@@ -6,6 +6,7 @@
 #define IDD_DSP_PAGE_MAPPING 204
 #define IDD_DSP_PAGE_LFE     205
 #define IDD_DSP_PAGE_LIMITER 206
+#define IDD_DSP_CONFIG_POPUP 207
 
 #define idTabs                  1001
 #define idLayoutMode            1002

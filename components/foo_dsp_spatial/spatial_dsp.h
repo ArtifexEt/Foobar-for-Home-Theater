@@ -6,8 +6,14 @@ namespace spatial_audio {
 
 class spatial_upmix_dsp : public dsp_impl_base {
 public:
+    spatial_upmix_dsp();
+    explicit spatial_upmix_dsp(const dsp_preset& preset);
+
     static GUID g_get_guid();
     static void g_get_name(pfc::string_base& out);
+    static bool g_get_default_preset(dsp_preset& out);
+    static bool g_have_config_popup();
+    static void g_show_config_popup(const dsp_preset& data, HWND parent, dsp_preset_edit_callback& callback);
 
     bool on_chunk(audio_chunk* chunk, abort_callback&) override;
     void on_endoftrack(abort_callback&) override { reset_state(); }

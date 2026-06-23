@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "spatial_dsp.h"
+#include "dsp_preferences_resource.h"
 
 namespace spatial_audio {
 namespace {
@@ -8,7 +9,168 @@ constexpr double kPi = 3.14159265358979323846;
 
 static constexpr GUID guid_dsp = { 0xAABBCCDD, 0x1122, 0x3344, { 0x55,0x66,0x77,0x88,0x99,0xAA,0xBB,0xCC } };
 
+struct ComboOption {
+    int value;
+    const wchar_t* label;
+};
+
+const ComboOption kUpmixOptions[] = {
+    {static_cast<int>(UpmixMode::Reference), L"Reference"},
+    {static_cast<int>(UpmixMode::Full),      L"Full spatial"},
+    {static_cast<int>(UpmixMode::FrontOnly), L"Front only"},
+};
+
+DspConfig preset_to_config(const dsp_preset& preset) {
+    DspConfig config = DefaultDspConfig();
+    if (preset.get_owner() == guid_dsp && preset.get_data_size() > 0) {
+        const auto* bytes = static_cast<const char*>(preset.get_data());
+        DeserializeDspConfig(std::string(bytes, bytes + preset.get_data_size()), config);
+    }
+    return config;
+}
+
+void config_to_preset(const DspConfig& config, dsp_preset& preset) {
+    const std::string text = SerializeDspConfig(config);
+    preset.set_owner(guid_dsp);
+    preset.set_data(text.data(), text.size());
+}
+
+void add_combo_item(HWND combo, const wchar_t* label, int value) {
+    if (combo == nullptr) return;
+    const int index = static_cast<int>(SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(label)));
+    if (index != CB_ERR && index != CB_ERRSPACE)
+        SendMessageW(combo, CB_SETITEMDATA, static_cast<WPARAM>(index), static_cast<LPARAM>(value));
+}
+
+void set_combo_value(HWND combo, int value) {
+    if (combo == nullptr) return;
+    const int count = static_cast<int>(SendMessageW(combo, CB_GETCOUNT, 0, 0));
+    for (int i = 0; i < count; ++i) {
+        if (static_cast<int>(SendMessageW(combo, CB_GETITEMDATA, static_cast<WPARAM>(i), 0)) == value) {
+            SendMessageW(combo, CB_SETCURSEL, static_cast<WPARAM>(i), 0);
+            return;
+        }
+    }
+    SendMessageW(combo, CB_SETCURSEL, 0, 0);
+}
+
+int read_combo_value(HWND combo, int fallback) {
+    if (combo == nullptr) return fallback;
+    const int index = static_cast<int>(SendMessageW(combo, CB_GETCURSEL, 0, 0));
+    if (index == CB_ERR) return fallback;
+    return static_cast<int>(SendMessageW(combo, CB_GETITEMDATA, static_cast<WPARAM>(index), 0));
+}
+
+void set_double_text(HWND wnd, int id, double value, int decimals) {
+    wchar_t buffer[64] = {};
+    swprintf_s(buffer, decimals <= 0 ? L"%.0f" : decimals == 1 ? L"%.1f" : L"%.2f", value);
+    SetDlgItemTextW(wnd, id, buffer);
+}
+
+double read_double(HWND wnd, int id, double fallback) {
+    wchar_t buffer[64] = {};
+    GetDlgItemTextW(wnd, id, buffer, static_cast<int>(_countof(buffer)));
+    wchar_t* end = nullptr;
+    const double value = wcstod(buffer, &end);
+    return end != buffer ? value : fallback;
+}
+
+bool read_check(HWND wnd, int id) {
+    HWND button = GetDlgItem(wnd, id);
+    return button != nullptr && SendMessageW(button, BM_GETCHECK, 0, 0) == BST_CHECKED;
+}
+
+void set_check(HWND wnd, int id, bool checked) {
+    HWND button = GetDlgItem(wnd, id);
+    if (button != nullptr) SendMessageW(button, BM_SETCHECK, checked ? BST_CHECKED : BST_UNCHECKED, 0);
+}
+
+class dsp_config_popup : public CDialogImpl<dsp_config_popup> {
+public:
+    enum { IDD = IDD_DSP_CONFIG_POPUP };
+
+    dsp_config_popup(const dsp_preset& initialPreset, dsp_preset_edit_callback& callback)
+        : callback_(callback), initialPreset_(initialPreset), config_(ReadDspConfig()) {
+        DspConfig presetConfig = preset_to_config(initialPreset);
+        if (initialPreset.get_data_size() > 0) config_ = presetConfig;
+    }
+
+    BEGIN_MSG_MAP_EX(dsp_config_popup)
+        MESSAGE_HANDLER(WM_INITDIALOG, on_init_dialog)
+        COMMAND_ID_HANDLER(IDOK, on_ok)
+        COMMAND_ID_HANDLER(IDCANCEL, on_cancel)
+    END_MSG_MAP()
+
+private:
+    LRESULT on_init_dialog(UINT, WPARAM, LPARAM, BOOL&) {
+        HWND mode = GetDlgItem(idUpmixMode);
+        for (const auto& option : kUpmixOptions) add_combo_item(mode, option.label, option.value);
+        write_controls();
+        return TRUE;
+    }
+
+    LRESULT on_ok(WORD, WORD, HWND, BOOL&) {
+        read_controls();
+        WriteDspConfig(config_);
+        dsp_preset_impl preset;
+        config_to_preset(config_, preset);
+        callback_.on_preset_changed(preset);
+        EndDialog(IDOK);
+        return 0;
+    }
+
+    LRESULT on_cancel(WORD, WORD, HWND, BOOL&) {
+        callback_.on_preset_changed(initialPreset_);
+        EndDialog(IDCANCEL);
+        return 0;
+    }
+
+    void write_controls() {
+        set_combo_value(GetDlgItem(idUpmixMode), static_cast<int>(config_.upmixMode));
+        set_check(m_hWnd, idLimiterEnabled, config_.limiterEnabled);
+        set_check(m_hWnd, idEnableLfe, config_.enableLfe);
+        set_double_text(m_hWnd, idMasterGain, config_.masterGainDb, 1);
+        set_double_text(m_hWnd, idHeadroom, config_.headroomDb, 1);
+        set_double_text(m_hWnd, idCenterGain, config_.centerGainDb, 1);
+        set_double_text(m_hWnd, idSurroundGain, config_.surroundGainDb, 1);
+        set_double_text(m_hWnd, idRearGain, config_.rearGainDb, 1);
+        set_double_text(m_hWnd, idHeightGain, config_.heightGainDb, 1);
+        set_double_text(m_hWnd, idSideAmount, config_.sideAmount, 2);
+        set_double_text(m_hWnd, idHeightFromMid, config_.heightFromMid, 2);
+        set_double_text(m_hWnd, idDecorrelation, config_.decorrelationAmount, 2);
+        set_double_text(m_hWnd, idLfeGain, config_.lfeGainDb, 1);
+        set_double_text(m_hWnd, idLfeLowpass, config_.lfeLowpassHz, 0);
+    }
+
+    void read_controls() {
+        config_.upmixMode = static_cast<UpmixMode>(read_combo_value(GetDlgItem(idUpmixMode), static_cast<int>(config_.upmixMode)));
+        config_.limiterEnabled = read_check(m_hWnd, idLimiterEnabled);
+        config_.enableLfe = read_check(m_hWnd, idEnableLfe);
+        config_.masterGainDb = read_double(m_hWnd, idMasterGain, config_.masterGainDb);
+        config_.headroomDb = read_double(m_hWnd, idHeadroom, config_.headroomDb);
+        config_.centerGainDb = read_double(m_hWnd, idCenterGain, config_.centerGainDb);
+        config_.surroundGainDb = read_double(m_hWnd, idSurroundGain, config_.surroundGainDb);
+        config_.rearGainDb = read_double(m_hWnd, idRearGain, config_.rearGainDb);
+        config_.heightGainDb = read_double(m_hWnd, idHeightGain, config_.heightGainDb);
+        config_.sideAmount = read_double(m_hWnd, idSideAmount, config_.sideAmount);
+        config_.heightFromMid = read_double(m_hWnd, idHeightFromMid, config_.heightFromMid);
+        config_.decorrelationAmount = read_double(m_hWnd, idDecorrelation, config_.decorrelationAmount);
+        config_.lfeGainDb = read_double(m_hWnd, idLfeGain, config_.lfeGainDb);
+        config_.lfeLowpassHz = read_double(m_hWnd, idLfeLowpass, config_.lfeLowpassHz);
+    }
+
+    dsp_preset_edit_callback& callback_;
+    const dsp_preset& initialPreset_;
+    DspConfig config_;
+};
+
 } // namespace
+
+spatial_upmix_dsp::spatial_upmix_dsp()
+    : config_(ReadDspConfig()) {}
+
+spatial_upmix_dsp::spatial_upmix_dsp(const dsp_preset& preset)
+    : config_(preset_to_config(preset)) {}
 
 GUID spatial_upmix_dsp::g_get_guid() {
     return guid_dsp;
@@ -16,6 +178,20 @@ GUID spatial_upmix_dsp::g_get_guid() {
 
 void spatial_upmix_dsp::g_get_name(pfc::string_base& out) {
     out = "Spatial Audio Upmix";
+}
+
+bool spatial_upmix_dsp::g_get_default_preset(dsp_preset& out) {
+    config_to_preset(DefaultDspConfig(), out);
+    return true;
+}
+
+bool spatial_upmix_dsp::g_have_config_popup() {
+    return true;
+}
+
+void spatial_upmix_dsp::g_show_config_popup(const dsp_preset& data, HWND parent, dsp_preset_edit_callback& callback) {
+    dsp_config_popup popup(data, callback);
+    popup.DoModal(parent);
 }
 
 void spatial_upmix_dsp::reset_state() {
@@ -238,6 +414,6 @@ float spatial_upmix_dsp::sample_by_flag(const audio_sample* samples, size_t fram
     return index < channels ? static_cast<float>(samples[(frame * channels) + index]) : 0.0f;
 }
 
-static dsp_factory_nopreset_t<spatial_upmix_dsp> g_dsp_factory;
+static dsp_factory_t<spatial_upmix_dsp> g_dsp_factory;
 
 } // namespace spatial_audio

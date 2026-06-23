@@ -48,8 +48,9 @@ private:
     void render_loop(uint32_t sampleRate);
     void clear_queue();
 
-    double test_signal_value(double& phase) const;
-    double test_frequency_hz() const;
+    OutputConfig current_config() const;
+    double test_signal_value(double& phase, const OutputConfig& config) const;
+    double test_frequency_hz(const OutputConfig& config) const;
     static bool is_5point1_mask(unsigned mask);
     static bool is_7point1_mask(unsigned mask);
     static uint32_t fixed_sample_rate(SampleRateMode mode);
@@ -65,8 +66,10 @@ private:
     static WAVEFORMATEX make_object_format(uint32_t sampleRate);
     static std::string hresult_text(HRESULT hr);
     static void throw_if_failed(HRESULT hr, const char* action);
+    static bool stream_shape_changed(const OutputConfig& previous, const OutputConfig& next);
 
     OutputConfig config_;
+    mutable std::mutex configMutex_;
     GUID device_ = {};
     double bufferLength_ = 1.0;
     uint32_t sampleRate_ = 48000;
