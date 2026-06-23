@@ -31,7 +31,7 @@ jobs:
       - name: Set build version
         shell: pwsh
         run: |
-          $version = "0.3.$env:GITHUB_RUN_NUMBER"
+          $version = "0.4.$env:GITHUB_RUN_NUMBER"
           if ($env:GITHUB_RUN_ATTEMPT -and $env:GITHUB_RUN_ATTEMPT -ne "1") {
             $version = "$version-r$env:GITHUB_RUN_ATTEMPT"
           }
