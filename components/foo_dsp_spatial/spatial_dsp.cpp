@@ -126,7 +126,7 @@ GUID spatial_upmix_dsp::g_get_guid() {
 }
 
 void spatial_upmix_dsp::g_get_name(pfc::string_base& out) {
-    out = "Spatial Audio for Home Theater DSP";
+    out = "Spatial Audio DSP";
 }
 
 bool spatial_upmix_dsp::g_get_default_preset(dsp_preset& out) {

@@ -144,17 +144,17 @@ EXSTYLE WS_EX_CONTROLPARENT
 FONT 8, "MS Shell Dlg", 400, 0, 1
 {
     LTEXT       "5.1 FL", IDC_STATIC, 11, 11, 70, 13
-    COMBOBOX    idMap51FrontLeft, 84, 9, 245, 135, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX    idMap51FrontLeft, 84, 9, 200, 135, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT       "5.1 FR", IDC_STATIC, 11, 31, 70, 13
-    COMBOBOX    idMap51FrontRight, 84, 29, 245, 135, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX    idMap51FrontRight, 84, 29, 200, 135, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT       "5.1 FC", IDC_STATIC, 11, 51, 70, 13
-    COMBOBOX    idMap51FrontCenter, 84, 49, 245, 135, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX    idMap51FrontCenter, 84, 49, 200, 135, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT       "5.1 LFE", IDC_STATIC, 11, 71, 70, 13
-    COMBOBOX    idMap51Lfe, 84, 69, 245, 135, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX    idMap51Lfe, 84, 69, 200, 135, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT       "5.1 SL/BL", IDC_STATIC, 11, 91, 70, 13
-    COMBOBOX    idMap51SurroundLeft, 84, 89, 245, 135, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX    idMap51SurroundLeft, 84, 89, 200, 135, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT       "5.1 SR/BR", IDC_STATIC, 11, 111, 70, 13
-    COMBOBOX    idMap51SurroundRight, 84, 109, 245, 135, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX    idMap51SurroundRight, 84, 109, 200, 135, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
 }
 
 IDD_DSP_PAGE_LFE DIALOGEX 0, 0, 480, 305
@@ -189,7 +189,7 @@ STYLE DS_SHELLFONT | DS_CONTROL | WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS
 EXSTYLE WS_EX_CONTROLPARENT
 FONT 8, "MS Shell Dlg", 400, 0, 1
 {
-    LTEXT       "Spatial Audio for Home Theater DSP", IDC_STATIC, 11, 9, 250, 13
+    LTEXT       "Spatial Audio DSP", IDC_STATIC, 11, 9, 250, 13
     LTEXT       "", idAboutVersion, 11, 25, 250, 13
     PUSHBUTTON  "Buy me a coffee", idSupportButton, 11, 44, 110, 14
     PUSHBUTTON  "GitHub repo", idRepoButton, 125, 44, 110, 14
@@ -197,10 +197,10 @@ FONT 8, "MS Shell Dlg", 400, 0, 1
 
 IDD_DSP_CONFIG_POPUP DIALOGEX 0, 0, 330, 78
 STYLE DS_MODALFRAME | DS_SHELLFONT | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Spatial Audio for Home Theater DSP"
+CAPTION "Spatial Audio DSP"
 FONT 8, "MS Shell Dlg", 400, 0, 1
 {
-    LTEXT       "Edit settings in Preferences > Playback > DSP Manager > Spatial Audio for Home Theater DSP.", IDC_STATIC, 10, 10, 310, 22
+    LTEXT       "Edit settings in Preferences > Playback > DSP Manager > Spatial Audio DSP.", IDC_STATIC, 10, 10, 310, 22
     LTEXT       "This popup is informational only. The Preferences page is the single source of settings used during playback.", IDC_STATIC, 10, 34, 310, 22
     DEFPUSHBUTTON "OK", IDOK, 247, 58, 75, 14
 }

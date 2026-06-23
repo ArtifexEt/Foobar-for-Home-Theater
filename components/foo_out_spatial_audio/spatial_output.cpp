@@ -150,7 +150,7 @@ spatial_audio_output::~spatial_audio_output() {
 }
 
 GUID spatial_audio_output::g_get_guid() { return guid_output; }
-const char* spatial_audio_output::g_get_name() { return "Spatial Audio for Home Theater Output"; }
+const char* spatial_audio_output::g_get_name() { return "Spatial Audio Output"; }
 
 void spatial_audio_output::g_enum_devices(output_device_enum_callback& callback) {
     const char name[] = "Default Windows Spatial Audio endpoint";

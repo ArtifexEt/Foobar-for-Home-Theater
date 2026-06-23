@@ -945,7 +945,7 @@ private:
 
 class preferences_page_spatial_audio : public preferences_page_impl<preferences_instance> {
 public:
-    const char* get_name() override { return "Spatial Audio for Home Theater Output"; }
+    const char* get_name() override { return "Spatial Audio Output"; }
     GUID get_guid() override { return guid_preferences; }
     GUID get_parent_guid() override { return preferences_page::guid_output; }
 };

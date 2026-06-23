@@ -4,8 +4,8 @@ Foobar for Home Theater is a foobar2000 component package for Windows home theat
 
 The package is built as two foobar2000 components:
 
-- `foo_dsp_spatial` - Spatial Audio for Home Theater DSP. This is where audio is processed: stereo upmix, 5.1/7.1 channel handling, LFE extraction, limiter, channel trims, delays, polarity, and output bed selection.
-- `foo_out_spatial_audio` - Spatial Audio for Home Theater output. This sends the channel bed from foobar2000 to the Windows Spatial Audio API using static bed objects and optional dynamic test objects.
+- `foo_dsp_spatial` - Spatial Audio DSP. This is where audio is processed: stereo upmix, 5.1/7.1 channel handling, LFE extraction, limiter, channel trims, delays, polarity, and output bed selection.
+- `foo_out_spatial_audio` - Spatial Audio Output. This sends the channel bed from foobar2000 to the Windows Spatial Audio API using static bed objects and optional dynamic test objects.
 
 Use both components together for the intended experience: the DSP prepares the bed, and the output component sends that bed to Windows Spatial Audio.
 
@@ -50,9 +50,9 @@ Real Spatial Audio playback must be tested on a Windows machine with a compatibl
 1. Install both `.fb2k-component` files in `Preferences > Components`.
 2. Restart foobar2000 when prompted.
 3. Open `Preferences > Playback > DSP Manager`.
-4. Add `Spatial Audio for Home Theater DSP` to the active DSP chain.
+4. Add `Spatial Audio DSP` to the active DSP chain.
 5. Open `Preferences > Playback > Output`.
-6. Select `Spatial Audio for Home Theater`.
+6. Select `Spatial Audio Output`.
 7. Open the DSP preferences and press `Beginner defaults` if you are starting fresh.
 8. In the output preferences, keep `Output bed` on `Auto` unless you need to force a specific bed.
 9. Use the endpoint probe and test tone page to verify your receiver/soundbar routing.

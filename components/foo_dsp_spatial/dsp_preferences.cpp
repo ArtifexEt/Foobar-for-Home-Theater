@@ -555,14 +555,14 @@ private:
         if (id == idCopyProfileButton && code == BN_CLICKED) {
             const std::string profile = SerializeDspConfig(read_from_controls());
             if (!set_clipboard_text(wnd_, widen(profile)))
-                ::MessageBoxW(wnd_, L"Could not copy profile to clipboard.", L"Spatial Audio for Home Theater DSP", MB_ICONWARNING | MB_OK);
+                ::MessageBoxW(wnd_, L"Could not copy profile to clipboard.", L"Spatial Audio DSP", MB_ICONWARNING | MB_OK);
             return 0;
         }
         if (id == idPasteProfileButton && code == BN_CLICKED) {
             std::wstring clipboard;
             DspConfig imported = read_from_controls();
             if (!get_clipboard_text(wnd_, clipboard) || !DeserializeDspConfig(narrow(clipboard.c_str()), imported)) {
-                ::MessageBoxW(wnd_, L"Clipboard does not contain a Spatial Audio for Home Theater DSP profile.", L"Spatial Audio for Home Theater DSP", MB_ICONWARNING | MB_OK);
+                ::MessageBoxW(wnd_, L"Clipboard does not contain a Spatial Audio DSP profile.", L"Spatial Audio DSP", MB_ICONWARNING | MB_OK);
                 return 0;
             }
             write_to_controls(imported);
@@ -934,7 +934,7 @@ private:
 
 class preferences_page_dsp_spatial : public preferences_page_impl<dsp_preferences_instance> {
 public:
-    const char* get_name() override { return "Spatial Audio for Home Theater DSP"; }
+    const char* get_name() override { return "Spatial Audio DSP"; }
     GUID get_guid() override { return guid_dsp_preferences; }
     GUID get_parent_guid() override { return preferences_page::guid_dsp; }
 };
