@@ -80,7 +80,7 @@ The DSP component (`foo_dsp_spatial`) receives foobar2000 audio chunks and outpu
 
 Stereo input is upmixed into the selected bed. 5.1 input can be mapped per source channel, and 7.1 input passes through to the matching bed channels.
 
-The output component (`foo_out_spatial_audio`) receives the 12-channel PCM and copies channel `i` directly to `ISpatialAudioObject i` on the Windows Spatial Audio endpoint. Supported output beds are Auto, Stereo, 5.1, 7.1, 5.1.2, 5.1.4, and 7.1.4.
+The output component (`foo_out_spatial_audio`) receives the 12-channel PCM and copies each bed channel to the matching `ISpatialAudioObject` on the Windows Spatial Audio endpoint. It accepts the DSP's unmasked bed order and also handles standard masked 12-channel chunks. Supported output beds are Auto, Stereo, 5.1, 7.1, 5.1.2, 5.1.4, and 7.1.4.
 
 ## Quality
 

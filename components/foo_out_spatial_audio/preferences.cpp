@@ -416,7 +416,7 @@ private:
                 versionText.resize(static_cast<size_t>(len - 1));
                 MultiByteToWideChar(CP_UTF8, 0, ver, -1, versionText.data(), len);
             }
-            SetWindowTextW(versionLabel, versionText.c_str());
+            ::SetWindowTextW(versionLabel, versionText.c_str());
         }
 
         HWND githubBtn = find_dlg_item(wnd_, idGitHubButton);

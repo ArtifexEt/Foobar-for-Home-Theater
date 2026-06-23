@@ -42,6 +42,24 @@ bool mask_contains(AudioObjectType mask, AudioObjectType value) {
     return (static_cast<uint32_t>(mask) & static_cast<uint32_t>(value)) == static_cast<uint32_t>(value);
 }
 
+unsigned target_channel_flag(size_t target) {
+    static constexpr unsigned flags[target_count] = {
+        audio_chunk::channel_front_left,
+        audio_chunk::channel_front_right,
+        audio_chunk::channel_front_center,
+        audio_chunk::channel_lfe,
+        audio_chunk::channel_side_left,
+        audio_chunk::channel_side_right,
+        audio_chunk::channel_back_left,
+        audio_chunk::channel_back_right,
+        audio_chunk::channel_top_front_left,
+        audio_chunk::channel_top_front_right,
+        audio_chunk::channel_top_back_left,
+        audio_chunk::channel_top_back_right,
+    };
+    return target < target_count ? flags[target] : 0;
+}
+
 std::string narrow(const wchar_t* text) {
     if (text == nullptr || *text == L'\0') return {};
     const int required = WideCharToMultiByte(CP_UTF8, 0, text, -1, nullptr, 0, nullptr, nullptr);
@@ -114,17 +132,27 @@ void spatial_audio_output::open(audio_chunk::spec_t const& spec) {
 void spatial_audio_output::write(const audio_chunk& data) {
     const size_t frameCount = data.get_sample_count();
     const unsigned channels = data.get_channel_count();
+    const unsigned mask     = data.get_channel_config();
     const audio_sample* samples = data.get_data();
     if (samples == nullptr || channels < 2 || frameCount == 0) return;
 
     std::lock_guard<std::mutex> lock(mutex_);
     const size_t free    = capacityFrames_ > queue_.size() ? capacityFrames_ - queue_.size() : 0;
     const size_t toCopy  = std::min(frameCount, free);
+    const bool useMaskedChannelOrder = channels == target_count
+        && mask != 0
+        && audio_chunk::g_count_channels(mask) == channels;
     for (size_t i = 0; i < toCopy; ++i) {
         std::array<float, 12> frame = {};
-        if (channels == 12) {
-            for (int ch = 0; ch < 12; ++ch)
-                frame[static_cast<size_t>(ch)] = static_cast<float>(samples[i * 12 + static_cast<size_t>(ch)]);
+        if (channels == target_count) {
+            for (size_t ch = 0; ch < target_count; ++ch) {
+                size_t source = ch;
+                if (useMaskedChannelOrder) {
+                    const unsigned index = audio_chunk::g_channel_index_from_flag(mask, target_channel_flag(ch));
+                    if (index != static_cast<unsigned>(-1) && index < channels) source = index;
+                }
+                frame[ch] = static_cast<float>(samples[i * channels + source]);
+            }
         } else if (channels >= 2) {
             frame[0] = static_cast<float>(samples[i * channels + 0]);
             frame[1] = static_cast<float>(samples[i * channels + 1]);

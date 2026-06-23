@@ -4,14 +4,17 @@
 
 namespace spatial_audio {
 
-class spatial_upmix_dsp : public dsp_impl {
+class spatial_upmix_dsp : public dsp_impl_base {
 public:
     static GUID g_get_guid();
     static void g_get_name(pfc::string_base& out);
 
     bool on_chunk(audio_chunk* chunk, abort_callback&) override;
-    void on_end_of_track(abort_callback&) override { reset_state(); }
-    void on_flush() override { reset_state(); }
+    void on_endoftrack(abort_callback&) override { reset_state(); }
+    void on_endofplayback(abort_callback&) override { reset_state(); }
+    void flush() override { reset_state(); }
+    double get_latency() override;
+    bool need_track_change_mark() override;
 
 private:
     enum class InputLayout { Stereo, FivePointOne, SevenPointOne };

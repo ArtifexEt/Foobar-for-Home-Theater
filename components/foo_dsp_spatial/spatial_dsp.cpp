@@ -26,6 +26,17 @@ void spatial_upmix_dsp::reset_state() {
     }
 }
 
+double spatial_upmix_dsp::get_latency() {
+    const DspConfig config = ReadDspConfig();
+    const auto maxDelay = std::max_element(config.channelDelayMs.begin(), config.channelDelayMs.end());
+    const double delayMs = maxDelay != config.channelDelayMs.end() ? *maxDelay : 0.0;
+    return std::clamp(delayMs, 0.0, 80.0) / 1000.0;
+}
+
+bool spatial_upmix_dsp::need_track_change_mark() {
+    return false;
+}
+
 bool spatial_upmix_dsp::on_chunk(audio_chunk* chunk, abort_callback&) {
     config_ = ReadDspConfig();
     sampleRate_ = chunk->get_sample_rate();

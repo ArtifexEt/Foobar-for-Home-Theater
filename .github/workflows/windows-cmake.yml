@@ -5,7 +5,6 @@ on:
     branches:
       - main
       - feature/**
-      - claude/**
   pull_request:
     branches:
       - main
@@ -68,6 +67,7 @@ jobs:
           #define SPATIAL_AUDIO_COMPONENT_VERSION "$env:COMPONENT_VERSION"
           "@ | Set-Content -Path external/foobar2000-sdk/foobar2000/foo_out_spatial_audio/component_version.h -Encoding ascii
           msbuild external/foobar2000-sdk/foobar2000/foo_out_spatial_audio/foo_out_spatial_audio.vcxproj /m /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
           # Build DSP component
           Copy-Item -Recurse components/foo_dsp_spatial external/foobar2000-sdk/foobar2000/
@@ -79,6 +79,7 @@ jobs:
           #endif
           "@ | Set-Content -Path external/foobar2000-sdk/foobar2000/foo_dsp_spatial/component_version.h -Encoding ascii
           msbuild external/foobar2000-sdk/foobar2000/foo_dsp_spatial/foo_dsp_spatial.vcxproj /m /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Package
         shell: pwsh
