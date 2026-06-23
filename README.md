@@ -2,59 +2,66 @@
 
 Windows Spatial Audio output component for foobar2000 home theater setups, plus standalone diagnostics used to validate the Windows endpoint.
 
-`foo_out_spatial_audio` is an early foobar2000 output component. It takes foobar2000 stereo, 5.1, or 7.1 PCM, forces 48 kHz when needed, and renders it to the default Windows Spatial Audio endpoint as a home theater Spatial Audio bed.
+This repository contains two foobar2000 components that work together:
 
-The repository builds the Windows tools and foobar2000 component with GitHub Actions on `windows-2022`. The action can verify MSVC/CMake compilation, but real Spatial Audio playback must be tested on a Windows machine with a compatible HDMI/eARC endpoint.
+- **`foo_dsp_spatial`** — DSP component that upmixes stereo, 5.1, or 7.1 PCM to a 12-channel spatial mix. All audio processing (upmix, LFE extraction, limiter, per-channel delays) lives here.
+- **`foo_out_spatial_audio`** — Output component that sends the 12-channel PCM from the DSP directly to the Windows Spatial Audio API. One channel per Spatial Audio bed object. No audio processing in this component.
+
+The repository builds both components and the standalone Windows tools with GitHub Actions on `windows-2022`. Real Spatial Audio playback must be tested on a Windows machine with a compatible HDMI/eARC endpoint.
 
 ## Download and install
 
-1. Download the latest component release: [`foo_out_spatial_audio.fb2k-component`](https://github.com/ArtifexEt/Foobar-for-Home-Theater/releases/latest/download/foo_out_spatial_audio.fb2k-component).
-2. In foobar2000, open Preferences > Components, click Install, choose the downloaded `.fb2k-component`, then Apply.
+Install both components — they work as a chain: the DSP processes audio, the output sends it to Windows Spatial Audio.
+
+1. Download the latest release:
+   - [`foo_dsp_spatial.fb2k-component`](https://github.com/ArtifexEt/Foobar-for-Home-Theater/releases/latest/download/foo_dsp_spatial.fb2k-component)
+   - [`foo_out_spatial_audio.fb2k-component`](https://github.com/ArtifexEt/Foobar-for-Home-Theater/releases/latest/download/foo_out_spatial_audio.fb2k-component)
+2. In foobar2000, open Preferences > Components, click Install, choose each `.fb2k-component` file, then Apply.
 3. Restart foobar2000 when prompted.
 4. Open Preferences > Playback > Output and select `Spatial Audio for Home Theater`.
-5. Open Preferences > Playback > Output > Spatial Audio if you want to probe the Windows endpoint, run directional tests, or adjust channel gains. New installs use beginner-safe defaults, so no setup is required before first playback.
+5. Open Preferences > Playback > DSP Manager, add `Spatial Audio Upmix` to the active DSP chain, and place it first.
+6. Open Preferences > Tools > Spatial Audio DSP to configure upmix mode, limiter, channel gains, and delays.
+7. Open Preferences > Playback > Output > Spatial Audio for Home Theater to configure the output bed layout and render rate.
 
-Release notes are published on the [GitHub releases page](https://github.com/ArtifexEt/Foobar-for-Home-Theater/releases). The release ZIP contains standalone diagnostics and test executables. The foobar2000 plugin itself is the `.fb2k-component` file linked above.
+Release notes are published on the [GitHub releases page](https://github.com/ArtifexEt/Foobar-for-Home-Theater/releases). The release ZIP contains standalone diagnostics and test executables. The foobar2000 plugins are the two `.fb2k-component` files linked above.
 
-The component version shown inside foobar2000 is embedded during the GitHub Actions build and matches the release tag without the leading `v`, for example release `v0.3.30` installs as component version `0.3.30`.
+The component version shown inside foobar2000 is embedded during the GitHub Actions build and matches the release tag without the leading `v`, for example release `v0.3.30` installs as version `0.3.30`.
 
 ## Screenshots
 
-The component is configured from Preferences > Playback > Output > Spatial Audio. The defaults are intended to work for a first run, while the tabs below expose the parts most home-theater users usually need to tune.
+### Layout (output plugin)
 
-### Layout
-
-Choose the Windows Spatial Audio bed, render rate, and limiter behavior. Copy profile and Paste profile share the full component setup as plain text through the clipboard.
+Choose the Windows Spatial Audio bed and render rate.
 
 ![Layout](docs/screenshots/layout.png)
 
-### Upmix
+### DSP — Upmix
 
-Select the listening mode and tune how stereo is spread into center, surround, rear, height, and optional LFE channels. `Reference` is the safer default; `Full spatial` is wider and more aggressive. `Beginner defaults` resets the page to conservative starting values.
+Select the listening mode and tune how stereo is spread into center, surround, rear, height, and optional LFE channels. `Reference` is the safer default; `Full spatial` is wider. `Beginner defaults` resets to conservative values.
 
 ![Upmix controls](docs/screenshots/upmix-controls.png)
 
-### Channels
+### DSP — Channels
 
-Adjust each output bed channel independently with gain, delay, and polarity inversion. Useful for matching a receiver, compensating for speaker distance, or applying a room correction offset.
+Adjust each output bed channel independently with gain, delay, and polarity inversion.
 
 ![Per-channel trims](docs/screenshots/channel-trims.png)
 
-### Channel Mapping
+### DSP — Channel Mapping
 
-Map each 5.1 source channel to any output bed channel. Useful when a SL/SR, LFE, or center-heavy source needs to be routed differently for a specific receiver or speaker layout.
+Map each 5.1 source channel to any output bed channel.
 
 ![Channel Mapping](docs/screenshots/channel-mapping.png)
 
-### Testing
+### Test (output plugin)
 
-Play short tones from any bed direction. A 4×3 grid covers all front, side, rear, height, and LFE positions. Positional channels can use dynamic Spatial Audio objects when supported; LFE always uses the static low-frequency bed channel.
+Play a test tone through a selected bed direction to verify routing.
 
 ![Testing](docs/screenshots/testing.png)
 
-### About
+### About (output plugin)
 
-Shows the plugin version and links. `Probe endpoint` asks Windows what the selected HDMI/eARC endpoint exposes — supported float32 rates and native static bed channels — and prints the result in the text area below.
+Shows the plugin version and links.
 
 ![About](docs/screenshots/about.png)
 
@@ -65,21 +72,21 @@ Shows the plugin version and links. `Probe endpoint` asks Windows what the selec
 - CMake 3.24 or newer.
 - A real HDMI/eARC endpoint with Windows Spatial Audio support selected as the default output device.
 - Spatial sound enabled for that endpoint in Windows sound settings.
-- foobar2000 2.x 64-bit for the component package.
+- foobar2000 2.x 64-bit for the component packages.
 
 ## How it works
 
-Stereo input is upmixed into the selected Windows Spatial Audio bed. 5.1 input can be mapped per source channel, and 7.1 input is preserved to matching front, side, rear, center, and LFE bed channels.
+The DSP component (`foo_dsp_spatial`) receives foobar2000 audio chunks and outputs 12-channel PCM with no channel mask (`chanMask=0`). Channel order matches the Windows Spatial Audio bed: front left, front right, front center, LFE, side left, side right, back left, back right, top front left, top front right, top back left, top back right.
 
-Supported output beds are Auto, Stereo, 5.1, 7.1, 5.1.2, 5.1.4, and 7.1.4. New installs start with beginner-safe defaults: Auto bed, 48 kHz compatible render rate, Reference upmix, limiter on, and conservative gains.
+Stereo input is upmixed into the selected bed. 5.1 input can be mapped per source channel, and 7.1 input passes through to the matching bed channels.
 
-Use the settings tabs above for upmix tuning, per-channel trims, channel source mapping, directional tests, and endpoint probing. Copy/Paste profile can share the full component setup through the clipboard.
+The output component (`foo_out_spatial_audio`) receives the 12-channel PCM and copies channel `i` directly to `ISpatialAudioObject i` on the Windows Spatial Audio endpoint. Supported output beds are Auto, Stereo, 5.1, 7.1, 5.1.2, 5.1.4, and 7.1.4.
 
 ## Quality
 
-The component renders Windows Spatial Audio objects as mono float32 streams and keeps internal mix math in double precision. `Render rate` defaults to `48 kHz compatible` for broad HDMI/eARC receiver compatibility; use `Probe endpoint` in the About tab to see which float32 object rates the selected Windows Spatial Audio endpoint accepts, then switch to `Auto highest supported` if your endpoint handles it cleanly.
+The component renders Windows Spatial Audio objects as mono float32 streams and keeps internal mix math in double precision. `Render rate` defaults to `48000 Hz` for broad HDMI/eARC receiver compatibility.
 
-For cleanest output, keep enough headroom for stereo upmixing, leave `Limiter` enabled in `Transparent soft` mode, and keep per-channel trims at or below 0 dB unless you are compensating for real speaker calibration.
+For cleanest output, keep enough headroom in the DSP upmix settings, leave the limiter enabled in `Transparent soft` mode, and keep per-channel trims at or below 0 dB unless compensating for real speaker calibration.
 
 ## Support
 
@@ -96,7 +103,7 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A x64
 cmake --build build --config Release
 ```
 
-The foobar2000 component is built by the GitHub Actions workflow using the official foobar2000 SDK.
+The foobar2000 components are built by the GitHub Actions workflow using the official foobar2000 SDK.
 
 ## Standalone Tools
 
@@ -110,17 +117,17 @@ The foobar2000 component is built by the GitHub Actions workflow using the offic
 
 `--probe` prints endpoint capabilities.
 
-`--static-test` plays sequential tone bursts through the configured static bed. With height-enabled layouts such as 5.1.4 or 7.1.4, the important checks are `top_front_left`, `top_front_right`, `top_back_left`, and `top_back_right`.
+`--static-test` plays sequential tone bursts through the configured static bed.
 
 `--custom` creates dynamic spatial objects from `config/spatial_audio_profile.ini` and positions them with Windows Spatial Audio coordinates.
 
-`StereoSpatialPlayer.exe --mode bed` plays a stereo WAV through the configured static bed. `--mode objects` plays the same WAV as dynamic spatial objects using `source`, `gain_db`, `x`, `y`, and `z` from the custom object sections.
+`StereoSpatialPlayer.exe --mode bed` plays a stereo WAV through the configured static bed. `--mode objects` plays the same WAV as dynamic spatial objects.
 
-Release ZIPs include the standalone executables and `config/spatial_audio_profile.ini` in the same default layout the executables expect. The component is published separately as `foo_out_spatial_audio.fb2k-component`.
+Release ZIPs include the standalone executables and `config/spatial_audio_profile.ini`. The components are published separately as `.fb2k-component` files.
 
 ## Notes
 
-If `max dynamic objects` is `0`, Windows Spatial Audio is not enabled for the selected endpoint, the endpoint is not compatible, or only static bed playback is available.
+If `max dynamic objects` is `0`, Windows Spatial Audio is not enabled for the selected endpoint, or the endpoint is not compatible.
 
 The tools use Windows Spatial Audio endpoint APIs, not a private encoder.
 
