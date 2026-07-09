@@ -62,9 +62,9 @@ private:
     static bool is_5point1_mask(unsigned mask);
     static bool is_7point1_mask(unsigned mask);
     static uint32_t fixed_sample_rate(SampleRateMode mode);
-    static uint32_t highest_supported_sample_rate();
-    static bool spatial_sample_rate_supported(uint32_t sampleRate);
-    static uint32_t forced_sample_rate(const OutputConfig& config);
+    static uint32_t highest_supported_sample_rate(const GUID& device);
+    static bool spatial_sample_rate_supported(const GUID& device, uint32_t sampleRate);
+    static uint32_t forced_sample_rate(const OutputConfig& config, const GUID& device);
     static int target_from_key(const std::string& key);
     static int channel_index(const std::string& key);
     static AudioObjectType requested_static_mask(const OutputConfig& config, AudioObjectType nativeMask, AudioObjectType audioBedMask);

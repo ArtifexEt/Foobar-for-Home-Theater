@@ -222,16 +222,22 @@ The full release workflow also builds the foobar2000 components from `components
 Release ZIPs include standalone diagnostics:
 
 ```powershell
+.\SpatialAudioDiagnostics.exe --list-devices
+.\SpatialAudioDiagnostics.exe --device korytarz --probe --config .\config\spatial_audio_profile.ini
+.\SpatialAudioDiagnostics.exe --device korytarz --static-test --config .\config\spatial_audio_profile.ini
 .\SpatialAudioDiagnostics.exe --probe --config .\config\spatial_audio_profile.ini
 .\SpatialAudioDiagnostics.exe --static-test --config .\config\spatial_audio_profile.ini
 .\SpatialAudioDiagnostics.exe --custom --config .\config\spatial_audio_profile.ini
-.\StereoSpatialPlayer.exe --wav C:\path\to\stereo-48k.wav --mode bed --config .\config\spatial_audio_profile.ini
+.\StereoSpatialPlayer.exe --device korytarz --wav C:\path\to\stereo-48k.wav --mode bed --config .\config\spatial_audio_profile.ini
 .\StereoSpatialPlayer.exe --wav C:\path\to\stereo-48k.wav --mode objects --config .\config\spatial_audio_profile.ini
 ```
+
+`--device` accepts a case-insensitive fragment of the Windows render endpoint name or endpoint id. Use `--list-devices` first if you are not sure how Windows exposes the speaker, receiver, or hallway endpoint.
 
 ## Troubleshooting
 
 - If output is silent, confirm that Windows Spatial Audio is enabled for the selected endpoint.
+- If foobar2000 does not play through the expected speaker, select the named endpoint under `Playback > Output > Device` instead of the default Spatial Audio entry, then verify the same endpoint with `SpatialAudioDiagnostics.exe --device name --probe`.
 - If the probe reports no supported spatial bed, select another Windows output device or enable spatial sound in Windows settings.
 - If playback is too quiet after upgrading, press `Beginner defaults` or set `Master gain` to `0.0 dB`.
 - If playback contains a tone after upgrading from an older test build, open and apply the output preferences once. New builds no longer persist continuous test tone playback.

@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - feature/**
+      - codex/**
   pull_request:
     branches:
       - main
@@ -44,6 +45,12 @@ jobs:
 
       - name: Build
         run: cmake --build build --config Release
+
+      - name: Smoke standalone tools
+        shell: pwsh
+        run: |
+          build/Release/SpatialAudioDiagnostics.exe --help
+          build/Release/StereoSpatialPlayer.exe --help
 
       - name: Build foobar2000 components
         shell: pwsh
@@ -90,6 +97,13 @@ jobs:
           Copy-Item build/Release/StereoSpatialPlayer.exe dist/
           Copy-Item config/spatial_audio_profile.ini dist/config/
           Copy-Item README.md dist/
+          @(
+            "Examples:",
+            "  .\SpatialAudioDiagnostics.exe --list-devices",
+            "  .\SpatialAudioDiagnostics.exe --device korytarz --probe --config .\config\spatial_audio_profile.ini",
+            "  .\SpatialAudioDiagnostics.exe --device korytarz --static-test --config .\config\spatial_audio_profile.ini",
+            "  .\StereoSpatialPlayer.exe --device korytarz --wav C:\path\to\stereo-48k.wav --mode bed --config .\config\spatial_audio_profile.ini"
+          ) | Set-Content -Path dist/DIAGNOSTICS.txt -Encoding utf8
           Compress-Archive -Path dist/* -DestinationPath Foobar-for-Home-Theater-windows-x64.zip -Force
           Compress-Archive -Path external/foobar2000-sdk/foobar2000/foo_out_spatial_audio/bin/x64/Release/foo_out_spatial_audio.dll -DestinationPath foo_out_spatial_audio.fb2k-component -Force
           Compress-Archive -Path external/foobar2000-sdk/foobar2000/foo_dsp_spatial/bin/x64/Release/foo_dsp_spatial.dll -DestinationPath foo_dsp_spatial.fb2k-component -Force

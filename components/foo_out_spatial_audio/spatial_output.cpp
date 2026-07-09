@@ -16,6 +16,12 @@ struct ChannelDef {
     AudioObjectType type;
 };
 
+struct EndpointInfo {
+    GUID guid = {};
+    std::wstring id;
+    std::string name;
+};
+
 const std::vector<ChannelDef>& all_channels() {
     static const std::vector<ChannelDef> channels = {
         {"front_left",       AudioObjectType_FrontLeft},
@@ -141,9 +147,112 @@ std::string narrow(const wchar_t* text) {
     if (text == nullptr || *text == L'\0') return {};
     const int required = WideCharToMultiByte(CP_UTF8, 0, text, -1, nullptr, 0, nullptr, nullptr);
     if (required <= 1) return {};
-    std::string narrowText(static_cast<size_t>(required - 1), '\0');
+    std::string narrowText(static_cast<size_t>(required), '\0');
     WideCharToMultiByte(CP_UTF8, 0, text, -1, narrowText.data(), required, nullptr, nullptr);
+    narrowText.resize(static_cast<size_t>(required - 1));
     return narrowText;
+}
+
+std::string endpoint_hresult_text(HRESULT hr) {
+    _com_error error(hr);
+    std::ostringstream stream;
+    stream << "0x" << std::hex << std::uppercase << static_cast<uint32_t>(hr);
+    const wchar_t* message = error.ErrorMessage();
+    if (message != nullptr) stream << " (" << narrow(message) << ")";
+    return stream.str();
+}
+
+void endpoint_throw_if_failed(HRESULT hr, const char* action) {
+    if (FAILED(hr)) {
+        std::ostringstream stream;
+        stream << action << " failed: " << endpoint_hresult_text(hr);
+        throw std::runtime_error(stream.str());
+    }
+}
+
+uint64_t fnv1a64(const wchar_t* text, uint64_t seed) {
+    uint64_t hash = seed;
+    while (text != nullptr && *text != L'\0') {
+        const wchar_t ch = *text++;
+        hash ^= static_cast<uint8_t>(ch & 0xff);
+        hash *= 1099511628211ull;
+        hash ^= static_cast<uint8_t>((ch >> 8) & 0xff);
+        hash *= 1099511628211ull;
+    }
+    return hash;
+}
+
+GUID endpoint_guid_from_id(const wchar_t* endpointId) {
+    const uint64_t a = fnv1a64(endpointId, 14695981039346656037ull);
+    const uint64_t b = fnv1a64(endpointId, 1099511628211ull);
+    GUID guid = {};
+    guid.Data1 = static_cast<unsigned long>(a & 0xffffffffu);
+    guid.Data2 = static_cast<unsigned short>((a >> 32) & 0xffffu);
+    guid.Data3 = static_cast<unsigned short>(((a >> 48) & 0x0fffu) | 0x5000u);
+    guid.Data4[0] = static_cast<unsigned char>(((b >> 0) & 0x3fu) | 0x80u);
+    guid.Data4[1] = static_cast<unsigned char>((b >> 8) & 0xffu);
+    guid.Data4[2] = static_cast<unsigned char>((b >> 16) & 0xffu);
+    guid.Data4[3] = static_cast<unsigned char>((b >> 24) & 0xffu);
+    guid.Data4[4] = static_cast<unsigned char>((b >> 32) & 0xffu);
+    guid.Data4[5] = static_cast<unsigned char>((b >> 40) & 0xffu);
+    guid.Data4[6] = static_cast<unsigned char>((b >> 48) & 0xffu);
+    guid.Data4[7] = static_cast<unsigned char>((b >> 56) & 0xffu);
+    return guid;
+}
+
+std::string endpoint_name(IMMDevice* device) {
+    ComPtr<IPropertyStore> store;
+    if (device == nullptr || FAILED(device->OpenPropertyStore(STGM_READ, &store))) return {};
+    PROPVARIANT value;
+    PropVariantInit(&value);
+    std::string result;
+    if (SUCCEEDED(store->GetValue(PKEY_Device_FriendlyName, &value)) && value.vt == VT_LPWSTR)
+        result = narrow(value.pwszVal);
+    PropVariantClear(&value);
+    return result;
+}
+
+std::vector<EndpointInfo> enumerate_render_endpoints(IMMDeviceEnumerator* enumerator) {
+    std::vector<EndpointInfo> endpoints;
+    if (enumerator == nullptr) return endpoints;
+
+    ComPtr<IMMDeviceCollection> collection;
+    if (FAILED(enumerator->EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, &collection))) return endpoints;
+
+    UINT count = 0;
+    if (FAILED(collection->GetCount(&count))) return endpoints;
+    for (UINT i = 0; i < count; ++i) {
+        ComPtr<IMMDevice> device;
+        if (FAILED(collection->Item(i, &device))) continue;
+
+        LPWSTR id = nullptr;
+        if (FAILED(device->GetId(&id)) || id == nullptr) continue;
+
+        EndpointInfo info;
+        info.id = id;
+        info.guid = endpoint_guid_from_id(id);
+        info.name = endpoint_name(device.Get());
+        if (info.name.empty()) info.name = narrow(id);
+        endpoints.push_back(info);
+        CoTaskMemFree(id);
+    }
+    return endpoints;
+}
+
+ComPtr<IMMDevice> get_render_endpoint(IMMDeviceEnumerator* enumerator, const GUID& requestedGuid) {
+    ComPtr<IMMDevice> device;
+    if (enumerator == nullptr) return device;
+    if (requestedGuid == guid_device_default || requestedGuid == GUID_NULL) {
+        endpoint_throw_if_failed(enumerator->GetDefaultAudioEndpoint(eRender, eMultimedia, &device), "Get default render endpoint");
+        return device;
+    }
+
+    for (const auto& endpoint : enumerate_render_endpoints(enumerator)) {
+        if (!(endpoint.guid == requestedGuid)) continue;
+        endpoint_throw_if_failed(enumerator->GetDevice(endpoint.id.c_str(), &device), "Get selected render endpoint");
+        return device;
+    }
+    throw exception_output_device_not_found();
 }
 
 }  // namespace
@@ -165,6 +274,22 @@ const char* spatial_audio_output::g_get_name() { return "Spatial Audio Output"; 
 void spatial_audio_output::g_enum_devices(output_device_enum_callback& callback) {
     const char name[] = "Default Windows Spatial Audio endpoint";
     callback.on_device(guid_device_default, name, sizeof(name) - 1);
+
+    HRESULT coInit = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    const bool shouldUninitialize = SUCCEEDED(coInit);
+    if (FAILED(coInit) && coInit != RPC_E_CHANGED_MODE) return;
+    const auto cleanupCom = std::unique_ptr<void, void (*)(void*)>(shouldUninitialize ? reinterpret_cast<void*>(1) : nullptr, [](void* marker) {
+        if (marker != nullptr) CoUninitialize();
+    });
+
+    try {
+        ComPtr<IMMDeviceEnumerator> enumerator;
+        throw_if_failed(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL, IID_PPV_ARGS(&enumerator)), "Create MMDeviceEnumerator");
+        for (const auto& endpoint : enumerate_render_endpoints(enumerator.Get())) {
+            callback.on_device(endpoint.guid, endpoint.name.c_str(), static_cast<unsigned>(endpoint.name.size()));
+        }
+    } catch (...) {
+    }
 }
 
 bool spatial_audio_output::g_advanced_settings_query()   { return false; }
@@ -174,7 +299,7 @@ bool spatial_audio_output::g_needs_device_list_prefixes(){ return false; }
 bool spatial_audio_output::g_supports_multiple_streams() { return false; }
 bool spatial_audio_output::g_is_high_latency()           { return false; }
 
-unsigned spatial_audio_output::get_forced_sample_rate() { return forced_sample_rate(ReadConfig()); }
+unsigned spatial_audio_output::get_forced_sample_rate() { return forced_sample_rate(ReadConfig(), device_); }
 unsigned spatial_audio_output::get_forced_channel_mask() { return 0; }
 
 void spatial_audio_output::pause(bool state) {
@@ -216,9 +341,9 @@ void spatial_audio_output::open(audio_chunk::spec_t const& spec) {
         std::lock_guard<std::mutex> lock(configMutex_);
         config_ = nextConfig;
     }
-    const uint32_t configuredRate = forced_sample_rate(nextConfig);
+    const uint32_t configuredRate = forced_sample_rate(nextConfig, device_);
     const bool rateMatchesConfig  = configuredRate == 0 || spec.sampleRate == configuredRate;
-    if (!rateMatchesConfig || !spatial_sample_rate_supported(spec.sampleRate) || spec.chanCount < 2) {
+    if (!rateMatchesConfig || !spatial_sample_rate_supported(device_, spec.sampleRate) || spec.chanCount < 2) {
         throw exception_output_unsupported_stream_format();
     }
     stop_stream();
@@ -340,8 +465,7 @@ void spatial_audio_output::render_loop(uint32_t sampleRate, AudioObjectType audi
         ComPtr<IMMDeviceEnumerator> enumerator;
         throw_if_failed(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL, IID_PPV_ARGS(&enumerator)), "Create MMDeviceEnumerator");
 
-        ComPtr<IMMDevice> device;
-        throw_if_failed(enumerator->GetDefaultAudioEndpoint(eRender, eMultimedia, &device), "Get default render endpoint");
+        ComPtr<IMMDevice> device = get_render_endpoint(enumerator.Get(), device_);
 
         ComPtr<ISpatialAudioClient> spatialClient;
         throw_if_failed(device->Activate(__uuidof(ISpatialAudioClient), CLSCTX_INPROC_SERVER, nullptr, reinterpret_cast<void**>(spatialClient.GetAddressOf())), "Activate ISpatialAudioClient");
@@ -559,15 +683,15 @@ uint32_t spatial_audio_output::fixed_sample_rate(SampleRateMode mode) {
     }
 }
 
-uint32_t spatial_audio_output::highest_supported_sample_rate() {
+uint32_t spatial_audio_output::highest_supported_sample_rate(const GUID& device) {
     const uint32_t descendingRates[] = {192000, 176400, 96000, 88200, 48000, 44100};
     for (const uint32_t sr : descendingRates) {
-        if (spatial_sample_rate_supported(sr)) return sr;
+        if (spatial_sample_rate_supported(device, sr)) return sr;
     }
     return 48000;
 }
 
-bool spatial_audio_output::spatial_sample_rate_supported(uint32_t sampleRate) {
+bool spatial_audio_output::spatial_sample_rate_supported(const GUID& deviceGuid, uint32_t sampleRate) {
     HRESULT coInit = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     const bool shouldUninitialize = SUCCEEDED(coInit);
     if (FAILED(coInit) && coInit != RPC_E_CHANGED_MODE) return sampleRate == 48000;
@@ -577,8 +701,7 @@ bool spatial_audio_output::spatial_sample_rate_supported(uint32_t sampleRate) {
     try {
         ComPtr<IMMDeviceEnumerator> enumerator;
         throw_if_failed(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL, IID_PPV_ARGS(&enumerator)), "Create MMDeviceEnumerator");
-        ComPtr<IMMDevice> device;
-        throw_if_failed(enumerator->GetDefaultAudioEndpoint(eRender, eMultimedia, &device), "Get default render endpoint");
+        ComPtr<IMMDevice> device = get_render_endpoint(enumerator.Get(), deviceGuid);
         ComPtr<ISpatialAudioClient> spatialClient;
         throw_if_failed(device->Activate(__uuidof(ISpatialAudioClient), CLSCTX_INPROC_SERVER, nullptr, reinterpret_cast<void**>(spatialClient.GetAddressOf())), "Activate ISpatialAudioClient");
         const WAVEFORMATEX format = make_object_format(sampleRate);
@@ -588,9 +711,9 @@ bool spatial_audio_output::spatial_sample_rate_supported(uint32_t sampleRate) {
     }
 }
 
-uint32_t spatial_audio_output::forced_sample_rate(const OutputConfig& config) {
+uint32_t spatial_audio_output::forced_sample_rate(const OutputConfig& config, const GUID& device) {
     if (config.sampleRateMode == SampleRateMode::SourceIfSupported) return 0;
-    if (config.sampleRateMode == SampleRateMode::AutoHighest) return highest_supported_sample_rate();
+    if (config.sampleRateMode == SampleRateMode::AutoHighest) return highest_supported_sample_rate(device);
     return fixed_sample_rate(config.sampleRateMode);
 }
 
