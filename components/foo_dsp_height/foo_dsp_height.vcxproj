@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64"><Configuration>Debug</Configuration><Platform>x64</Platform></ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{E84C5AA3-4F98-4F89-87AF-75EBC68C9E12}</ProjectGuid>
+    <RootNamespace>foo_dsp_height</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType><CharacterSet>Unicode</CharacterSet><WholeProgramOptimization>true</WholeProgramOptimization><PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType><CharacterSet>Unicode</CharacterSet><PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup><TargetName>foo_dsp_height</TargetName><OutDir>$(MSBuildProjectDirectory)\bin\$(Platform)\$(Configuration)\</OutDir><IntDir>$(MSBuildProjectDirectory)\obj\$(Platform)\$(Configuration)\</IntDir></PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile><RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary><PrecompiledHeader>Use</PrecompiledHeader><PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile><WarningLevel>Level3</WarningLevel><DebugInformationFormat>ProgramDatabase</DebugInformationFormat><TreatSpecificWarningsAsErrors>4715</TreatSpecificWarningsAsErrors><AdditionalIncludeDirectories>..;../..</AdditionalIncludeDirectories><FloatingPointModel>Fast</FloatingPointModel><PreprocessorDefinitions>NDEBUG;_WINDLL;WIN32_LEAN_AND_MEAN;NOMINMAX;UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions><LanguageStandard>stdcpp17</LanguageStandard><AdditionalOptions>/permissive- %(AdditionalOptions)</AdditionalOptions></ClCompile>
+    <Link><GenerateDebugInformation>true</GenerateDebugInformation><SubSystem>Windows</SubSystem><OptimizeReferences>true</OptimizeReferences><EnableCOMDATFolding>true</EnableCOMDATFolding><AdditionalDependencies>../shared/shared-$(Platform).lib;user32.lib;gdi32.lib;comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies></Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile><Optimization>Disabled</Optimization><BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks><RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary><PrecompiledHeader>Use</PrecompiledHeader><PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile><WarningLevel>Level3</WarningLevel><DebugInformationFormat>ProgramDatabase</DebugInformationFormat><TreatSpecificWarningsAsErrors>4715</TreatSpecificWarningsAsErrors><AdditionalIncludeDirectories>..;../..</AdditionalIncludeDirectories><FloatingPointModel>Fast</FloatingPointModel><PreprocessorDefinitions>_DEBUG;_WINDLL;WIN32_LEAN_AND_MEAN;NOMINMAX;UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions><LanguageStandard>stdcpp17</LanguageStandard><AdditionalOptions>/permissive- %(AdditionalOptions)</AdditionalOptions></ClCompile>
+    <Link><GenerateDebugInformation>true</GenerateDebugInformation><SubSystem>Windows</SubSystem><AdditionalDependencies>../shared/shared-$(Platform).lib;user32.lib;gdi32.lib;comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies></Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="PCH.cpp"><PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader><PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader></ClCompile>
+    <ClCompile Include="height_dsp.cpp" /><ClCompile Include="main.cpp" />
+  </ItemGroup>
+  <ItemGroup><ClInclude Include="component_version.h" /><ClInclude Include="height_dsp.h" /><ClInclude Include="height_resource.h" /><ClInclude Include="stdafx.h" /></ItemGroup>
+  <ItemGroup><ResourceCompile Include="height_dsp.rc" /></ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\libPPUI\libPPUI.vcxproj"><Project>{7729EB82-4069-4414-964B-AD399091A03F}</Project></ProjectReference>
+    <ProjectReference Include="..\..\pfc\pfc.vcxproj"><Project>{EBFFFB4E-261D-44D3-B89C-957B31A0BF9C}</Project></ProjectReference>
+    <ProjectReference Include="..\foobar2000_component_client\foobar2000_component_client.vcxproj"><Project>{71AD2674-065B-48F5-B8B0-E1F9D3892081}</Project></ProjectReference>
+    <ProjectReference Include="..\helpers\foobar2000_sdk_helpers.vcxproj"><Project>{EE47764E-A202-4F85-A767-ABDAB4AFF35F}</Project></ProjectReference>
+    <ProjectReference Include="..\SDK\foobar2000_SDK.vcxproj"><Project>{E8091321-D79D-4575-86EF-064EA1A4A20D}</Project></ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

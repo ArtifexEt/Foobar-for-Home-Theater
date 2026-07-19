@@ -1,0 +1,8 @@
+#pragma once
+
+#define IDD_HEIGHT_DSP_CONFIG 201
+#define IDC_HEIGHT_LAYOUT     1001
+#define IDC_HEIGHT_GAIN       1002
+#define IDC_FRONT_DIFFERENCE  1003
+#define IDC_SURROUND_FEED     1004
+#define IDC_MID_FEED          1005

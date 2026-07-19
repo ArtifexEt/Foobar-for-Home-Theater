@@ -31,7 +31,7 @@ jobs:
       - name: Set build version
         shell: pwsh
         run: |
-          $version = "0.4.$env:GITHUB_RUN_NUMBER"
+          $version = "0.5.$env:GITHUB_RUN_NUMBER"
           if ($env:GITHUB_RUN_ATTEMPT -and $env:GITHUB_RUN_ATTEMPT -ne "1") {
             $version = "$version-r$env:GITHUB_RUN_ATTEMPT"
           }
@@ -88,11 +88,24 @@ jobs:
           msbuild external/foobar2000-sdk/foobar2000/foo_dsp_spatial/foo_dsp_spatial.vcxproj /m /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+          # Build chain-friendly height-only DSP component
+          Copy-Item -Recurse components/foo_dsp_height external/foobar2000-sdk/foobar2000/
+          @"
+          #pragma once
+
+          #ifndef HEIGHT_DSP_COMPONENT_VERSION
+          #define HEIGHT_DSP_COMPONENT_VERSION "$env:COMPONENT_VERSION"
+          #endif
+          "@ | Set-Content -Path external/foobar2000-sdk/foobar2000/foo_dsp_height/component_version.h -Encoding ascii
+          msbuild external/foobar2000-sdk/foobar2000/foo_dsp_height/foo_dsp_height.vcxproj /m /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Package
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
           New-Item -ItemType Directory -Force dist/config | Out-Null
+          New-Item -ItemType Directory -Force dist/components | Out-Null
           Copy-Item build/Release/SpatialAudioDiagnostics.exe dist/
           Copy-Item build/Release/StereoSpatialPlayer.exe dist/
           Copy-Item config/spatial_audio_profile.ini dist/config/
@@ -104,9 +117,50 @@ jobs:
             "  .\SpatialAudioDiagnostics.exe --device korytarz --static-test --config .\config\spatial_audio_profile.ini",
             "  .\StereoSpatialPlayer.exe --device korytarz --wav C:\path\to\stereo-48k.wav --mode bed --config .\config\spatial_audio_profile.ini"
           ) | Set-Content -Path dist/DIAGNOSTICS.txt -Encoding utf8
+          Compress-Archive -Path external/foobar2000-sdk/foobar2000/foo_out_spatial_audio/bin/x64/Release/foo_out_spatial_audio.dll -DestinationPath foo_out_spatial_audio.zip -Force
+          Compress-Archive -Path external/foobar2000-sdk/foobar2000/foo_dsp_spatial/bin/x64/Release/foo_dsp_spatial.dll -DestinationPath foo_dsp_spatial.zip -Force
+          Compress-Archive -Path external/foobar2000-sdk/foobar2000/foo_dsp_height/bin/x64/Release/foo_dsp_height.dll -DestinationPath foo_dsp_height.zip -Force
+          Move-Item foo_out_spatial_audio.zip foo_out_spatial_audio.fb2k-component -Force
+          Move-Item foo_dsp_spatial.zip foo_dsp_spatial.fb2k-component -Force
+          Move-Item foo_dsp_height.zip foo_dsp_height.fb2k-component -Force
+          Copy-Item foo_out_spatial_audio.fb2k-component dist/components/
+          Copy-Item foo_dsp_spatial.fb2k-component dist/components/
+          Copy-Item foo_dsp_height.fb2k-component dist/components/
           Compress-Archive -Path dist/* -DestinationPath Foobar-for-Home-Theater-windows-x64.zip -Force
-          Compress-Archive -Path external/foobar2000-sdk/foobar2000/foo_out_spatial_audio/bin/x64/Release/foo_out_spatial_audio.dll -DestinationPath foo_out_spatial_audio.fb2k-component -Force
-          Compress-Archive -Path external/foobar2000-sdk/foobar2000/foo_dsp_spatial/bin/x64/Release/foo_dsp_spatial.dll -DestinationPath foo_dsp_spatial.fb2k-component -Force
+
+      - name: Verify packages
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $components = @(
+            @{ Archive = "foo_out_spatial_audio.fb2k-component"; Dll = "foo_out_spatial_audio.dll" },
+            @{ Archive = "foo_dsp_spatial.fb2k-component"; Dll = "foo_dsp_spatial.dll" },
+            @{ Archive = "foo_dsp_height.fb2k-component"; Dll = "foo_dsp_height.dll" }
+          )
+          foreach ($component in $components) {
+            $archive = [IO.Compression.ZipFile]::OpenRead((Resolve-Path $component.Archive))
+            try {
+              $names = @($archive.Entries | ForEach-Object { $_.FullName.Replace('\', '/') })
+              if ($names -notcontains $component.Dll) {
+                throw "$($component.Archive) does not contain $($component.Dll) at archive root."
+              }
+            } finally {
+              $archive.Dispose()
+            }
+          }
+
+          $bundle = [IO.Compression.ZipFile]::OpenRead((Resolve-Path "Foobar-for-Home-Theater-windows-x64.zip"))
+          try {
+            $bundleNames = @($bundle.Entries | ForEach-Object { $_.FullName.Replace('\', '/') })
+            foreach ($component in $components) {
+              $expected = "components/$($component.Archive)"
+              if ($bundleNames -notcontains $expected) {
+                throw "Main Windows ZIP does not contain $expected."
+              }
+            }
+          } finally {
+            $bundle.Dispose()
+          }
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
@@ -116,6 +170,7 @@ jobs:
             Foobar-for-Home-Theater-windows-x64.zip
             foo_out_spatial_audio.fb2k-component
             foo_dsp_spatial.fb2k-component
+            foo_dsp_height.fb2k-component
 
       - name: Publish release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -126,6 +181,7 @@ jobs:
           $asset = "Foobar-for-Home-Theater-windows-x64.zip"
           $outputAsset = "foo_out_spatial_audio.fb2k-component"
           $dspAsset = "foo_dsp_spatial.fb2k-component"
+          $heightDspAsset = "foo_dsp_height.fb2k-component"
 
           $tag = $env:RELEASE_TAG
           $title = "Foobar for Home Theater $tag"
@@ -174,11 +230,12 @@ jobs:
             "",
             "## Downloads",
             "- ``foo_dsp_spatial.fb2k-component`` - foobar2000 spatial upmix DSP component",
+            "- ``foo_dsp_height.fb2k-component`` - chain-friendly DSP that adds only ceiling speakers",
             "- ``foo_out_spatial_audio.fb2k-component`` - foobar2000 Windows Spatial Audio output component",
-            "- ``Foobar-for-Home-Theater-windows-x64.zip`` - standalone diagnostics and test tools",
+            "- ``Foobar-for-Home-Theater-windows-x64.zip`` - all foobar2000 components plus standalone diagnostics and test tools",
             "",
             "## $changesHeader",
             $changes
           ) | Set-Content -Path release-notes.md -Encoding utf8
 
-          gh release create $tag $asset $outputAsset $dspAsset --title $title --notes-file release-notes.md --target $env:GITHUB_SHA
+          gh release create $tag $asset $outputAsset $dspAsset $heightDspAsset --title $title --notes-file release-notes.md --target $env:GITHUB_SHA
