@@ -184,8 +184,9 @@ static std::string narrow(const wchar_t* text) {
     if (text == nullptr || *text == L'\0') return {};
     const int required = WideCharToMultiByte(CP_UTF8, 0, text, -1, nullptr, 0, nullptr, nullptr);
     if (required <= 1) return {};
-    std::string result(static_cast<size_t>(required - 1), '\0');
+    std::string result(static_cast<size_t>(required), '\0');
     WideCharToMultiByte(CP_UTF8, 0, text, -1, result.data(), required, nullptr, nullptr);
+    result.resize(static_cast<size_t>(required - 1));
     return result;
 }
 
@@ -681,7 +682,8 @@ private:
         RECT pageRect = {0, 0, tabRect.right - tabRect.left, tabRect.bottom - tabRect.top};
         TabCtrl_AdjustRect(tabs, FALSE, &pageRect);
         const int x = tabRect.left + pageRect.left, y = tabRect.top + pageRect.top;
-        const int width = pageRect.right - pageRect.left, height = pageRect.bottom - pageRect.top;
+        const int width = static_cast<int>(std::max<LONG>(320, pageRect.right - pageRect.left));
+        const int height = static_cast<int>(std::max<LONG>(220, pageRect.bottom - pageRect.top));
         for (HWND pageWnd : pageWnds_) {
             if (pageWnd != nullptr && ::IsWindow(pageWnd))
                 ::SetWindowPos(pageWnd, HWND_TOP, x, y, width, height, SWP_NOACTIVATE);

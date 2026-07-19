@@ -2,12 +2,13 @@
 
 Foobar for Home Theater is a foobar2000 component package for Windows home theater playback. It combines a spatial upmix DSP with a Windows Spatial Audio output, so foobar2000 can play stereo, 5.1, 7.1, height, and front-wide layouts through an HDMI/eARC Spatial Audio endpoint.
 
-The package contains two components:
+The package contains three components:
 
 - `foo_dsp_spatial` - `Spatial Audio DSP`. This creates and shapes the speaker bed: stereo upmix, 5.1/7.1 mapping, height channels, front-wide channels, LFE extraction, limiter, gain, delay, and polarity.
+- `foo_dsp_height` - `Add Ceiling Speakers`. This chain-friendly DSP preserves an existing stereo/surround bed and adds only missing top-front or top-front/top-back channels. Use it after another 5.1/7.1 upmixer.
 - `foo_out_spatial_audio` - `Spatial Audio Output`. This sends the bed to Windows Spatial Audio using static bed objects, plus dynamic objects only when the selected/incoming layout needs front-wide channels.
 
-Use both components together. The DSP decides what bed exists; the output sends that bed to Windows.
+Use one of the DSP paths before the output: the full `Spatial Audio DSP`, or your preferred surround DSP followed by `Add Ceiling Speakers`. The output sends the resulting bed to Windows.
 
 ## Features
 
@@ -22,12 +23,14 @@ Use both components together. The DSP decides what bed exists; the output sends 
 - Per-channel gain, delay, and polarity.
 - 5.1 source channel mapping.
 - Copy/paste DSP profiles.
+- A separate height-only DSP with preset-local configuration and bit-preserving passthrough for every existing channel.
 
 ## Download
 
 Download the latest release assets:
 
 - [`foo_dsp_spatial.fb2k-component`](https://github.com/ArtifexEt/Foobar-for-Home-Theater/releases/latest/download/foo_dsp_spatial.fb2k-component)
+- [`foo_dsp_height.fb2k-component`](https://github.com/ArtifexEt/Foobar-for-Home-Theater/releases/latest/download/foo_dsp_height.fb2k-component)
 - [`foo_out_spatial_audio.fb2k-component`](https://github.com/ArtifexEt/Foobar-for-Home-Theater/releases/latest/download/foo_out_spatial_audio.fb2k-component)
 
 Release notes and older builds are on the [GitHub releases page](https://github.com/ArtifexEt/Foobar-for-Home-Theater/releases).
@@ -38,16 +41,16 @@ Release notes and older builds are on the [GitHub releases page](https://github.
 - Windows 10 or Windows 11.
 - A Windows Spatial Audio compatible HDMI/eARC endpoint, usually an AVR, TV, or soundbar.
 - Spatial sound enabled for the endpoint in Windows sound settings.
-- A DSP chain where `Spatial Audio DSP` runs before `Spatial Audio Output`.
+- A DSP chain where either `Spatial Audio DSP`, or another upmixer followed by `Add Ceiling Speakers`, runs before `Spatial Audio Output`.
 
 The plugin cannot make a non-Spatial endpoint spatial. If Windows reports no static bed and no dynamic objects, the output component has nothing useful to address.
 
 ## Install
 
-1. Install both `.fb2k-component` files in `Preferences > Components`.
+1. Install `foo_out_spatial_audio` and the DSP component(s) you intend to use from the release ZIP's `components` directory.
 2. Restart foobar2000 when prompted.
 3. Open `Preferences > Playback > DSP Manager`.
-4. Add `Spatial Audio DSP` to `Active DSPs`.
+4. Add `Spatial Audio DSP` to `Active DSPs` for the integrated upmix path, or follow the alternative chain below.
 5. Open `Preferences > Playback > Output`.
 6. Select `Spatial Audio Output`.
 7. Open `Preferences > Playback > DSP Manager > Spatial Audio DSP`.
@@ -59,6 +62,15 @@ The plugin cannot make a non-Spatial endpoint spatial. If Windows reports no sta
 ![DSP Manager](docs/screenshots/dsp-manager.png)
 
 The smaller DSP Manager popup is informational only. The real DSP settings live under `Preferences > Playback > DSP Manager > Spatial Audio DSP`.
+
+For an existing surround upmixer, use this chain instead:
+
+1. Add your 5.1/7.1 DSP first.
+2. Add `Add Ceiling Speakers` immediately after it.
+3. Open its DSP Manager configuration popup and choose two or four ceiling speakers.
+4. Keep `Spatial Audio Output` last and set its output bed to `Auto`.
+
+`Add Ceiling Speakers` has no separate Preferences page. Its layout and synthesis controls are stored in that DSP instance's preset. Existing channels, including existing height channels, are copied unchanged; only missing requested ceiling channels are synthesized.
 
 ## Recommended Setup
 
@@ -77,9 +89,11 @@ Start with this setup for a typical AVR:
 
 ## How It Works
 
-`Spatial Audio DSP` receives normal foobar2000 PCM. Stereo is upmixed into the selected layout. 5.1 input is mapped through the Channel Mapping page. 7.1 and height-capable input keeps matching channels where possible. The DSP then emits a real channel bed with a foobar2000 channel mask.
+`Spatial Audio DSP` receives normal foobar2000 PCM and rewrites it into the selected output layout. Stereo is upmixed, 5.1 input is mapped through the Channel Mapping page, and 7.1 keeps its standard bed channels. It is an integrated processor, not a bit-preserving add-on; do not put it after another upmixer when that upmixer's complete bed must be retained. Use `Add Ceiling Speakers` for that chain.
 
 `Spatial Audio Output` opens a Windows Spatial Audio stream. In `Auto`, it inspects the incoming channel mask and activates matching Windows static bed objects. If the incoming bed contains front-wide channels (`FCL`/`FCR`), the output requests dynamic objects for those front-wide channels because Windows Spatial Audio does not expose front-wide as static bed objects.
+
+`Add Ceiling Speakers` is intentionally narrower. It keeps the incoming channel mask and samples, appends missing height flags, and derives only those new channels from front difference, surround/rear feed, and a small center feed. This makes it suitable after a third-party surround DSP without replacing that DSP's center, LFE, side, or rear work.
 
 That keeps dynamic objects explicit: they are used for selected or incoming 9.x front-wide layouts, not as a hidden replacement for the normal static bed path.
 
@@ -204,7 +218,7 @@ Most quality problems come from routing mismatch, excessive height/surround gain
 
 ## Build
 
-GitHub Actions is the supported build path for release packages. The workflow downloads the official foobar2000 SDK during the build and packages both `.fb2k-component` files.
+GitHub Actions is the supported build path for release packages. The workflow downloads the official foobar2000 SDK during the build and packages all three `.fb2k-component` files. The main Windows ZIP contains them under `components/` in addition to the standalone tools.
 
 Local SDK archives or extracted SDK folders are only for reference and should not be committed.
 
@@ -215,23 +229,29 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A x64
 cmake --build build --config Release
 ```
 
-The full release workflow also builds the foobar2000 components from `components/foo_dsp_spatial` and `components/foo_out_spatial_audio`.
+The full release workflow also builds the foobar2000 components from `components/foo_dsp_spatial`, `components/foo_dsp_height`, and `components/foo_out_spatial_audio`.
 
 ## Standalone Tools
 
 Release ZIPs include standalone diagnostics:
 
 ```powershell
+.\SpatialAudioDiagnostics.exe --list-devices
+.\SpatialAudioDiagnostics.exe --device korytarz --probe --config .\config\spatial_audio_profile.ini
+.\SpatialAudioDiagnostics.exe --device korytarz --static-test --config .\config\spatial_audio_profile.ini
 .\SpatialAudioDiagnostics.exe --probe --config .\config\spatial_audio_profile.ini
 .\SpatialAudioDiagnostics.exe --static-test --config .\config\spatial_audio_profile.ini
 .\SpatialAudioDiagnostics.exe --custom --config .\config\spatial_audio_profile.ini
-.\StereoSpatialPlayer.exe --wav C:\path\to\stereo-48k.wav --mode bed --config .\config\spatial_audio_profile.ini
+.\StereoSpatialPlayer.exe --device korytarz --wav C:\path\to\stereo-48k.wav --mode bed --config .\config\spatial_audio_profile.ini
 .\StereoSpatialPlayer.exe --wav C:\path\to\stereo-48k.wav --mode objects --config .\config\spatial_audio_profile.ini
 ```
+
+`--device` accepts a case-insensitive fragment of the Windows render endpoint name or endpoint id. Use `--list-devices` first if you are not sure how Windows exposes the speaker, receiver, or hallway endpoint.
 
 ## Troubleshooting
 
 - If output is silent, confirm that Windows Spatial Audio is enabled for the selected endpoint.
+- If foobar2000 does not play through the expected speaker, select the named endpoint under `Playback > Output > Device` instead of the default Spatial Audio entry, then verify the same endpoint with `SpatialAudioDiagnostics.exe --device name --probe`.
 - If the probe reports no supported spatial bed, select another Windows output device or enable spatial sound in Windows settings.
 - If playback is too quiet after upgrading, press `Beginner defaults` or set `Master gain` to `0.0 dB`.
 - If playback contains a tone after upgrading from an older test build, open and apply the output preferences once. New builds no longer persist continuous test tone playback.

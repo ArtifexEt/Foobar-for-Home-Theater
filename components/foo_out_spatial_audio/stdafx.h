@@ -23,6 +23,7 @@
 #include <comdef.h>
 #include <mmdeviceapi.h>
 #include <propidl.h>
+#include <functiondiscoverykeys_devpkey.h>
 #include <spatialaudioclient.h>
 #include <wrl/client.h>
 

@@ -1,0 +1,25 @@
+#include "height_resource.h"
+#include <winres.h>
+
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+
+IDD_HEIGHT_DSP_CONFIG DIALOGEX 0, 0, 274, 150
+STYLE DS_SHELLFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Add Ceiling Speakers"
+FONT 9, "Segoe UI", 400, 0, 1
+{
+    LTEXT       "Adds missing height channels without changing the existing bed.", -1, 10, 9, 254, 18
+    LTEXT       "Ceiling layout", -1, 10, 35, 106, 12
+    COMBOBOX    IDC_HEIGHT_LAYOUT, 126, 33, 138, 55, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT       "Height gain (dB)", -1, 10, 57, 106, 12
+    EDITTEXT    IDC_HEIGHT_GAIN, 126, 55, 48, 14, ES_AUTOHSCROLL | WS_TABSTOP
+    LTEXT       "Front difference (0..1)", -1, 10, 77, 106, 12
+    EDITTEXT    IDC_FRONT_DIFFERENCE, 126, 75, 48, 14, ES_AUTOHSCROLL | WS_TABSTOP
+    LTEXT       "Surround / rear feed (0..1)", -1, 10, 97, 112, 12
+    EDITTEXT    IDC_SURROUND_FEED, 126, 95, 48, 14, ES_AUTOHSCROLL | WS_TABSTOP
+    LTEXT       "Center feed (0..0.5)", -1, 10, 117, 106, 12
+    EDITTEXT    IDC_MID_FEED, 126, 115, 48, 14, ES_AUTOHSCROLL | WS_TABSTOP
+    DEFPUSHBUTTON "OK", IDOK, 160, 134, 50, 14
+    PUSHBUTTON  "Cancel", IDCANCEL, 214, 134, 50, 14
+}

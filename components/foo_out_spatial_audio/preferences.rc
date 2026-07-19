@@ -6,56 +6,56 @@
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 #pragma code_page(1252)
 
-IDD_SPATIAL_AUDIO_PREFERENCES DIALOGEX 0, 0, 507, 290
+IDD_SPATIAL_AUDIO_PREFERENCES DIALOGEX 0, 0, 560, 360
 STYLE DS_SHELLFONT | DS_CONTROL | WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN | WS_CLIPSIBLINGS
 EXSTYLE WS_EX_CONTROLPARENT
 FONT 8, "MS Shell Dlg", 400, 0, 1
 {
-    CONTROL     "", idTabs, "SysTabControl32", TCS_TABS | WS_TABSTOP, 5, 5, 496, 280
+    CONTROL     "", idTabs, "SysTabControl32", TCS_TABS | WS_TABSTOP, 5, 5, 550, 350
 }
 
-IDD_SPATIAL_AUDIO_PAGE_LAYOUT DIALOGEX 0, 0, 480, 305
+IDD_SPATIAL_AUDIO_PAGE_LAYOUT DIALOGEX 0, 0, 530, 322
 STYLE DS_SHELLFONT | DS_CONTROL | WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS
 EXSTYLE WS_EX_CONTROLPARENT
 FONT 8, "MS Shell Dlg", 400, 0, 1
 {
-    LTEXT       "Output bed", IDC_STATIC, 11, 11, 95, 13
-    COMBOBOX    idLayoutMode, 109, 9, 165, 98, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    LTEXT       "Render rate", IDC_STATIC, 11, 30, 95, 13
-    COMBOBOX    idSampleRateMode, 109, 28, 165, 135, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON  "Probe endpoint", idProbeEndpoint, 11, 53, 110, 14
-    EDITTEXT    idEndpointSummary, 11, 73, 300, 160, ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | WS_VSCROLL | WS_TABSTOP
+    LTEXT       "Bed", IDC_STATIC, 11, 12, 45, 13
+    COMBOBOX    idLayoutMode, 64, 9, 185, 98, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT       "Rate", IDC_STATIC, 270, 12, 35, 13
+    COMBOBOX    idSampleRateMode, 309, 9, 185, 135, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON  "Probe", idProbeEndpoint, 11, 34, 70, 15
+    EDITTEXT    idEndpointSummary, 11, 55, 508, 248, ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | WS_VSCROLL | WS_TABSTOP
 }
 
-IDD_SPATIAL_AUDIO_PAGE_TEST DIALOGEX 0, 0, 480, 305
+IDD_SPATIAL_AUDIO_PAGE_TEST DIALOGEX 0, 0, 530, 322
 STYLE DS_SHELLFONT | DS_CONTROL | WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS
 EXSTYLE WS_EX_CONTROLPARENT
 FONT 8, "MS Shell Dlg", 400, 0, 1
 {
-    CONTROL     "Prefer dynamic object", idDirectionalTestDynamic, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 11, 9, 120, 13
-    LTEXT       "Direction", IDC_STATIC, 11, 31, 55, 13
-    COMBOBOX    idDirectionalTestTarget, 69, 29, 110, 135, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON  "Run selected", idDirectionalTestRunSelected, 183, 29, 75, 14
-    LTEXT       "Test gain (dB)", IDC_STATIC, 11, 50, 95, 13
-    EDITTEXT    idDirectionalTestGain, 109, 50, 37, 13, ES_AUTOHSCROLL
-    LTEXT       "Frequency (Hz)", IDC_STATIC, 11, 69, 95, 13
-    EDITTEXT    idDirectionalTestFrequency, 109, 69, 37, 13, ES_AUTOHSCROLL
-    PUSHBUTTON  "Top FL", idTestButtonTopFrontLeft, 90, 90, 55, 16
-    PUSHBUTTON  "Top FR", idTestButtonTopFrontRight, 148, 90, 55, 16
-    PUSHBUTTON  "Front L", idTestButtonFrontLeft, 61, 116, 55, 16
-    PUSHBUTTON  "Center", idTestButtonFrontCenter, 119, 116, 55, 16
-    PUSHBUTTON  "Front R", idTestButtonFrontRight, 177, 116, 55, 16
-    PUSHBUTTON  "Side L", idTestButtonSideLeft, 61, 142, 55, 16
-    LTEXT       "Listener", IDC_STATIC, 119, 146, 55, 13
-    PUSHBUTTON  "Side R", idTestButtonSideRight, 177, 142, 55, 16
-    PUSHBUTTON  "Back L", idTestButtonBackLeft, 61, 168, 55, 16
-    PUSHBUTTON  "LFE", idTestButtonLfe, 119, 168, 55, 16
-    PUSHBUTTON  "Back R", idTestButtonBackRight, 177, 168, 55, 16
-    PUSHBUTTON  "Top BL", idTestButtonTopBackLeft, 90, 194, 55, 16
-    PUSHBUTTON  "Top BR", idTestButtonTopBackRight, 148, 194, 55, 16
+    CONTROL     "Dynamic object", idDirectionalTestDynamic, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 11, 10, 100, 13
+    LTEXT       "Direction", IDC_STATIC, 11, 32, 50, 13
+    COMBOBOX    idDirectionalTestTarget, 64, 29, 145, 135, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON  "Run", idDirectionalTestRunSelected, 216, 29, 55, 15
+    LTEXT       "Gain", IDC_STATIC, 292, 32, 32, 13
+    EDITTEXT    idDirectionalTestGain, 326, 30, 42, 13, ES_AUTOHSCROLL
+    LTEXT       "Hz", IDC_STATIC, 383, 32, 18, 13
+    EDITTEXT    idDirectionalTestFrequency, 404, 30, 50, 13, ES_AUTOHSCROLL
+    PUSHBUTTON  "Top FL", idTestButtonTopFrontLeft, 205, 74, 58, 17
+    PUSHBUTTON  "Top FR", idTestButtonTopFrontRight, 267, 74, 58, 17
+    PUSHBUTTON  "Front L", idTestButtonFrontLeft, 174, 104, 58, 17
+    PUSHBUTTON  "Center", idTestButtonFrontCenter, 236, 104, 58, 17
+    PUSHBUTTON  "Front R", idTestButtonFrontRight, 298, 104, 58, 17
+    PUSHBUTTON  "Side L", idTestButtonSideLeft, 174, 134, 58, 17
+    LTEXT       "Listener", IDC_STATIC, 237, 138, 55, 13
+    PUSHBUTTON  "Side R", idTestButtonSideRight, 298, 134, 58, 17
+    PUSHBUTTON  "Back L", idTestButtonBackLeft, 174, 164, 58, 17
+    PUSHBUTTON  "LFE", idTestButtonLfe, 236, 164, 58, 17
+    PUSHBUTTON  "Back R", idTestButtonBackRight, 298, 164, 58, 17
+    PUSHBUTTON  "Top BL", idTestButtonTopBackLeft, 205, 194, 58, 17
+    PUSHBUTTON  "Top BR", idTestButtonTopBackRight, 267, 194, 58, 17
 }
 
-IDD_SPATIAL_AUDIO_PAGE_ABOUT DIALOGEX 0, 0, 480, 305
+IDD_SPATIAL_AUDIO_PAGE_ABOUT DIALOGEX 0, 0, 530, 322
 STYLE DS_SHELLFONT | DS_CONTROL | WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS
 EXSTYLE WS_EX_CONTROLPARENT
 FONT 8, "MS Shell Dlg", 400, 0, 1

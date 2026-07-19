@@ -5,15 +5,19 @@ milestones were removed from the plan so the remaining list stays actionable.
 
 ## Current shape
 
-The foobar2000 integration is split into two cooperating components:
+The foobar2000 integration provides three cooperating components:
 
 - `foo_dsp_spatial`, built from `components/foo_dsp_spatial`, owns audio
   processing. It receives stereo, 5.1, or 7.1 PCM from foobar2000 and emits a
-  12-channel Spatial Audio bed in a fixed internal order.
+  selected surround/height Spatial Audio bed.
 - `foo_out_spatial_audio`, built from `components/foo_out_spatial_audio`, owns
   the Windows Spatial Audio stream through `ISpatialAudioClient` and
   `ISpatialAudioObjectRenderStream`. It receives the 12-channel bed and writes
   each channel to the matching static `ISpatialAudioObject`.
+- `foo_dsp_height`, built from `components/foo_dsp_height`, is an alternative
+  chain-friendly DSP for users who already have a surround upmixer. It copies
+  the existing bed unchanged and adds only missing ceiling channels. Its
+  settings live only in the DSP Manager preset popup.
 
 The DSP preferences live under Tools > Spatial Audio DSP and cover upmix,
 limiting, per-channel gains/delays/inversion, and 5.1 source mapping. The output

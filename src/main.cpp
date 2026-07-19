@@ -3,6 +3,7 @@
 #include <comdef.h>
 #include <mmdeviceapi.h>
 #include <propidl.h>
+#include <functiondiscoverykeys_devpkey.h>
 #include <spatialaudioclient.h>
 #include <wrl/client.h>
 
@@ -10,6 +11,7 @@
 #include <cctype>
 #include <cmath>
 #include <cstdint>
+#include <cwctype>
 #include <cstdlib>
 #include <fstream>
 #include <iomanip>
@@ -61,7 +63,9 @@ struct RuntimeOptions {
     bool probe = false;
     bool staticTest = false;
     bool custom = false;
+    bool listDevices = false;
     std::string configPath = "config\\spatial_audio_profile.ini";
+    std::wstring deviceQuery;
 };
 
 struct AudioObjectState {
@@ -141,9 +145,67 @@ std::string Narrow(const wchar_t* text) {
         return {};
     }
 
-    std::string narrow(static_cast<size_t>(required - 1), '\0');
+    std::string narrow(static_cast<size_t>(required), '\0');
     WideCharToMultiByte(CP_UTF8, 0, text, -1, narrow.data(), required, nullptr, nullptr);
+    narrow.resize(static_cast<size_t>(required - 1));
     return narrow;
+}
+
+std::wstring WidenArg(const char* text) {
+    if (text == nullptr || *text == '\0') return {};
+    const int required = MultiByteToWideChar(CP_UTF8, 0, text, -1, nullptr, 0);
+    if (required <= 1) return {};
+    std::wstring wide(static_cast<size_t>(required), L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, text, -1, wide.data(), required);
+    wide.resize(static_cast<size_t>(required - 1));
+    return wide;
+}
+
+std::wstring ToLowerWide(std::wstring text) {
+    std::transform(text.begin(), text.end(), text.begin(), [](wchar_t c) {
+        return static_cast<wchar_t>(towlower(c));
+    });
+    return text;
+}
+
+void ThrowIfFailed(HRESULT hr, const char* action);
+
+std::wstring DeviceName(IMMDevice* device) {
+    ComPtr<IPropertyStore> store;
+    if (device == nullptr || FAILED(device->OpenPropertyStore(STGM_READ, &store))) return {};
+    PROPVARIANT value;
+    PropVariantInit(&value);
+    std::wstring result;
+    if (SUCCEEDED(store->GetValue(PKEY_Device_FriendlyName, &value)) && value.vt == VT_LPWSTR && value.pwszVal != nullptr)
+        result = value.pwszVal;
+    PropVariantClear(&value);
+    return result;
+}
+
+struct DeviceInfo {
+    std::wstring id;
+    std::wstring name;
+};
+
+std::vector<DeviceInfo> EnumerateRenderDevices(IMMDeviceEnumerator* enumerator) {
+    std::vector<DeviceInfo> devices;
+    ComPtr<IMMDeviceCollection> collection;
+    ThrowIfFailed(enumerator->EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, &collection), "Enumerate render endpoints");
+    UINT count = 0;
+    ThrowIfFailed(collection->GetCount(&count), "Get endpoint count");
+    for (UINT i = 0; i < count; ++i) {
+        ComPtr<IMMDevice> device;
+        if (FAILED(collection->Item(i, &device))) continue;
+        LPWSTR id = nullptr;
+        if (FAILED(device->GetId(&id)) || id == nullptr) continue;
+        DeviceInfo info;
+        info.id = id;
+        info.name = DeviceName(device.Get());
+        if (info.name.empty()) info.name = id;
+        devices.push_back(info);
+        CoTaskMemFree(id);
+    }
+    return devices;
 }
 
 std::string HResultText(HRESULT hr) {
@@ -319,21 +381,27 @@ RuntimeOptions ParseOptions(int argc, char** argv) {
             options.staticTest = true;
         } else if (arg == "--custom") {
             options.custom = true;
+        } else if (arg == "--list-devices") {
+            options.listDevices = true;
+        } else if (arg == "--device" && i + 1 < argc) {
+            options.deviceQuery = WidenArg(argv[++i]);
         } else if (arg == "--config" && i + 1 < argc) {
             options.configPath = argv[++i];
         } else if (arg == "--help" || arg == "-h") {
             std::cout
                 << "Usage:\n"
+                << "  SpatialAudioDiagnostics --list-devices\n"
                 << "  SpatialAudioDiagnostics --probe [--config path]\n"
                 << "  SpatialAudioDiagnostics --static-test [--config path]\n"
-                << "  SpatialAudioDiagnostics --custom [--config path]\n";
+                << "  SpatialAudioDiagnostics --custom [--config path]\n"
+                << "  Add --device name-or-id to target a specific render endpoint.\n";
             std::exit(0);
         } else {
             throw std::runtime_error("Unknown argument: " + arg);
         }
     }
 
-    if (!options.probe && !options.staticTest && !options.custom) {
+    if (!options.probe && !options.staticTest && !options.custom && !options.listDevices) {
         options.probe = true;
     }
     return options;
@@ -351,12 +419,38 @@ WAVEFORMATEX MakeObjectFormat(uint32_t sampleRate) {
     return format;
 }
 
-ComPtr<ISpatialAudioClient> CreateSpatialClient() {
+ComPtr<IMMDevice> SelectRenderDevice(IMMDeviceEnumerator* enumerator, const std::wstring& query) {
+    ComPtr<IMMDevice> device;
+    if (query.empty()) {
+        ThrowIfFailed(enumerator->GetDefaultAudioEndpoint(eRender, eMultimedia, &device), "Get default render endpoint");
+        return device;
+    }
+
+    const std::wstring queryLower = ToLowerWide(query);
+    for (const auto& item : EnumerateRenderDevices(enumerator)) {
+        const std::wstring nameLower = ToLowerWide(item.name);
+        const std::wstring idLower = ToLowerWide(item.id);
+        if (nameLower.find(queryLower) == std::wstring::npos && idLower.find(queryLower) == std::wstring::npos) continue;
+        ThrowIfFailed(enumerator->GetDevice(item.id.c_str(), &device), "Get selected render endpoint");
+        std::cout << "Selected endpoint: " << Narrow(item.name.c_str()) << "\n";
+        return device;
+    }
+    throw std::runtime_error("No active render endpoint matches --device.");
+}
+
+void PrintRenderDevices(IMMDeviceEnumerator* enumerator) {
+    std::cout << "Active render endpoints:\n";
+    for (const auto& item : EnumerateRenderDevices(enumerator)) {
+        std::cout << "  " << Narrow(item.name.c_str()) << "\n";
+        std::cout << "    id: " << Narrow(item.id.c_str()) << "\n";
+    }
+}
+
+ComPtr<ISpatialAudioClient> CreateSpatialClient(const std::wstring& deviceQuery) {
     ComPtr<IMMDeviceEnumerator> enumerator;
     ThrowIfFailed(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL, IID_PPV_ARGS(&enumerator)), "Create MMDeviceEnumerator");
 
-    ComPtr<IMMDevice> device;
-    ThrowIfFailed(enumerator->GetDefaultAudioEndpoint(eRender, eMultimedia, &device), "Get default render endpoint");
+    ComPtr<IMMDevice> device = SelectRenderDevice(enumerator.Get(), deviceQuery);
 
     ComPtr<ISpatialAudioClient> spatialClient;
     ThrowIfFailed(device->Activate(__uuidof(ISpatialAudioClient), CLSCTX_INPROC_SERVER, nullptr, reinterpret_cast<void**>(spatialClient.GetAddressOf())), "Activate ISpatialAudioClient");
@@ -621,14 +715,22 @@ void RunCustomObjectTest(ISpatialAudioClient* spatialClient, const DiagnosticCon
 int main(int argc, char** argv) {
     try {
         const RuntimeOptions options = ParseOptions(argc, argv);
-        const DiagnosticConfig config = LoadConfig(options.configPath);
 
         ThrowIfFailed(CoInitializeEx(nullptr, COINIT_MULTITHREADED), "Initialize COM");
         const auto uninitializeCom = std::unique_ptr<void, void (*)(void*)>(reinterpret_cast<void*>(1), [](void*) {
             CoUninitialize();
         });
 
-        auto spatialClient = CreateSpatialClient();
+        if (options.listDevices) {
+            ComPtr<IMMDeviceEnumerator> enumerator;
+            ThrowIfFailed(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL, IID_PPV_ARGS(&enumerator)), "Create MMDeviceEnumerator");
+            PrintRenderDevices(enumerator.Get());
+        }
+
+        if (!options.probe && !options.staticTest && !options.custom) return 0;
+
+        const DiagnosticConfig config = LoadConfig(options.configPath);
+        auto spatialClient = CreateSpatialClient(options.deviceQuery);
 
         if (options.probe) {
             ProbeSpatialAudio(spatialClient.Get(), config);
