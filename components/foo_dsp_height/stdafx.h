@@ -9,6 +9,7 @@
 
 #include <windows.h>
 #include <commctrl.h>
+#include <timeapi.h>
 #include <helpers/foobar2000+atl.h>
 
 #include <algorithm>
