@@ -678,9 +678,13 @@ private:
         ::GetWindowRect(summary, &summaryRect);
         ::MapWindowPoints(nullptr, pageWnd, reinterpret_cast<POINT*>(&summaryRect), 2);
 
-        const int margin = std::max(8, summaryRect.left);
-        const int width = std::max(80, pageRect.right - margin * 2);
-        const int height = std::max(60, pageRect.bottom - summaryRect.top - margin);
+        const int summaryLeft = static_cast<int>(summaryRect.left);
+        const int summaryTop = static_cast<int>(summaryRect.top);
+        const int pageRight = static_cast<int>(pageRect.right);
+        const int pageBottom = static_cast<int>(pageRect.bottom);
+        const int margin = std::max(8, summaryLeft);
+        const int width = std::max(80, pageRight - margin * 2);
+        const int height = std::max(60, pageBottom - summaryTop - margin);
         ::SetWindowPos(summary, nullptr, summaryRect.left, summaryRect.top, width, height,
             SWP_NOACTIVATE | SWP_NOZORDER);
     }
