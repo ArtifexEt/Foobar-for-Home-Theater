@@ -19,12 +19,12 @@ STYLE DS_SHELLFONT | DS_CONTROL | WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS
 EXSTYLE WS_EX_CONTROLPARENT
 FONT 8, "MS Shell Dlg", 400, 0, 1
 {
-    LTEXT       "Bed", IDC_STATIC, 11, 12, 45, 13
-    COMBOBOX    idLayoutMode, 64, 9, 300, 98, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    LTEXT       "Rate", IDC_STATIC, 11, 31, 45, 13
-    COMBOBOX    idSampleRateMode, 64, 28, 300, 135, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON  "Probe", idProbeEndpoint, 11, 50, 70, 15
-    LTEXT       "Auto follows DSP; fixed beds keep one speaker layout.", IDC_STATIC, 90, 52, 275, 13
+    LTEXT       "Output bed", IDC_STATIC, 11, 12, 95, 13
+    COMBOBOX    idLayoutMode, 109, 9, 180, 98, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT       "Render rate", IDC_STATIC, 11, 31, 95, 13
+    COMBOBOX    idSampleRateMode, 109, 28, 180, 135, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON  "Probe endpoint", idProbeEndpoint, 11, 50, 110, 15
+    LTEXT       "Auto follows DSP; fixed modes do not.", IDC_STATIC, 128, 52, 161, 13
     EDITTEXT    idEndpointSummary, 11, 71, 458, 162, ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | WS_VSCROLL | WS_TABSTOP
 }
 
@@ -34,26 +34,26 @@ EXSTYLE WS_EX_CONTROLPARENT
 FONT 8, "MS Shell Dlg", 400, 0, 1
 {
     CONTROL     "Dynamic object", idDirectionalTestDynamic, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 11, 10, 100, 13
-    LTEXT       "Direction", IDC_STATIC, 11, 32, 50, 13
-    COMBOBOX    idDirectionalTestTarget, 64, 29, 145, 135, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON  "Run", idDirectionalTestRunSelected, 216, 29, 55, 15
-    LTEXT       "Gain", IDC_STATIC, 292, 32, 32, 13
-    EDITTEXT    idDirectionalTestGain, 326, 30, 42, 13, ES_AUTOHSCROLL
-    LTEXT       "Hz", IDC_STATIC, 383, 32, 18, 13
-    EDITTEXT    idDirectionalTestFrequency, 404, 30, 50, 13, ES_AUTOHSCROLL
-    PUSHBUTTON  "Top FL", idTestButtonTopFrontLeft, 205, 74, 58, 17
-    PUSHBUTTON  "Top FR", idTestButtonTopFrontRight, 267, 74, 58, 17
-    PUSHBUTTON  "Front L", idTestButtonFrontLeft, 174, 104, 58, 17
-    PUSHBUTTON  "Center", idTestButtonFrontCenter, 236, 104, 58, 17
-    PUSHBUTTON  "Front R", idTestButtonFrontRight, 298, 104, 58, 17
-    PUSHBUTTON  "Side L", idTestButtonSideLeft, 174, 134, 58, 17
-    LTEXT       "Listener", IDC_STATIC, 237, 138, 55, 13
-    PUSHBUTTON  "Side R", idTestButtonSideRight, 298, 134, 58, 17
-    PUSHBUTTON  "Back L", idTestButtonBackLeft, 174, 164, 58, 17
-    PUSHBUTTON  "LFE", idTestButtonLfe, 236, 164, 58, 17
-    PUSHBUTTON  "Back R", idTestButtonBackRight, 298, 164, 58, 17
-    PUSHBUTTON  "Top BL", idTestButtonTopBackLeft, 205, 194, 58, 17
-    PUSHBUTTON  "Top BR", idTestButtonTopBackRight, 267, 194, 58, 17
+    LTEXT       "Direction", IDC_STATIC, 11, 32, 95, 13
+    COMBOBOX    idDirectionalTestTarget, 109, 29, 100, 135, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON  "Run selected", idDirectionalTestRunSelected, 215, 29, 70, 15
+    LTEXT       "Test gain (dB)", IDC_STATIC, 11, 53, 95, 13
+    EDITTEXT    idDirectionalTestGain, 109, 50, 45, 13, ES_AUTOHSCROLL
+    LTEXT       "Frequency (Hz)", IDC_STATIC, 11, 74, 95, 13
+    EDITTEXT    idDirectionalTestFrequency, 109, 71, 50, 13, ES_AUTOHSCROLL
+    PUSHBUTTON  "Top FL", idTestButtonTopFrontLeft, 80, 96, 58, 17
+    PUSHBUTTON  "Top FR", idTestButtonTopFrontRight, 142, 96, 58, 17
+    PUSHBUTTON  "Front L", idTestButtonFrontLeft, 49, 126, 58, 17
+    PUSHBUTTON  "Center", idTestButtonFrontCenter, 111, 126, 58, 17
+    PUSHBUTTON  "Front R", idTestButtonFrontRight, 173, 126, 58, 17
+    PUSHBUTTON  "Side L", idTestButtonSideLeft, 49, 156, 58, 17
+    LTEXT       "Listener", IDC_STATIC, 113, 160, 55, 13
+    PUSHBUTTON  "Side R", idTestButtonSideRight, 173, 156, 58, 17
+    PUSHBUTTON  "Back L", idTestButtonBackLeft, 49, 186, 58, 17
+    PUSHBUTTON  "LFE", idTestButtonLfe, 111, 186, 58, 17
+    PUSHBUTTON  "Back R", idTestButtonBackRight, 173, 186, 58, 17
+    PUSHBUTTON  "Top BL", idTestButtonTopBackLeft, 80, 216, 58, 17
+    PUSHBUTTON  "Top BR", idTestButtonTopBackRight, 142, 216, 58, 17
 }
 
 IDD_SPATIAL_AUDIO_PAGE_ABOUT DIALOGEX 0, 0, 480, 252
