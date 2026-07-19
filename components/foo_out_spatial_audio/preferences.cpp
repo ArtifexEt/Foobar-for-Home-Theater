@@ -655,15 +655,34 @@ private:
         case WM_CTLCOLORSTATIC:
         case WM_CTLCOLORBTN:
         case WM_CTLCOLORDLG: return self->on_control_color(reinterpret_cast<HDC>(wp), reinterpret_cast<HWND>(lp), msg);
+        case WM_SIZE: self->resize_page_contents(wnd); return FALSE;
         case WM_DPICHANGED:
         case WM_DPICHANGED_AFTERPARENT:
             self->update_tooltip_width();
+            self->resize_page_contents(wnd);
             ::RedrawWindow(wnd, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
             return TRUE;
         case WM_NOTIFY: self->on_notify(reinterpret_cast<NMHDR*>(lp)); return TRUE;
         default: break;
         }
         return FALSE;
+    }
+
+    void resize_page_contents(HWND pageWnd) {
+        HWND summary = ::GetDlgItem(pageWnd, idEndpointSummary);
+        if (summary == nullptr) return;
+
+        RECT pageRect = {};
+        RECT summaryRect = {};
+        ::GetClientRect(pageWnd, &pageRect);
+        ::GetWindowRect(summary, &summaryRect);
+        ::MapWindowPoints(nullptr, pageWnd, reinterpret_cast<POINT*>(&summaryRect), 2);
+
+        const int margin = std::max(8, summaryRect.left);
+        const int width = std::max(80, pageRect.right - margin * 2);
+        const int height = std::max(60, pageRect.bottom - summaryRect.top - margin);
+        ::SetWindowPos(summary, nullptr, summaryRect.left, summaryRect.top, width, height,
+            SWP_NOACTIVATE | SWP_NOZORDER);
     }
 
     HWND create_page(Page page, int resourceId) {

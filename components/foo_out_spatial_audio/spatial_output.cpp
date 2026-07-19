@@ -376,6 +376,21 @@ void spatial_audio_output::write(const audio_chunk& data) {
                 if (index != static_cast<unsigned>(-1) && index < channels)
                     frame[ch] = static_cast<float>(samples[i * channels + index]);
             }
+
+            // 5.1 streams are commonly tagged with either side or back surrounds.
+            // Preserve their signal when a forced output bed uses the other naming
+            // convention. Do not copy anything when both channel pairs are present.
+            const bool hasSidePair = (sourceMask & audio_chunk::channels_side_left_right)
+                == audio_chunk::channels_side_left_right;
+            const bool hasBackPair = (sourceMask & audio_chunk::channels_back_left_right)
+                == audio_chunk::channels_back_left_right;
+            if (!hasSidePair && hasBackPair) {
+                frame[target_side_left] = frame[target_back_left];
+                frame[target_side_right] = frame[target_back_right];
+            } else if (hasSidePair && !hasBackPair) {
+                frame[target_back_left] = frame[target_side_left];
+                frame[target_back_right] = frame[target_side_right];
+            }
         } else if (channels == target_count) {
             for (size_t ch = 0; ch < target_count; ++ch) {
                 frame[ch] = static_cast<float>(samples[i * channels + ch]);
