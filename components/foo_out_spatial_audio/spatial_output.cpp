@@ -22,6 +22,50 @@ struct EndpointInfo {
     std::string name;
 };
 
+class MmcssRenderTask {
+public:
+    MmcssRenderTask() {
+        struct TaskName {
+            const wchar_t* wide;
+            const char* narrow;
+        };
+        const TaskName taskNames[] = {
+            { L"Pro Audio", "Pro Audio" },
+            { L"Audio", "Audio" },
+        };
+        DWORD lastError = ERROR_SUCCESS;
+        for (const TaskName& taskName : taskNames) {
+            DWORD taskIndex = 0;
+            handle_ = AvSetMmThreadCharacteristicsW(taskName.wide, &taskIndex);
+            if (handle_ != nullptr) {
+                if (AvSetMmThreadPriority(handle_, AVRT_PRIORITY_HIGH)) {
+                    FB2K_console_formatter() << "foo_out_spatial_audio: MMCSS enabled for render thread ("
+                        << taskName.narrow << ", high priority).";
+                } else {
+                    lastError = GetLastError();
+                    FB2K_console_formatter() << "foo_out_spatial_audio: MMCSS task registered, but setting high priority failed (Win32 error "
+                        << lastError << ").";
+                }
+                return;
+            }
+            lastError = GetLastError();
+        }
+
+        FB2K_console_formatter() << "foo_out_spatial_audio: MMCSS registration failed (Win32 error "
+            << lastError << "); render thread is using normal scheduling.";
+    }
+
+    ~MmcssRenderTask() {
+        if (handle_ != nullptr) AvRevertMmThreadCharacteristics(handle_);
+    }
+
+    MmcssRenderTask(const MmcssRenderTask&) = delete;
+    MmcssRenderTask& operator=(const MmcssRenderTask&) = delete;
+
+private:
+    HANDLE handle_ = nullptr;
+};
+
 const std::vector<ChannelDef>& all_channels() {
     static const std::vector<ChannelDef> channels = {
         {"front_left",       AudioObjectType_FrontLeft},
@@ -348,8 +392,7 @@ void spatial_audio_output::open(audio_chunk::spec_t const& spec) {
     }
     stop_stream();
     sampleRate_     = spec.sampleRate;
-    capacityFrames_ = static_cast<size_t>(std::max(0.2, bufferLength_) * static_cast<double>(sampleRate_));
-    clear_queue();
+    reset_queue(static_cast<size_t>(std::max(0.2, bufferLength_) * static_cast<double>(sampleRate_)));
     const unsigned detectedChannelMask = normalized_channel_mask(spec.chanCount, spec.chanMask);
     const AudioObjectType detectedBedMask = object_mask_from_channel_mask(detectedChannelMask);
     start_stream(sampleRate_, detectedBedMask, detectedChannelMask);
@@ -362,17 +405,36 @@ void spatial_audio_output::write(const audio_chunk& data) {
     const audio_sample* samples = data.get_data();
     if (samples == nullptr || channels < 2 || frameCount == 0) return;
 
-    std::lock_guard<std::mutex> lock(mutex_);
-    const size_t free    = capacityFrames_ > queue_.size() ? capacityFrames_ - queue_.size() : 0;
-    const size_t toCopy  = std::min(frameCount, free);
+    size_t freeFrames = 0;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (stopping_ || queue_.empty()) return;
+        freeFrames = capacityFrames_ > queueSize_ ? capacityFrames_ - queueSize_ : 0;
+    }
+
+    const size_t toCopy = std::min(frameCount, freeFrames);
+    if (toCopy == 0) return;
+
+    std::vector<AudioFrame> converted(toCopy);
     const unsigned sourceMask = normalized_channel_mask(channels, mask);
     const bool useMaskedChannelOrder = sourceMask != 0
         && audio_chunk::g_count_channels(sourceMask) == channels;
+    std::array<unsigned, target_count> sourceIndices;
+    sourceIndices.fill(static_cast<unsigned>(-1));
+    if (useMaskedChannelOrder) {
+        for (size_t ch = 0; ch < target_count; ++ch)
+            sourceIndices[ch] = audio_chunk::g_channel_index_from_flag(sourceMask, target_channel_flag(ch));
+    }
+    const bool hasSidePair = (sourceMask & audio_chunk::channels_side_left_right)
+        == audio_chunk::channels_side_left_right;
+    const bool hasBackPair = (sourceMask & audio_chunk::channels_back_left_right)
+        == audio_chunk::channels_back_left_right;
+
     for (size_t i = 0; i < toCopy; ++i) {
-        std::array<float, target_count> frame = {};
+        AudioFrame& frame = converted[i];
         if (useMaskedChannelOrder) {
             for (size_t ch = 0; ch < target_count; ++ch) {
-                const unsigned index = audio_chunk::g_channel_index_from_flag(sourceMask, target_channel_flag(ch));
+                const unsigned index = sourceIndices[ch];
                 if (index != static_cast<unsigned>(-1) && index < channels)
                     frame[ch] = static_cast<float>(samples[i * channels + index]);
             }
@@ -380,10 +442,6 @@ void spatial_audio_output::write(const audio_chunk& data) {
             // 5.1 streams are commonly tagged with either side or back surrounds.
             // Preserve their signal when a forced output bed uses the other naming
             // convention. Do not copy anything when both channel pairs are present.
-            const bool hasSidePair = (sourceMask & audio_chunk::channels_side_left_right)
-                == audio_chunk::channels_side_left_right;
-            const bool hasBackPair = (sourceMask & audio_chunk::channels_back_left_right)
-                == audio_chunk::channels_back_left_right;
             if (!hasSidePair && hasBackPair) {
                 frame[target_side_left] = frame[target_back_left];
                 frame[target_side_right] = frame[target_back_right];
@@ -399,29 +457,52 @@ void spatial_audio_output::write(const audio_chunk& data) {
             frame[0] = static_cast<float>(samples[i * channels + 0]);
             frame[1] = static_cast<float>(samples[i * channels + 1]);
         }
-        queue_.push_back(frame);
     }
-    queuedFrames_.store(queue_.size());
+
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (stopping_ || queue_.empty()) return;
+
+        const size_t freeNow = capacityFrames_ > queueSize_ ? capacityFrames_ - queueSize_ : 0;
+        const size_t toWrite = std::min(converted.size(), freeNow);
+        const size_t writePosition = (queueReadPosition_ + queueSize_) % capacityFrames_;
+        const size_t firstPart = std::min(toWrite, capacityFrames_ - writePosition);
+        std::copy_n(converted.begin(), firstPart, queue_.begin() + writePosition);
+        std::copy_n(converted.begin() + firstPart, toWrite - firstPart, queue_.begin());
+        queueSize_ += toWrite;
+        endOfStream_ = false;
+        queuedFrames_.store(queueSize_);
+    }
     SetEvent(wakeEvent_);
 }
 
 t_size spatial_audio_output::can_write_samples() {
     std::lock_guard<std::mutex> lock(mutex_);
     if (!started_ || stopping_) return 0;
-    return capacityFrames_ > queue_.size() ? capacityFrames_ - queue_.size() : 0;
+    return capacityFrames_ > queueSize_ ? capacityFrames_ - queueSize_ : 0;
 }
 
 t_size spatial_audio_output::get_latency_samples() {
     return queuedFrames_.load();
 }
 
-void spatial_audio_output::on_flush()      { clear_queue(); SetEvent(wakeEvent_); }
-void spatial_audio_output::on_force_play() { SetEvent(wakeEvent_); }
+void spatial_audio_output::on_flush() { clear_queue(); SetEvent(wakeEvent_); }
+
+void spatial_audio_output::on_force_play() {
+    { std::lock_guard<std::mutex> lock(mutex_); endOfStream_ = true; }
+    SetEvent(wakeEvent_);
+}
 
 void spatial_audio_output::start_stream(uint32_t sampleRate, AudioObjectType audioBedMask, unsigned audioChannelMask) {
     spatialEvent_ = CreateEvent(nullptr, FALSE, FALSE, nullptr);
     if (spatialEvent_ == nullptr) throw_if_failed(HRESULT_FROM_WIN32(GetLastError()), "Create spatial completion event");
-    { std::lock_guard<std::mutex> lock(mutex_); stopping_ = false; paused_ = false; started_ = true; }
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        stopping_ = false;
+        paused_ = false;
+        started_ = true;
+        endOfStream_ = false;
+    }
     renderThread_ = std::thread([this, sampleRate, audioBedMask, audioChannelMask]() { render_loop(sampleRate, audioBedMask, audioChannelMask); });
 }
 
@@ -434,11 +515,25 @@ void spatial_audio_output::stop_stream() {
     clear_queue();
 }
 
+void spatial_audio_output::reset_queue(size_t capacityFrames) {
+    std::vector<AudioFrame> replacement(capacityFrames);
+    std::lock_guard<std::mutex> lock(mutex_);
+    queue_.swap(replacement);
+    capacityFrames_ = capacityFrames;
+    queueReadPosition_ = 0;
+    queueSize_ = 0;
+    ++queueGeneration_;
+    endOfStream_ = false;
+    queuedFrames_.store(0);
+}
+
 void spatial_audio_output::clear_queue() {
     std::lock_guard<std::mutex> lock(mutex_);
-    queue_.clear();
+    queueReadPosition_ = 0;
+    queueSize_ = 0;
+    ++queueGeneration_;
+    endOfStream_ = false;
     queuedFrames_.store(0);
-    lastRenderFrames_.store(0);
 }
 
 WAVEFORMATEX spatial_audio_output::make_object_format(uint32_t sampleRate) {
@@ -476,6 +571,10 @@ void spatial_audio_output::render_loop(uint32_t sampleRate, AudioObjectType audi
         return;
     }
 
+    uint64_t underrunEvents = 0;
+    uint64_t underrunFrames = 0;
+    uint64_t renderTimeouts = 0;
+
     try {
         ComPtr<IMMDeviceEnumerator> enumerator;
         throw_if_failed(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL, IID_PPV_ARGS(&enumerator)), "Create MMDeviceEnumerator");
@@ -487,6 +586,11 @@ void spatial_audio_output::render_loop(uint32_t sampleRate, AudioObjectType audi
 
         const WAVEFORMATEX format = make_object_format(sampleRate);
         throw_if_failed(spatialClient->IsAudioObjectFormatSupported(&format), "Check spatial object format");
+
+        UINT32 maxFrameCount = 0;
+        throw_if_failed(spatialClient->GetMaxFrameCount(&format, &maxFrameCount), "Get maximum spatial frame count");
+        if (maxFrameCount == 0) throw std::runtime_error("Spatial Audio reported a zero-sized render buffer.");
+        std::vector<AudioFrame> input(maxFrameCount);
 
         AudioObjectType nativeMask = AudioObjectType_None;
         throw_if_failed(spatialClient->GetNativeStaticObjectTypeMask(&nativeMask), "Get native static object mask");
@@ -505,7 +609,8 @@ void spatial_audio_output::render_loop(uint32_t sampleRate, AudioObjectType audi
         for (const auto& ch : all_channels()) {
             if (mask_contains(nativeMask, ch.type) && mask_contains(requestedMask, ch.type)) {
                 activeMask = add_mask(activeMask, ch.type);
-                channels.push_back({ch.key, ch.type, {}});
+                channels.push_back({ch.key, "Get buffer for " + std::string(ch.key), ch.type,
+                    channel_index(ch.key), target_from_key(ch.key), {}});
             }
         }
 
@@ -533,6 +638,7 @@ void spatial_audio_output::render_loop(uint32_t sampleRate, AudioObjectType audi
         for (auto& ch : channels)
             throw_if_failed(stream->ActivateSpatialAudioObject(ch.type, ch.object.GetAddressOf()), ("Activate " + ch.key).c_str());
 
+        MmcssRenderTask renderPriority;
         throw_if_failed(stream->Start(), "Start spatial stream");
 
         double testPhase = 0.0;
@@ -543,29 +649,57 @@ void spatial_audio_output::render_loop(uint32_t sampleRate, AudioObjectType audi
             if (!target_coordinates(target, x, y, z)) continue;
             dynamicChannels.push_back({target, x, y, z, {}});
         }
+        uint64_t observedQueueGeneration = 0;
+        bool playbackPrimed = false;
         while (true) {
             { std::lock_guard<std::mutex> lock(mutex_); if (stopping_) break; }
 
             const DWORD waitResult = WaitForSingleObject(spatialEvent_, 100);
-            if (waitResult != WAIT_OBJECT_0) continue;
+            if (waitResult == WAIT_TIMEOUT) {
+                ++renderTimeouts;
+                continue;
+            }
+            if (waitResult != WAIT_OBJECT_0)
+                throw_if_failed(HRESULT_FROM_WIN32(GetLastError()), "Wait for spatial completion event");
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                if (stopping_) break;
+            }
 
             UINT32 availableDynamicObjects = 0;
             UINT32 frameCount = 0;
             throw_if_failed(stream->BeginUpdatingAudioObjects(&availableDynamicObjects, &frameCount), "Begin updating audio objects");
-            lastRenderFrames_.store(frameCount);
+            if (frameCount > maxFrameCount)
+                throw std::runtime_error("Spatial Audio requested more frames than its advertised maximum.");
 
-            std::vector<std::array<float, target_count>> input(frameCount);
             bool paused = false;
+            bool endOfStream = false;
+            size_t copiedFrames = 0;
             {
                 std::lock_guard<std::mutex> lock(mutex_);
                 paused = paused_;
-                if (!paused) {
-                    for (UINT32 i = 0; i < frameCount && !queue_.empty(); ++i) {
-                        input[i] = queue_.front();
-                        queue_.pop_front();
-                    }
-                    queuedFrames_.store(queue_.size());
+                endOfStream = endOfStream_;
+                if (observedQueueGeneration != queueGeneration_) {
+                    observedQueueGeneration = queueGeneration_;
+                    playbackPrimed = false;
                 }
+                if (!paused) {
+                    copiedFrames = std::min(static_cast<size_t>(frameCount), queueSize_);
+                    const size_t firstPart = std::min(copiedFrames, capacityFrames_ - queueReadPosition_);
+                    std::copy_n(queue_.begin() + queueReadPosition_, firstPart, input.begin());
+                    std::copy_n(queue_.begin(), copiedFrames - firstPart, input.begin() + firstPart);
+                    queueReadPosition_ = (queueReadPosition_ + copiedFrames) % capacityFrames_;
+                    queueSize_ -= copiedFrames;
+                    queuedFrames_.store(queueSize_);
+                }
+            }
+
+            std::fill(input.begin() + copiedFrames, input.begin() + frameCount, AudioFrame{});
+            const bool wasPrimed = playbackPrimed;
+            playbackPrimed = playbackPrimed || copiedFrames > 0;
+            if (!paused && !endOfStream && wasPrimed && copiedFrames < frameCount) {
+                ++underrunEvents;
+                underrunFrames += static_cast<uint64_t>(frameCount - copiedFrames);
             }
 
             const double vol = db_to_linear(volumeDb_.load());
@@ -579,11 +713,11 @@ void spatial_audio_output::render_loop(uint32_t sampleRate, AudioObjectType audi
             for (auto& channel : channels) {
                 BYTE* byteBuffer = nullptr;
                 UINT32 bufferLength = 0;
-                throw_if_failed(channel.object->GetBuffer(&byteBuffer, &bufferLength), ("Get buffer for " + channel.key).c_str());
+                throw_if_failed(channel.object->GetBuffer(&byteBuffer, &bufferLength), channel.bufferAction.c_str());
                 auto* samples = reinterpret_cast<float*>(byteBuffer);
                 const UINT32 framesToWrite = std::min(frameCount, bufferLength / static_cast<UINT32>(sizeof(float)));
-                const int idx    = channel_index(channel.key);
-                const int target = target_from_key(channel.key);
+                const int idx = channel.inputIndex;
+                const int target = channel.target;
 
                 for (UINT32 i = 0; i < framesToWrite; ++i) {
                     double value = (!paused && idx >= 0 && i < input.size())
@@ -645,8 +779,11 @@ void spatial_audio_output::render_loop(uint32_t sampleRate, AudioObjectType audi
         FB2K_console_formatter() << "foo_out_spatial_audio: " << error.what();
     }
 
+    FB2K_console_formatter() << "foo_out_spatial_audio: render diagnostics: "
+        << underrunEvents << " queue underrun(s), " << underrunFrames
+        << " silent frame(s), " << renderTimeouts << " event timeout(s).";
+
     { std::lock_guard<std::mutex> lock(mutex_); started_ = false; }
-    lastRenderFrames_.store(0);
     SetEvent(wakeEvent_);
     CoUninitialize();
 }

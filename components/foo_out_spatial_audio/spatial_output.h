@@ -29,9 +29,14 @@ public:
     pfc::eventHandle_t get_trigger_event() override;
 
 private:
+    using AudioFrame = std::array<float, target_count>;
+
     struct ChannelState {
         std::string key;
+        std::string bufferAction;
         AudioObjectType type = AudioObjectType_None;
+        int inputIndex = -1;
+        int target = target_disabled;
         Microsoft::WRL::ComPtr<ISpatialAudioObject> object;
     };
 
@@ -54,6 +59,7 @@ private:
     void start_stream(uint32_t sampleRate, AudioObjectType audioBedMask, unsigned audioChannelMask);
     void stop_stream();
     void render_loop(uint32_t sampleRate, AudioObjectType audioBedMask, unsigned audioChannelMask);
+    void reset_queue(size_t capacityFrames);
     void clear_queue();
 
     OutputConfig current_config() const;
@@ -84,15 +90,18 @@ private:
     uint32_t sampleRate_ = 48000;
 
     mutable std::mutex mutex_;
-    std::deque<std::array<float, target_count>> queue_;
+    std::vector<AudioFrame> queue_;
     size_t capacityFrames_ = 48000;
+    size_t queueReadPosition_ = 0;
+    size_t queueSize_ = 0;
+    uint64_t queueGeneration_ = 0;
     bool stopping_ = false;
     bool paused_   = false;
     bool started_  = false;
+    bool endOfStream_ = false;
 
-    std::atomic<double> volumeDb_        = 0.0;
-    std::atomic<size_t> queuedFrames_    = 0;
-    std::atomic<size_t> lastRenderFrames_= 0;
+    std::atomic<double> volumeDb_     = 0.0;
+    std::atomic<size_t> queuedFrames_ = 0;
 
     HANDLE wakeEvent_    = nullptr;
     HANDLE spatialEvent_ = nullptr;

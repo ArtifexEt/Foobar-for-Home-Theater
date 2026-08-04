@@ -13,6 +13,7 @@
 #include <objidl.h>
 #include <shellapi.h>
 #include <timeapi.h>
+#include <avrt.h>
 #include <commctrl.h>
 
 #include <helpers/foobar2000+atl.h>
@@ -36,7 +37,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <cwchar>
-#include <deque>
 #include <initializer_list>
 #include <iomanip>
 #include <map>
