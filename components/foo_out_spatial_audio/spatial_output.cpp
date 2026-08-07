@@ -25,23 +25,13 @@ struct EndpointInfo {
 class MmcssRenderTask {
 public:
     MmcssRenderTask() {
-        struct TaskName {
-            const wchar_t* wide;
-            const char* narrow;
-        };
-        const TaskName taskNames[] = {
-            { L"Pro Audio", "Pro Audio" },
-            { L"Audio", "Audio" },
-        };
+        const wchar_t* taskNames[] = { L"Pro Audio", L"Audio" };
         DWORD lastError = ERROR_SUCCESS;
-        for (const TaskName& taskName : taskNames) {
+        for (const wchar_t* taskName : taskNames) {
             DWORD taskIndex = 0;
-            handle_ = AvSetMmThreadCharacteristicsW(taskName.wide, &taskIndex);
+            handle_ = AvSetMmThreadCharacteristicsW(taskName, &taskIndex);
             if (handle_ != nullptr) {
-                if (AvSetMmThreadPriority(handle_, AVRT_PRIORITY_HIGH)) {
-                    FB2K_console_formatter() << "foo_out_spatial_audio: MMCSS enabled for render thread ("
-                        << taskName.narrow << ", high priority).";
-                } else {
+                if (!AvSetMmThreadPriority(handle_, AVRT_PRIORITY_HIGH)) {
                     lastError = GetLastError();
                     FB2K_console_formatter() << "foo_out_spatial_audio: MMCSS task registered, but setting high priority failed (Win32 error "
                         << lastError << ").";
@@ -779,9 +769,11 @@ void spatial_audio_output::render_loop(uint32_t sampleRate, AudioObjectType audi
         FB2K_console_formatter() << "foo_out_spatial_audio: " << error.what();
     }
 
-    FB2K_console_formatter() << "foo_out_spatial_audio: render diagnostics: "
-        << underrunEvents << " queue underrun(s), " << underrunFrames
-        << " silent frame(s), " << renderTimeouts << " event timeout(s).";
+    if (underrunEvents != 0 || renderTimeouts != 0) {
+        FB2K_console_formatter() << "foo_out_spatial_audio: render diagnostics: "
+            << underrunEvents << " queue underrun(s), " << underrunFrames
+            << " silent frame(s), " << renderTimeouts << " event timeout(s).";
+    }
 
     { std::lock_guard<std::mutex> lock(mutex_); started_ = false; }
     SetEvent(wakeEvent_);
