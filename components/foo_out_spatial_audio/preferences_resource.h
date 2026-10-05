@@ -34,3 +34,9 @@
 #define idTestButtonTopFrontRight       1409
 #define idTestButtonTopBackLeft         1410
 #define idTestButtonTopBackRight        1411
+
+#define idTopMiddleWidth                1040
+#define idTopMiddleHeight               1041
+#define idTopMiddleDepth                1042
+#define idTestButtonTopMiddleLeft        1414
+#define idTestButtonTopMiddleRight       1415

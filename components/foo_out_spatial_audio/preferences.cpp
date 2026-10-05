@@ -52,6 +52,8 @@ const TargetDef kTargets[] = {
     {target_top_back_right,  "top_back_right",  L"Top back right",   AudioObjectType_TopBackRight,   739.99, 0.8f,  1.4f,  0.9f},
     {target_front_wide_left, "front_wide_left", L"Front wide left",  AudioObjectType_Dynamic,        466.16,-1.2f,  0.0f, -0.65f},
     {target_front_wide_right,"front_wide_right",L"Front wide right", AudioObjectType_Dynamic,        493.88, 1.2f,  0.0f, -0.65f},
+    {target_top_middle_left, "top_middle_left", L"Top middle left", AudioObjectType_Dynamic, 622.25, -0.8f, 1.4f, 0.0f},
+    {target_top_middle_right,"top_middle_right",L"Top middle right",AudioObjectType_Dynamic, 698.46,  0.8f, 1.4f, 0.0f},
 };
 
 struct LayoutOption { LayoutMode mode; const wchar_t* label; };
@@ -68,6 +70,9 @@ const LayoutOption kLayoutOptions[] = {
     {LayoutMode::NinePointOne,    L"Front wide (9.1)"},
     {LayoutMode::NinePointOneTwo, L"Front wide + height (9.1.2)"},
     {LayoutMode::NinePointOneFour,L"Front wide + height (9.1.4)"},
+    {LayoutMode::FivePointOneSix, L"5.1.6 (dynamic Top Middle)"},
+    {LayoutMode::SevenPointOneSix,L"7.1.6 (dynamic Top Middle)"},
+    {LayoutMode::NinePointOneSix, L"9.1.6 (dynamic Top Middle + wides)"},
 };
 
 const SampleRateOption kSampleRateOptions[] = {
@@ -128,9 +133,11 @@ AudioObjectType requested_static_mask(LayoutMode mode, AudioObjectType nativeMas
         include({target_front_left, target_front_right, target_front_center, target_low_frequency, target_side_left, target_side_right, target_top_front_left, target_top_front_right});
         break;
     case LayoutMode::FivePointOneFour:
+    case LayoutMode::FivePointOneSix:
         include({target_front_left, target_front_right, target_front_center, target_low_frequency, target_side_left, target_side_right, target_top_front_left, target_top_front_right, target_top_back_left, target_top_back_right});
         break;
     case LayoutMode::SevenPointOneFour:
+    case LayoutMode::SevenPointOneSix:
         include({target_front_left, target_front_right, target_front_center, target_low_frequency, target_side_left, target_side_right, target_back_left, target_back_right, target_top_front_left, target_top_front_right, target_top_back_left, target_top_back_right});
         break;
     case LayoutMode::NinePointOne:
@@ -140,6 +147,7 @@ AudioObjectType requested_static_mask(LayoutMode mode, AudioObjectType nativeMas
         include({target_front_left, target_front_right, target_front_center, target_low_frequency, target_side_left, target_side_right, target_back_left, target_back_right, target_top_front_left, target_top_front_right});
         break;
     case LayoutMode::NinePointOneFour:
+    case LayoutMode::NinePointOneSix:
     default:
         include({target_front_left, target_front_right, target_front_center, target_low_frequency, target_side_left, target_side_right, target_back_left, target_back_right, target_top_front_left, target_top_front_right, target_top_back_left, target_top_back_right});
         break;
@@ -149,14 +157,13 @@ AudioObjectType requested_static_mask(LayoutMode mode, AudioObjectType nativeMas
 }
 
 std::vector<int> requested_dynamic_targets(LayoutMode mode) {
-    switch (mode) {
-    case LayoutMode::NinePointOne:
-    case LayoutMode::NinePointOneTwo:
-    case LayoutMode::NinePointOneFour:
-        return {target_front_wide_left, target_front_wide_right};
-    default:
-        return {};
-    }
+    const unsigned mask = dynamic_channel_mask(mode, 0);
+    std::vector<int> targets;
+    if (mask & (1u << 6)) targets.push_back(target_front_wide_left);
+    if (mask & (1u << 7)) targets.push_back(target_front_wide_right);
+    if (mask & spatial_channels::top_middle_left) targets.push_back(target_top_middle_left);
+    if (mask & spatial_channels::top_middle_right) targets.push_back(target_top_middle_right);
+    return targets;
 }
 
 std::wstring target_list_text(const std::vector<int>& targets) {
@@ -173,7 +180,7 @@ std::wstring target_list_text(const std::vector<int>& targets) {
 std::wstring mask_text(AudioObjectType mask) {
     std::wstring text;
     for (const auto& def : kTargets) {
-        if (!mask_contains(mask, def.type)) continue;
+        if (def.type == AudioObjectType_Dynamic || !mask_contains(mask, def.type)) continue;
         if (!text.empty()) text += L", ";
         text += def.label;
     }
@@ -263,13 +270,24 @@ uint32_t resolve_test_sample_rate(ISpatialAudioClient* spatialClient, SampleRate
     return is_format_supported(spatialClient, 48000) ? 48000 : highest_supported_sample_rate(spatialClient);
 }
 
-ComPtr<ISpatialAudioClient> create_spatial_client() {
+ComPtr<ISpatialAudioClient> create_spatial_client(std::wstring* endpointName = nullptr) {
     ComPtr<IMMDeviceEnumerator> enumerator;
     throw_if_failed(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL, IID_PPV_ARGS(&enumerator)), "Create MMDeviceEnumerator");
 
     ComPtr<IMMDevice> device;
     throw_if_failed(enumerator->GetDefaultAudioEndpoint(eRender, eMultimedia, &device), "Get default render endpoint");
 
+    if (endpointName != nullptr) {
+        *endpointName = L"Windows default multimedia device";
+        ComPtr<IPropertyStore> properties;
+        if (SUCCEEDED(device->OpenPropertyStore(STGM_READ, &properties))) {
+            PROPVARIANT name;
+            PropVariantInit(&name);
+            if (SUCCEEDED(properties->GetValue(PKEY_Device_FriendlyName, &name)) && name.vt == VT_LPWSTR && name.pwszVal)
+                *endpointName = name.pwszVal;
+            PropVariantClear(&name);
+        }
+    }
     ComPtr<ISpatialAudioClient> spatialClient;
     throw_if_failed(device->Activate(__uuidof(ISpatialAudioClient), CLSCTX_INPROC_SERVER, nullptr, reinterpret_cast<void**>(spatialClient.GetAddressOf())), "Activate ISpatialAudioClient");
     return spatialClient;
@@ -315,7 +333,7 @@ void fill_sine(float* samples, UINT32 frames, double& phase, double frequencyHz,
 
 std::atomic_bool g_directional_test_running = false;
 
-void run_directional_test_worker(int target, bool preferDynamicObject, double gainDb, double frequencyHz, SampleRateMode sampleRateMode) {
+void run_directional_test_worker(int target, bool preferDynamicObject, double gainDb, double frequencyHz, SampleRateMode sampleRateMode, TopMiddlePosition rawPosition) {
     bool expected = false;
     if (!g_directional_test_running.compare_exchange_strong(expected, true)) return;
 
@@ -329,7 +347,8 @@ void run_directional_test_worker(int target, bool preferDynamicObject, double ga
         const auto* targetDef = target_def_from_target(target);
         if (targetDef == nullptr) throw std::runtime_error("Unknown test target.");
 
-        ComPtr<ISpatialAudioClient> spatialClient = create_spatial_client();
+        std::wstring endpointName;
+        ComPtr<ISpatialAudioClient> spatialClient = create_spatial_client(&endpointName);
         const uint32_t sampleRate = resolve_test_sample_rate(spatialClient.Get(), sampleRateMode);
         const WAVEFORMATEX format = make_object_format(sampleRate);
         throw_if_failed(spatialClient->IsAudioObjectFormatSupported(&format), "Check spatial object format");
@@ -368,6 +387,8 @@ void run_directional_test_worker(int target, bool preferDynamicObject, double ga
 
         throw_if_failed(stream->Start(), "Start spatial stream");
 
+        FB2K_console_formatter() << "foo_out_spatial_audio test: " << targetDef->key
+            << " on " << narrow(endpointName.c_str()) << (useDynamicObject ? " (dynamic)" : " (static)");
         double phase = 0.0;
         double renderedSeconds = 0.0;
         const double durationSeconds = 1.4;
@@ -383,8 +404,10 @@ void run_directional_test_worker(int target, bool preferDynamicObject, double ga
             UINT32 frameCount = 0;
             throw_if_failed(stream->BeginUpdatingAudioObjects(&availableDynamicObjects, &frameCount), "Begin updating audio objects");
 
-            if (useDynamicObject && !object)
+            if (useDynamicObject && !object) {
+                if (availableDynamicObjects == 0) throw std::runtime_error("No dynamic object is currently available for this test. Stop playback and retry.");
                 throw_if_failed(stream->ActivateSpatialAudioObject(AudioObjectType_Dynamic, object.GetAddressOf()), "Activate dynamic test object");
+            }
 
             BYTE* byteBuffer = nullptr;
             UINT32 bufferLength = 0;
@@ -395,7 +418,12 @@ void run_directional_test_worker(int target, bool preferDynamicObject, double ga
             fill_sine(samples, framesToWrite, phase, frequency, gain, sampleRate);
 
             if (useDynamicObject) {
-                throw_if_failed(object->SetPosition(targetDef->x, targetDef->y, targetDef->z), "Set dynamic test position");
+                const auto position = sanitize_position(rawPosition);
+                const bool middle = target == target_top_middle_left || target == target_top_middle_right;
+                const float x = middle ? static_cast<float>(position.halfWidth) * (target == target_top_middle_left ? -1.0f : 1.0f) : targetDef->x;
+                const float y = middle ? static_cast<float>(position.height) : targetDef->y;
+                const float z = middle ? static_cast<float>(position.frontBack) : targetDef->z;
+                throw_if_failed(object->SetPosition(x, y, z), "Set dynamic test position");
                 throw_if_failed(object->SetVolume(1.0f), "Set dynamic test volume");
             }
 
@@ -412,8 +440,8 @@ void run_directional_test_worker(int target, bool preferDynamicObject, double ga
     g_directional_test_running.store(false);
 }
 
-void run_directional_test(int target, bool preferDynamicObject, double gainDb, double frequencyHz, SampleRateMode sampleRateMode) {
-    std::thread(run_directional_test_worker, target, preferDynamicObject, gainDb, frequencyHz, sampleRateMode).detach();
+void run_directional_test(int target, bool preferDynamicObject, double gainDb, double frequencyHz, SampleRateMode sampleRateMode, TopMiddlePosition position) {
+    std::thread(run_directional_test_worker, target, preferDynamicObject, gainDb, frequencyHz, sampleRateMode, position).detach();
 }
 
 std::wstring query_endpoint_summary(LayoutMode layoutMode, SampleRateMode sampleRateMode) {
@@ -429,7 +457,8 @@ std::wstring query_endpoint_summary(LayoutMode layoutMode, SampleRateMode sample
     });
 
     try {
-        ComPtr<ISpatialAudioClient> spatialClient = create_spatial_client();
+        std::wstring endpointName;
+        ComPtr<ISpatialAudioClient> spatialClient = create_spatial_client(&endpointName);
         const uint32_t selectedSampleRate = resolve_test_sample_rate(spatialClient.Get(), sampleRateMode);
         const WAVEFORMATEX format = make_object_format(selectedSampleRate);
         const HRESULT formatHr = spatialClient->IsAudioObjectFormatSupported(&format);
@@ -445,12 +474,13 @@ std::wstring query_endpoint_summary(LayoutMode layoutMode, SampleRateMode sample
         AudioObjectType activeMask = AudioObjectType_None;
         AudioObjectType missingMask = AudioObjectType_None;
         for (const auto& target : kTargets) {
-            if (!mask_contains(requestedMask, target.type)) continue;
+            if (target.type == AudioObjectType_Dynamic || !mask_contains(requestedMask, target.type)) continue;
             if (mask_contains(nativeMask, target.type)) activeMask = add_mask(activeMask, target.type);
             else missingMask = add_mask(missingMask, target.type);
         }
 
         std::wostringstream text;
+        text << L"Probe/test device (Windows default): " << endpointName << L"\r\n";
         text << L"Object format: float32 mono " << selectedSampleRate << L" Hz\r\n";
         text << L"Format supported: " << (SUCCEEDED(formatHr) ? L"yes" : L"no") << L" - " << widen(hresult_text(formatHr)) << L"\r\n";
         text << L"Supported rates: ";
@@ -467,10 +497,12 @@ std::wstring query_endpoint_summary(LayoutMode layoutMode, SampleRateMode sample
         text << L"Requested static bed: " << mask_text(requestedMask) << L"\r\n";
         text << L"Active static bed after fallback: " << mask_text(activeMask) << L"\r\n";
         text << L"Missing static channels: " << mask_text(missingMask) << L"\r\n";
-        text << L"Dynamic channels required: " << target_list_text(dynamicTargets) << L"\r\n";
+        text << L"Dynamic channels required: " << (layoutMode == LayoutMode::Auto
+            ? L"follows incoming DSP mask (not measured by this probe)" : target_list_text(dynamicTargets)) << L"\r\n";
         text << L"Max dynamic objects: " << maxDynamicObjectCount << L"\r\n";
         if (!dynamicTargets.empty())
-            text << L"Dynamic channel status: " << (maxDynamicObjectCount >= dynamicTargets.size() ? L"available" : L"not enough dynamic objects");
+            text << L"Dynamic capacity: " << (maxDynamicObjectCount >= dynamicTargets.size() ? L"sufficient" : L"not enough dynamic objects") << L"\r\n";
+        text << L"Top Middle pair needs 2 objects; 9.1.6 with wides needs 4. Actual speaker routing must be checked with Test.";
         return text.str();
     } catch (const std::exception& error) {
         return L"Endpoint probe failed: " + widen(error.what());
@@ -534,7 +566,8 @@ double read_double(HWND wnd, int id, double fallback) {
     GetWindowTextW(control, buffer, static_cast<int>(_countof(buffer)));
     wchar_t* end = nullptr;
     const double value = wcstod(buffer, &end);
-    return end != buffer ? value : fallback;
+    while (end != nullptr && (*end == L' ' || *end == L'\t')) ++end;
+    return end != buffer && end != nullptr && *end == L'\0' && std::isfinite(value) ? value : fallback;
 }
 
 void set_double_text(HWND wnd, int id, double value, int decimals) {
@@ -763,7 +796,7 @@ private:
             run_directional_test(target, read_check(wnd_, idDirectionalTestDynamic),
                 read_double(wnd_, idDirectionalTestGain, -18.0),
                 read_double(wnd_, idDirectionalTestFrequency, 660.0),
-                read_sample_rate_mode());
+                read_sample_rate_mode(), read_middle_position());
             callback_->on_state_changed();
             return 0;
         }
@@ -842,14 +875,17 @@ private:
             add_combo_item(srCombo, option.label, static_cast<LPARAM>(option.mode));
         add_tooltip(srCombo, L"48000 Hz is the safest default. Higher rates use more CPU on some hardware.");
         add_tooltip(find_dlg_item(wnd_, idProbeEndpoint), L"Ask Windows which Spatial Audio channels, objects, and sample rates are available.");
-        add_tooltip(find_dlg_item(wnd_, idEndpointSummary), L"Endpoint diagnostics from Windows Spatial Audio.");
+        add_tooltip(find_dlg_item(wnd_, idEndpointSummary), L"Probe and directional tests use the Windows default multimedia device. Match it to the device chosen in foobar2000 Playback > Output.");
+        add_tooltip(find_dlg_item(wnd_, idTopMiddleWidth), L"Distance left/right from the listener to the Top Middle objects, in meters (0.1-10). Used by playback and tests.");
+        add_tooltip(find_dlg_item(wnd_, idTopMiddleHeight), L"Height above the listener, in meters (0.1-10). Objects describe a direction; the Atmos renderer chooses physical speakers.");
+        add_tooltip(find_dlg_item(wnd_, idTopMiddleDepth), L"Position relative to the listener: negative in front, zero at the listening position, positive behind (-10 to 10 meters).");
     }
 
     void populate_test_page() {
         HWND testTargetCombo = find_dlg_item(wnd_, idDirectionalTestTarget);
         for (const auto& target : kTargets)
             add_combo_item(testTargetCombo, target.label, target.target);
-        add_tooltip(find_dlg_item(wnd_, idDirectionalTestDynamic), L"Use Windows dynamic spatial object instead of a static bed channel. May be more accurate on some hardware.");
+        add_tooltip(find_dlg_item(wnd_, idDirectionalTestDynamic), L"Use a dynamic object for this one-shot test. Top Middle and Front Wide always require dynamic objects.");
         add_tooltip(find_dlg_item(wnd_, idDirectionalTestRunSelected), L"Play a short tone in the selected direction without changing playback.");
     }
 
@@ -956,8 +992,14 @@ private:
         combo_set_cur_sel(combo, 0);
     }
 
+    TopMiddlePosition read_middle_position() const {
+        return sanitize_position({read_double(wnd_, idTopMiddleWidth, 0.8),
+            read_double(wnd_, idTopMiddleHeight, 1.4), read_double(wnd_, idTopMiddleDepth, 0.0)});
+    }
+
     OutputConfig read_from_controls() const {
         OutputConfig config;
+        config.topMiddlePosition = read_middle_position();
         config.layoutMode = read_layout_mode();
         config.sampleRateMode = read_sample_rate_mode();
         config.directionalTestEnabled = false;
@@ -969,6 +1011,9 @@ private:
     }
 
     void write_to_controls(const OutputConfig& config) const {
+        set_double_text(wnd_, idTopMiddleWidth, config.topMiddlePosition.halfWidth, 2);
+        set_double_text(wnd_, idTopMiddleHeight, config.topMiddlePosition.height, 2);
+        set_double_text(wnd_, idTopMiddleDepth, config.topMiddlePosition.frontBack, 2);
         set_layout_mode(config.layoutMode);
         set_sample_rate_mode(config.sampleRateMode);
         set_check(wnd_, idDirectionalTestDynamic, config.directionalTestUseDynamicObject);
@@ -982,14 +1027,17 @@ private:
         run_directional_test(target, read_check(wnd_, idDirectionalTestDynamic),
             read_double(wnd_, idDirectionalTestGain, -18.0),
             read_double(wnd_, idDirectionalTestFrequency, 660.0),
-            read_sample_rate_mode());
+            read_sample_rate_mode(), read_middle_position());
     }
 
     static bool different(double a, double b) { return std::fabs(a - b) > 0.0001; }
 
     bool has_changed() const {
         const OutputConfig current = read_from_controls();
-        return current.layoutMode    != initial_.layoutMode
+        return different(current.topMiddlePosition.halfWidth, initial_.topMiddlePosition.halfWidth)
+            || different(current.topMiddlePosition.height, initial_.topMiddlePosition.height)
+            || different(current.topMiddlePosition.frontBack, initial_.topMiddlePosition.frontBack)
+            || current.layoutMode    != initial_.layoutMode
             || current.sampleRateMode!= initial_.sampleRateMode
             || current.directionalTestUseDynamicObject  != initial_.directionalTestUseDynamicObject
             || current.directionalTestTarget            != initial_.directionalTestTarget

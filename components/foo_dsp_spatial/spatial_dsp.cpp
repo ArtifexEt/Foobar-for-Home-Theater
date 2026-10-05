@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "spatial_dsp.h"
 #include "dsp_preferences_resource.h"
+#include "height_synthesis.h"
 
 namespace spatial_audio {
 namespace {
@@ -20,6 +21,23 @@ struct OutputBedDef {
     size_t count;
     unsigned mask;
 };
+
+static constexpr std::array<int, 6> kHeightTargets = {
+    target_top_front_left, target_top_front_right,
+    target_top_back_left, target_top_back_right,
+    target_top_middle_left, target_top_middle_right,
+};
+
+static constexpr std::array<unsigned, 6> kHeightFlags = {
+    audio_chunk::channel_top_front_left, audio_chunk::channel_top_front_right,
+    audio_chunk::channel_top_back_left, audio_chunk::channel_top_back_right,
+    spatial_channels::top_middle_left, spatial_channels::top_middle_right,
+};
+
+static constexpr unsigned kHeightMask =
+    audio_chunk::channel_top_front_left | audio_chunk::channel_top_front_right |
+    audio_chunk::channel_top_back_left | audio_chunk::channel_top_back_right |
+    spatial_channels::top_middle_pair;
 
 static constexpr std::array<int, 6> kOutputTargets51 = {
     target_front_left,
@@ -110,6 +128,33 @@ static constexpr std::array<int, 14> kOutputTargets914 = {
     target_top_back_right,
 };
 
+// PCM is always interleaved by ascending mask bit, so the private top-middle
+// pair follows the four standard height channels, not its physical row order.
+static constexpr std::array<int, 14> kOutputTargets716 = {
+    target_front_left, target_front_right, target_front_center, target_low_frequency,
+    target_back_left, target_back_right, target_side_left, target_side_right,
+    target_top_front_left, target_top_front_right, target_top_back_left, target_top_back_right,
+    target_top_middle_left, target_top_middle_right,
+};
+
+static constexpr std::array<int, 12> kOutputTargets516 = {
+    target_front_left, target_front_right, target_front_center, target_low_frequency,
+    target_side_left, target_side_right,
+    target_top_front_left, target_top_front_right, target_top_back_left, target_top_back_right,
+    target_top_middle_left, target_top_middle_right,
+};
+
+static constexpr std::array<int, 16> kOutputTargets916 = {
+    target_front_left, target_front_right, target_front_center, target_low_frequency,
+    target_back_left, target_back_right, target_front_wide_left, target_front_wide_right,
+    target_side_left, target_side_right,
+    target_top_front_left, target_top_front_right, target_top_back_left, target_top_back_right,
+    target_top_middle_left, target_top_middle_right,
+};
+
+static constexpr unsigned kOutputMask716 = kOutputChannelMask | spatial_channels::top_middle_pair;
+static_assert(spatial_channels::count(kOutputMask716) == kOutputTargets716.size(), "7.1.6 mask must match channel order.");
+
 static constexpr unsigned kOutputMask512 =
     audio_chunk::channel_config_5point1_side |
     audio_chunk::channel_top_front_left |
@@ -135,6 +180,16 @@ static constexpr unsigned kOutputMask914 =
     audio_chunk::channel_top_back_left |
     audio_chunk::channel_top_back_right;
 
+static constexpr unsigned kOutputMask516 = kOutputMask514 | spatial_channels::top_middle_pair;
+static constexpr unsigned kOutputMask916 = kOutputMask914 | spatial_channels::top_middle_pair;
+static_assert(spatial_channels::count(kOutputMask516) == kOutputTargets516.size(), "5.1.6 mask must match channel order.");
+static_assert(spatial_channels::count(kOutputMask916) == kOutputTargets916.size(), "9.1.6 mask must match channel order.");
+
+bool has_six_heights(DspOutputLayout layout) {
+    return layout == DspOutputLayout::FivePointOneSix ||
+        layout == DspOutputLayout::SevenPointOneSix || layout == DspOutputLayout::NinePointOneSix;
+}
+
 template <size_t N>
 OutputBedDef make_output_bed(const std::array<int, N>& targets, unsigned mask) {
     return {targets.data(), targets.size(), mask};
@@ -149,6 +204,9 @@ OutputBedDef output_bed_def(DspOutputLayout layout) {
     case DspOutputLayout::NinePointOne: return make_output_bed(kOutputTargets91, kOutputMask91);
     case DspOutputLayout::NinePointOneTwo: return make_output_bed(kOutputTargets912, kOutputMask912);
     case DspOutputLayout::NinePointOneFour: return make_output_bed(kOutputTargets914, kOutputMask914);
+    case DspOutputLayout::SevenPointOneSix: return make_output_bed(kOutputTargets716, kOutputMask716);
+    case DspOutputLayout::FivePointOneSix: return make_output_bed(kOutputTargets516, kOutputMask516);
+    case DspOutputLayout::NinePointOneSix: return make_output_bed(kOutputTargets916, kOutputMask916);
     case DspOutputLayout::SevenPointOneFour:
     default:
         return make_output_bed(kOutputChannelTargets, kOutputChannelMask);
@@ -237,19 +295,51 @@ bool spatial_upmix_dsp::on_chunk(audio_chunk* chunk, abort_callback&) {
         return true;
     }
 
+    const unsigned floorMask = mask & ~(kHeightMask |
+        audio_chunk::channel_front_center_left | audio_chunk::channel_front_center_right);
+    const bool validMask = mask != 0 && spatial_channels::count(mask) == channels;
+    const unsigned supportedMask = kOutputMask914 | spatial_channels::top_middle_pair;
     inputLayout_ = InputLayout::Stereo;
-    if (channels == 6 && (mask == 0 || is_5point1_mask(mask))) {
+    if ((channels == 6 && mask == 0) || (validMask && is_5point1_mask(floorMask))) {
         inputLayout_ = InputLayout::FivePointOne;
-    } else if (channels == 8 && (mask == 0 || is_7point1_mask(mask))) {
+    } else if ((channels == 8 && mask == 0) || (validMask && is_7point1_mask(floorMask))) {
         inputLayout_ = InputLayout::SevenPointOne;
+    } else if (channels != 2 || (mask != 0 && mask != audio_chunk::channel_config_stereo)) {
+        // Unknown beds must not be treated as stereo and discard all other
+        // channels. Leave them untouched for the following DSP/output.
+        return true;
     }
+    if (mask != 0 && (!validMask || (mask & ~supportedMask) != 0)) return true;
 
     const OutputBedDef outputBed = output_bed_def(config_.outputLayout);
     const double masterGain = db_to_linear(config_.masterGainDb + config_.headroomDb);
     std::vector<audio_sample> out(frameCount * outputBed.count, 0.0f);
+    const SixHeightSettings heightSettings = {
+        config_.sideAmount, config_.heightFromMid, config_.decorrelationAmount,
+        db_to_linear(config_.heightGainDb), config_.upmixMode == UpmixMode::Reference,
+        config_.upmixMode == UpmixMode::FrontOnly,
+    };
 
     for (size_t i = 0; i < frameCount; ++i) {
         InputFrame frame = extract_frame(in, i, channels, mask, inputLayout_);
+        if (has_six_heights(config_.outputLayout)) {
+            if (inputLayout_ == InputLayout::FivePointOne) {
+                for (size_t height = 0; height < kHeightTargets.size(); ++height) {
+                    if ((frame.heightMask & (1u << height)) == 0 && is_mapped_5point1_target(kHeightTargets[height])) {
+                        frame.heights[height] = mapped_5point1_value(kHeightTargets[height], frame);
+                        frame.heightMask |= 1u << height;
+                    }
+                }
+            }
+            const SixHeightInput heightInput = {
+                {frame.frontLeft, frame.frontRight},
+                {frame.surroundLeft, frame.surroundRight},
+                {frame.backLeft, frame.backRight},
+                frame.heights, frame.heightMask,
+                inputLayout_ == InputLayout::Stereo, inputLayout_ == InputLayout::SevenPointOne,
+            };
+            frame.heights = synthesize_six_heights(heightInput, heightSettings);
+        }
         for (size_t outCh = 0; outCh < outputBed.count; ++outCh) {
             const int target = outputBed.targets[outCh];
             const size_t targetIndex = static_cast<size_t>(target);
@@ -271,6 +361,15 @@ spatial_upmix_dsp::InputFrame spatial_upmix_dsp::extract_frame(
     unsigned channels, unsigned mask, InputLayout layout)
 {
     InputFrame frame;
+    frame.sourceMask = mask;
+    for (size_t i = 0; i < kHeightFlags.size(); ++i) {
+        if ((mask & kHeightFlags[i]) != 0) {
+            frame.heights[i] = sample_by_flag(samples, frameIdx, channels, mask, kHeightFlags[i], channels);
+            frame.heightMask |= 1u << i;
+        }
+    }
+    frame.frontWideLeft = sample_by_flag(samples, frameIdx, channels, mask, audio_chunk::channel_front_center_left, channels);
+    frame.frontWideRight = sample_by_flag(samples, frameIdx, channels, mask, audio_chunk::channel_front_center_right, channels);
     if (layout == InputLayout::FivePointOne || layout == InputLayout::SevenPointOne) {
         frame.frontLeft   = sample_by_flag(samples, frameIdx, channels, mask, audio_chunk::channel_front_left,   0);
         frame.frontRight  = sample_by_flag(samples, frameIdx, channels, mask, audio_chunk::channel_front_right,  1);
@@ -296,9 +395,27 @@ spatial_upmix_dsp::InputFrame spatial_upmix_dsp::extract_frame(
 }
 
 double spatial_upmix_dsp::bed_value(int outputChannel, const InputFrame& frame) {
+    for (size_t i = 0; i < kHeightTargets.size(); ++i) {
+        if (outputChannel != kHeightTargets[i]) continue;
+        if ((frame.heightMask & (1u << i)) != 0) return frame.heights[i];
+        // An explicit 5.1 mapping owns its target even when the source sample
+        // is silent. Do not replace a mapped signal with automatic upmix.
+        if (inputLayout_ == InputLayout::FivePointOne && is_mapped_5point1_target(outputChannel))
+            return mapped_5point1_value(outputChannel, frame);
+        if (has_six_heights(config_.outputLayout)) return frame.heights[i];
+        break;
+    }
+    if (outputChannel == target_front_wide_left && (frame.sourceMask & audio_chunk::channel_front_center_left) != 0) return frame.frontWideLeft;
+    if (outputChannel == target_front_wide_right && (frame.sourceMask & audio_chunk::channel_front_center_right) != 0) return frame.frontWideRight;
     if (inputLayout_ == InputLayout::SevenPointOne) return mapped_7point1_value(outputChannel, frame);
     if (inputLayout_ == InputLayout::FivePointOne)  return mapped_5point1_value(outputChannel, frame);
     return stereo_bed_value(outputChannel, frame);
+}
+
+bool spatial_upmix_dsp::is_mapped_5point1_target(int target) const {
+    return config_.map51FrontLeft == target || config_.map51FrontRight == target ||
+        config_.map51FrontCenter == target || config_.map51Lfe == target ||
+        config_.map51SurroundLeft == target || config_.map51SurroundRight == target;
 }
 
 double spatial_upmix_dsp::stereo_bed_value(int outputChannel, const InputFrame& frame) {
@@ -426,7 +543,7 @@ bool spatial_upmix_dsp::is_7point1_mask(unsigned mask) {
 }
 
 float spatial_upmix_dsp::sample_by_flag(const audio_sample* samples, size_t frame, unsigned channels, unsigned mask, unsigned flag, unsigned fallbackIndex) {
-    unsigned index = audio_chunk::g_channel_index_from_flag(mask, flag);
+    unsigned index = spatial_channels::index(mask, flag);
     if (index == static_cast<unsigned>(-1) || index >= channels) index = fallbackIndex;
     return index < channels ? static_cast<float>(samples[(frame * channels) + index]) : 0.0f;
 }

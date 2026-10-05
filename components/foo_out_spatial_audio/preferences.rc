@@ -20,12 +20,19 @@ EXSTYLE WS_EX_CONTROLPARENT
 FONT 8, "MS Shell Dlg", 400, 0, 1
 {
     LTEXT       "Output bed", IDC_STATIC, 11, 12, 95, 13
-    COMBOBOX    idLayoutMode, 109, 9, 180, 98, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX    idLayoutMode, 109, 9, 270, 160, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT       "Render rate", IDC_STATIC, 11, 31, 95, 13
     COMBOBOX    idSampleRateMode, 109, 28, 180, 135, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON  "Probe endpoint", idProbeEndpoint, 11, 50, 110, 15
-    LTEXT       "Auto follows DSP; fixed modes do not.", IDC_STATIC, 128, 52, 161, 13
-    EDITTEXT    idEndpointSummary, 11, 71, 458, 162, ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | WS_VSCROLL | WS_TABSTOP
+    LTEXT       "Top Middle object position (m)", IDC_STATIC, 11, 51, 200, 13
+    LTEXT       "Half-width", IDC_STATIC, 11, 70, 58, 13
+    EDITTEXT    idTopMiddleWidth, 72, 67, 45, 13, ES_AUTOHSCROLL | WS_TABSTOP
+    LTEXT       "Height", IDC_STATIC, 136, 70, 50, 13
+    EDITTEXT    idTopMiddleHeight, 187, 67, 45, 13, ES_AUTOHSCROLL | WS_TABSTOP
+    LTEXT       "Front (-) / back (+)", IDC_STATIC, 253, 70, 100, 13
+    EDITTEXT    idTopMiddleDepth, 357, 67, 45, 13, ES_AUTOHSCROLL | WS_TABSTOP
+    PUSHBUTTON  "Probe endpoint", idProbeEndpoint, 11, 90, 110, 15
+    LTEXT       "Probe and tests use the Windows default audio device.", IDC_STATIC, 128, 92, 300, 13
+    EDITTEXT    idEndpointSummary, 11, 111, 458, 122, ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | WS_VSCROLL | WS_TABSTOP
 }
 
 IDD_SPATIAL_AUDIO_PAGE_TEST DIALOGEX 0, 0, 480, 252
@@ -41,8 +48,10 @@ FONT 8, "MS Shell Dlg", 400, 0, 1
     EDITTEXT    idDirectionalTestGain, 109, 50, 45, 13, ES_AUTOHSCROLL
     LTEXT       "Frequency (Hz)", IDC_STATIC, 11, 74, 95, 13
     EDITTEXT    idDirectionalTestFrequency, 109, 71, 50, 13, ES_AUTOHSCROLL
-    PUSHBUTTON  "Top FL", idTestButtonTopFrontLeft, 80, 96, 58, 17
-    PUSHBUTTON  "Top FR", idTestButtonTopFrontRight, 142, 96, 58, 17
+    PUSHBUTTON  "Top FL", idTestButtonTopFrontLeft, 290, 126, 58, 17
+    PUSHBUTTON  "Top FR", idTestButtonTopFrontRight, 354, 126, 58, 17
+    PUSHBUTTON  "Top ML", idTestButtonTopMiddleLeft, 290, 156, 58, 17
+    PUSHBUTTON  "Top MR", idTestButtonTopMiddleRight, 354, 156, 58, 17
     PUSHBUTTON  "Front L", idTestButtonFrontLeft, 49, 126, 58, 17
     PUSHBUTTON  "Center", idTestButtonFrontCenter, 111, 126, 58, 17
     PUSHBUTTON  "Front R", idTestButtonFrontRight, 173, 126, 58, 17
@@ -52,8 +61,8 @@ FONT 8, "MS Shell Dlg", 400, 0, 1
     PUSHBUTTON  "Back L", idTestButtonBackLeft, 49, 186, 58, 17
     PUSHBUTTON  "LFE", idTestButtonLfe, 111, 186, 58, 17
     PUSHBUTTON  "Back R", idTestButtonBackRight, 173, 186, 58, 17
-    PUSHBUTTON  "Top BL", idTestButtonTopBackLeft, 80, 216, 58, 17
-    PUSHBUTTON  "Top BR", idTestButtonTopBackRight, 142, 216, 58, 17
+    PUSHBUTTON  "Top BL", idTestButtonTopBackLeft, 290, 186, 58, 17
+    PUSHBUTTON  "Top BR", idTestButtonTopBackRight, 354, 186, 58, 17
 }
 
 IDD_SPATIAL_AUDIO_PAGE_ABOUT DIALOGEX 0, 0, 480, 252

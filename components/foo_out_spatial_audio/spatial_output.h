@@ -75,7 +75,7 @@ private:
     static int channel_index(const std::string& key);
     static AudioObjectType requested_static_mask(const OutputConfig& config, AudioObjectType nativeMask, AudioObjectType audioBedMask);
     static std::vector<int> requested_dynamic_targets(const OutputConfig& config, unsigned audioChannelMask);
-    static bool target_coordinates(int target, float& x, float& y, float& z);
+    static bool target_coordinates(int target, float& x, float& y, float& z, const TopMiddlePosition& position = {});
     static float clamp_sample(double value);
     static double db_to_linear(double db);
     static WAVEFORMATEX make_object_format(uint32_t sampleRate);

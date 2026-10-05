@@ -34,6 +34,11 @@ private:
         float surroundRight = 0.0f;
         float backLeft  = 0.0f;
         float backRight = 0.0f;
+        float frontWideLeft = 0.0f;
+        float frontWideRight = 0.0f;
+        std::array<double, 6> heights = {};
+        unsigned heightMask = 0;
+        unsigned sourceMask = 0;
     };
 
     struct DelayLine {
@@ -54,6 +59,7 @@ private:
     double stereo_bed_value(int outputChannel, const InputFrame& frame);
     double mapped_5point1_value(int outputChannel, const InputFrame& frame) const;
     double mapped_7point1_value(int outputChannel, const InputFrame& frame) const;
+    bool is_mapped_5point1_target(int target) const;
     double apply_limiter(double value) const;
     float apply_channel_delay(int channelIdx, float value);
     static double db_to_linear(double db);

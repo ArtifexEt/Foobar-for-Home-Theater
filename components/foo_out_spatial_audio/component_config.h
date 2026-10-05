@@ -1,6 +1,7 @@
 #pragma once
 
 #include "stdafx.h"
+#include "output_routing.h"
 
 namespace spatial_audio {
 
@@ -20,22 +21,11 @@ enum ChannelTarget {
     target_top_back_right = 11,
     target_front_wide_left = 12,
     target_front_wide_right = 13,
+    target_top_middle_left = 14,
+    target_top_middle_right = 15,
 };
 
-static constexpr size_t target_count = 14;
-
-enum class LayoutMode {
-    Auto = 0,
-    Stereo = 1,
-    FivePointOne = 2,
-    SevenPointOne = 3,
-    FivePointOneTwo = 4,
-    FivePointOneFour = 5,
-    SevenPointOneFour = 6,
-    NinePointOne = 7,
-    NinePointOneTwo = 8,
-    NinePointOneFour = 9,
-};
+static constexpr size_t target_count = 16;
 
 enum class SampleRateMode {
     AutoHighest = 0,
@@ -49,6 +39,7 @@ enum class SampleRateMode {
 };
 
 struct OutputConfig {
+    TopMiddlePosition topMiddlePosition;
     LayoutMode layoutMode = LayoutMode::Auto;
     SampleRateMode sampleRateMode = SampleRateMode::Fixed48000;
     bool directionalTestEnabled = false;

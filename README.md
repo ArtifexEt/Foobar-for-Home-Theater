@@ -5,18 +5,19 @@ Foobar for Home Theater is a foobar2000 component package for Windows home theat
 The package contains three components:
 
 - `foo_dsp_spatial` - `Spatial Audio DSP`. This creates and shapes the speaker bed: stereo upmix, 5.1/7.1 mapping, height channels, front-wide channels, LFE extraction, limiter, gain, delay, and polarity.
-- `foo_dsp_height` - `Add Ceiling Speakers`. This chain-friendly DSP preserves an existing stereo/surround bed and adds only missing top-front or top-front/top-back channels. Use it after another 5.1/7.1 upmixer.
-- `foo_out_spatial_audio` - `Spatial Audio Output`. This sends the bed to Windows Spatial Audio using static bed objects, plus dynamic objects only when the selected/incoming layout needs front-wide channels.
+- `foo_dsp_height` - `Add Ceiling Speakers`. This chain-friendly DSP preserves an existing stereo/surround bed and adds missing ceiling channels for two, four, or six ceiling speakers. Use it after another surround upmixer.
+- `foo_out_spatial_audio` - `Spatial Audio Output`. This sends the bed to Windows Spatial Audio using static bed objects, plus dynamic objects for front-wide and Top Middle channels when the selected/incoming layout needs them.
 
 Use one of the DSP paths before the output: the full `Spatial Audio DSP`, or your preferred surround DSP followed by `Add Ceiling Speakers`. The output sends the resulting bed to Windows.
 
 ## Features
 
 - Correct stereo upmix into surround and height beds.
-- 5.1, 7.1, 5.1.2, 5.1.4, 7.1.4, 9.1, 9.1.2, and 9.1.4 DSP output layouts.
+- 5.1, 7.1, 5.1.2, 5.1.4, 7.1.4, 9.1, 9.1.2, and 9.1.4 DSP output layouts, plus 5.1.6, 7.1.6, and 9.1.6 using dynamic Top Middle objects.
 - Output `Auto` mode that follows the audio bed produced by the DSP.
 - Front-wide support through explicit 9.x layouts. Windows has no static front-wide Spatial Audio bed object, so front-wide channels are sent as dynamic objects when available.
-- Endpoint probe that shows supported static bed channels, requested channels, missing channels, dynamic object count, and dynamic front-wide status.
+- Top Middle left/right use stationary dynamic objects alongside four static height channels. Their width, height, and front/back position are adjustable in the output settings.
+- Endpoint probe that shows supported static bed channels, requested channels, missing channels, dynamic object count, and dynamic-channel requirements.
 - One-shot directional test controls for routing checks.
 - LFE extraction for stereo sources.
 - Transparent soft limiter for clipping protection after upmixing.
@@ -26,6 +27,8 @@ Use one of the DSP paths before the output: the full `Spatial Audio DSP`, or you
 - A separate height-only DSP with preset-local configuration and bit-preserving passthrough for every existing channel.
 
 ## Download
+
+The six-height changes in this branch are available as a **test build** from the corresponding [GitHub Actions run](https://github.com/ArtifexEt/Foobar-for-Home-Theater/actions/workflows/windows-cmake.yml), under **Artifacts > Foobar-for-Home-Theater-windows-x64**. Install all three components from the same artifact. See the [English and Polish testing guide](docs/TESTING_SIX_HEIGHTS.md) before checking your AVR. The stable release links below may predate this feature.
 
 Download the latest release assets:
 
@@ -67,7 +70,7 @@ For an existing surround upmixer, use this chain instead:
 
 1. Add your 5.1/7.1 DSP first.
 2. Add `Add Ceiling Speakers` immediately after it.
-3. Open its DSP Manager configuration popup and choose two or four ceiling speakers.
+3. Open its DSP Manager configuration popup and choose two, four, or six ceiling speakers.
 4. Keep `Spatial Audio Output` last and set its output bed to `Auto`.
 
 `Add Ceiling Speakers` has no separate Preferences page. Its layout and synthesis controls are stored in that DSP instance's preset. Existing channels, including existing height channels, are copied unchanged; only missing requested ceiling channels are synthesized.
@@ -89,13 +92,19 @@ Start with this setup for a typical AVR:
 
 ## How It Works
 
-`Spatial Audio DSP` receives normal foobar2000 PCM and rewrites it into the selected output layout. Stereo is upmixed, 5.1 input is mapped through the Channel Mapping page, and 7.1 keeps its standard bed channels. It is an integrated processor, not a bit-preserving add-on; do not put it after another upmixer when that upmixer's complete bed must be retained. Use `Add Ceiling Speakers` for that chain.
+`Spatial Audio DSP` receives normal foobar2000 PCM and rewrites it into the selected output layout. Stereo is upmixed, 5.1 input is mapped through the Channel Mapping page, and 7.1 keeps its standard bed channels. The .6 modes generate missing heights from stereo or surround sources and retain supplied height signals, including silent channels. It is an integrated processor with gain, delay, and limiting; use `Add Ceiling Speakers` after another upmixer when that upmixer's complete bed must be retained unchanged.
 
-`Spatial Audio Output` opens a Windows Spatial Audio stream. In `Auto`, it inspects the incoming channel mask and activates matching Windows static bed objects. If the incoming bed contains front-wide channels (`FCL`/`FCR`), the output requests dynamic objects for those front-wide channels because Windows Spatial Audio does not expose front-wide as static bed objects.
+`Spatial Audio Output` opens a Windows Spatial Audio stream. In `Auto`, it inspects the incoming channel mask and activates matching Windows static bed objects. Front-wide channels (`FCL`/`FCR`) and Top Middle channels use dynamic objects because Windows Spatial Audio does not expose these positions as static bed objects. The .6 path carries Top Middle PCM in private channel flags shared by these three components; keep the matching output immediately after the final spatial DSP, without a channel remapper or third-party processor that could discard those flags.
 
 `Add Ceiling Speakers` is intentionally narrower. It keeps the incoming channel mask and samples, appends missing height flags, and derives only those new channels from front difference, surround/rear feed, and a small center feed. This makes it suitable after a third-party surround DSP without replacing that DSP's center, LFE, side, or rear work.
 
-That keeps dynamic objects explicit: they are used for selected or incoming 9.x front-wide layouts, not as a hidden replacement for the normal static bed path.
+Dynamic channels are explicit in the selected or incoming layout. A .6 stream needs both Top Middle channels and sufficient endpoint resources; the output reports an error instead of silently discarding them. This changes foobar2000 playback through these components, not other Windows applications or games.
+
+## Six Ceiling Speakers
+
+Select `5.1.6`, `7.1.6`, or `9.1.6` in `Spatial Audio DSP`, or choose `6 speakers (dynamic Top Middle)` in `Add Ceiling Speakers`. Leave the output on `Auto (follow audio bed)`. Top Front and Top Back remain static channels; Top Middle left/right are stationary dynamic objects. The 5.1.6 and 7.1.6 layouts require two dynamic objects; 9.1.6 requires four, including the front-wide pair.
+
+The object positions tell the renderer where sound should originate. Your AVR decides how to distribute it among its configured speakers, so a successful API call or an Atmos badge does not prove that only the physical Top Middle pair is playing. Check `Top ML` and `Top MR` individually using the [testing guide](docs/TESTING_SIX_HEIGHTS.md). Actual 7.1.6 AVR routing has not been verified by the automated tests.
 
 ## 9.x, 9.4.4, and Bass Channels
 
@@ -116,7 +125,7 @@ Use the output probe to confirm your actual endpoint. Different AVRs can report 
 
 This page decides what the plugin creates.
 
-- `Output bed` chooses the DSP channel bed. Use 7.1.4 for most height systems; use 9.1.x only when you want front-wide output and the output probe reports enough dynamic objects.
+- `Output bed` chooses the DSP channel bed. Use a .6 mode for six ceiling speakers. Front-wide and Top Middle output require the dynamic-object resources reported by the output probe.
 - `Mode` controls the upmix style. `Reference` is the recommended default. `Full spatial` is wider and more aggressive. `Front only` is useful for A/B checks.
 - `Master gain` should normally stay at `0.0 dB`.
 - `Headroom` can be lowered if you want extra safety before the limiter.
@@ -174,7 +183,7 @@ The DSP About tab shows the installed component version and support links.
 
 ![Output Layout](docs/screenshots/layout.png)
 
-Use `Auto (follow audio bed)` for normal playback. It follows the bed from the DSP, including 9.x front-wide beds when the incoming channel mask contains front-wide channels and the endpoint has enough dynamic objects.
+Use `Auto (follow audio bed)` for normal playback. It follows the bed from the DSP, including front-wide and Top Middle channels when the incoming mask contains them and the endpoint has enough dynamic objects. `Top Middle object position (m)` uses a positive half-width and height; front/back `0` aligns the pair with the listener, negative values move it forward, and positive values move it backward. The same positions are used in playback and directional tests.
 
 Use fixed output modes only for testing or when you want to force a specific output shape. `Probe endpoint` is the most important diagnostic on this page:
 
@@ -182,8 +191,10 @@ Use fixed output modes only for testing or when you want to force a specific out
 - `Requested static bed`: what the selected output layout asks for.
 - `Active static bed after fallback`: what the plugin can actually activate.
 - `Missing static channels`: requested static channels not exposed by the endpoint.
-- `Dynamic channels required`: front-wide channels needed by 9.x layouts.
+- Dynamic requirements: two objects for front wides or Top Middle, four for 9.1.6. In `Auto`, the requirements depend on the incoming stream and the probe does not infer them from channel count.
 - `Max dynamic objects`: dynamic object count reported by Windows.
+
+The Preferences probe and directional tests use the **Windows default audio device** and display its name. Make your AVR that default and select the same device in foobar2000; a named foobar2000 output can otherwise point somewhere else.
 
 ### Output: Test
 
@@ -194,7 +205,8 @@ The test page plays short one-shot tones. It is for routing checks only and does
 - `Direction` selects a speaker target.
 - `Run selected` plays the chosen target.
 - The speaker buttons play common directions quickly.
-- `Prefer dynamic object` tests movable object positioning when possible. Front-wide test directions always require dynamic objects.
+- `Dynamic object` tests movable object positioning when possible. Front-wide and Top Middle test directions always require dynamic objects.
+- `Top ML` and `Top MR` test the middle pair separately at the configured position.
 
 ### Peak Meter
 
@@ -227,9 +239,12 @@ The standalone CMake tools can be built locally with Visual Studio 2022:
 ```powershell
 cmake -S . -B build -G "Visual Studio 17 2022" -A x64
 cmake --build build --config Release
+ctest --test-dir build -C Release --output-on-failure
 ```
 
 The full release workflow also builds the foobar2000 components from `components/foo_dsp_spatial`, `components/foo_dsp_height`, and `components/foo_out_spatial_audio`.
+
+The DSP tests also build on macOS/Linux with `cmake -S . -B build && cmake --build build && ctest --test-dir build --output-on-failure`. They execute the production DSP and profile code through a small in-memory foobar2000 SDK adapter, and test the output's channel-routing helpers. They do not simulate Windows/HDMI, certify an AVR, or test the Preferences UI. The Windows job separately compiles all three plugins against the real SDK and verifies their packages.
 
 ## Standalone Tools
 
@@ -257,6 +272,7 @@ Release ZIPs include standalone diagnostics:
 - If playback contains a tone after upgrading from an older test build, open and apply the output preferences once. New builds no longer persist continuous test tone playback.
 - If channels are routed incorrectly, use the Output Test page first, then adjust DSP Channel Mapping only if the issue is source-specific.
 - If 9.x front-wide output fails, run `Probe endpoint` and check `Max dynamic objects`. Front-wide channels need two dynamic objects.
+- If a .6 layout fails, check the same endpoint supports the required static bed and at least two dynamic objects (four for 9.1.6). Use all three components from the same build and leave output on `Auto`. See [six-height testing and reporting](docs/TESTING_SIX_HEIGHTS.md).
 - If a forced layout behaves badly, switch Output back to `Auto (follow audio bed)`.
 
 ## Notes

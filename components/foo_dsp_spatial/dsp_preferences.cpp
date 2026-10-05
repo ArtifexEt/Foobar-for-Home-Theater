@@ -40,6 +40,8 @@ const MappingOption kMappingOptions[] = {
     {target_top_back_right,  L"Top back right"},
     {target_front_wide_left, L"Front wide left"},
     {target_front_wide_right,L"Front wide right"},
+    {target_top_middle_left, L"Top middle left"},
+    {target_top_middle_right,L"Top middle right"},
     {target_disabled,        L"Disabled"},
 };
 
@@ -64,9 +66,12 @@ const LayoutOption kLayoutOptions[] = {
     {DspOutputLayout::FivePointOneTwo,   L"Surround + height (5.1.2)"},
     {DspOutputLayout::FivePointOneFour,  L"Surround + height (5.1.4)"},
     {DspOutputLayout::SevenPointOneFour, L"Surround + height (7.1.4)"},
+    {DspOutputLayout::FivePointOneSix,   L"5.1.6 (dynamic Top Middle)"},
+    {DspOutputLayout::SevenPointOneSix,  L"7.1.6 (dynamic Top Middle)"},
     {DspOutputLayout::NinePointOne,      L"Front wide (9.1)"},
     {DspOutputLayout::NinePointOneTwo,   L"Front wide + height (9.1.2)"},
     {DspOutputLayout::NinePointOneFour,  L"Front wide + height (9.1.4)"},
+    {DspOutputLayout::NinePointOneSix,   L"9.1.6 (dynamic Top Middle)"},
 };
 
 struct SliderBinding {
@@ -685,7 +690,7 @@ private:
         HWND layoutCombo = find_dlg_item(wnd_, idLayoutMode);
         for (const auto& option : kLayoutOptions)
             add_combo_item(layoutCombo, option.label, static_cast<LPARAM>(option.layout));
-        add_tooltip(layoutCombo, L"Controls how many channels the DSP produces. Output Auto follows this bed.");
+        add_tooltip(layoutCombo, L"Output Auto follows this bed. Six-height layouts require matching Spatial Audio Output components: two dynamic objects for Top Middle, plus two for Front Wide in 9.1.6.");
 
         HWND upmixCombo = find_dlg_item(wnd_, idUpmixMode);
         for (const auto& option : kUpmixOptions)

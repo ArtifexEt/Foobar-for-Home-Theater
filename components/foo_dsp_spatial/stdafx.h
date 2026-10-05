@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef SPATIAL_AUDIO_PORTABLE_TEST
+#include "../../tests/foobar2000_test_shim.h"
+#else
+
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
@@ -39,3 +43,5 @@
 #include <string>
 #include <thread>
 #include <vector>
+
+#endif // SPATIAL_AUDIO_PORTABLE_TEST
