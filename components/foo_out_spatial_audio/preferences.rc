@@ -24,15 +24,18 @@ FONT 8, "MS Shell Dlg", 400, 0, 1
     LTEXT       "Render rate", IDC_STATIC, 11, 31, 95, 13
     COMBOBOX    idSampleRateMode, 109, 28, 180, 135, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT       "Top Middle object position (m)", IDC_STATIC, 11, 51, 200, 13
-    LTEXT       "Half-width", IDC_STATIC, 11, 70, 58, 13
-    EDITTEXT    idTopMiddleWidth, 72, 67, 45, 13, ES_AUTOHSCROLL | WS_TABSTOP
-    LTEXT       "Height", IDC_STATIC, 136, 70, 50, 13
-    EDITTEXT    idTopMiddleHeight, 187, 67, 45, 13, ES_AUTOHSCROLL | WS_TABSTOP
-    LTEXT       "Front (-) / back (+)", IDC_STATIC, 253, 70, 100, 13
-    EDITTEXT    idTopMiddleDepth, 357, 67, 45, 13, ES_AUTOHSCROLL | WS_TABSTOP
-    PUSHBUTTON  "Probe endpoint", idProbeEndpoint, 11, 90, 110, 15
-    LTEXT       "Probe and tests use the Windows default audio device.", IDC_STATIC, 128, 92, 300, 13
-    EDITTEXT    idEndpointSummary, 11, 111, 458, 122, ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | WS_VSCROLL | WS_TABSTOP
+    LTEXT       "Half-width", IDC_STATIC, 11, 70, 95, 13
+    EDITTEXT    idTopMiddleWidth, 109, 67, 45, 13, ES_AUTOHSCROLL | WS_TABSTOP
+    CONTROL     "", idTopMiddleWidthSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 160, 67, 242, 13
+    LTEXT       "Height", IDC_STATIC, 11, 91, 95, 13
+    EDITTEXT    idTopMiddleHeight, 109, 88, 45, 13, ES_AUTOHSCROLL | WS_TABSTOP
+    CONTROL     "", idTopMiddleHeightSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 160, 88, 242, 13
+    LTEXT       "Front (-) / back (+)", IDC_STATIC, 11, 112, 95, 13
+    EDITTEXT    idTopMiddleDepth, 109, 109, 45, 13, ES_AUTOHSCROLL | WS_TABSTOP
+    CONTROL     "", idTopMiddleDepthSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 160, 109, 242, 13
+    PUSHBUTTON  "Probe endpoint", idProbeEndpoint, 11, 132, 110, 15
+    LTEXT       "Probe and tests use the Windows default audio device.", IDC_STATIC, 128, 134, 300, 13
+    EDITTEXT    idEndpointSummary, 11, 153, 458, 80, ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | WS_VSCROLL | WS_TABSTOP
 }
 
 IDD_SPATIAL_AUDIO_PAGE_TEST DIALOGEX 0, 0, 480, 252
@@ -45,9 +48,11 @@ FONT 8, "MS Shell Dlg", 400, 0, 1
     COMBOBOX    idDirectionalTestTarget, 109, 29, 100, 135, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON  "Run selected", idDirectionalTestRunSelected, 215, 29, 70, 15
     LTEXT       "Test gain (dB)", IDC_STATIC, 11, 53, 95, 13
-    EDITTEXT    idDirectionalTestGain, 109, 50, 45, 13, ES_AUTOHSCROLL
+    EDITTEXT    idDirectionalTestGain, 109, 50, 45, 13, ES_AUTOHSCROLL | WS_TABSTOP
+    CONTROL     "", idDirectionalTestGainSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 160, 50, 125, 13
     LTEXT       "Frequency (Hz)", IDC_STATIC, 11, 74, 95, 13
-    EDITTEXT    idDirectionalTestFrequency, 109, 71, 50, 13, ES_AUTOHSCROLL
+    EDITTEXT    idDirectionalTestFrequency, 109, 71, 50, 13, ES_AUTOHSCROLL | WS_TABSTOP
+    CONTROL     "", idDirectionalTestFrequencySlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 160, 71, 125, 13
     PUSHBUTTON  "Top FL", idTestButtonTopFrontLeft, 290, 126, 58, 17
     PUSHBUTTON  "Top FR", idTestButtonTopFrontRight, 354, 126, 58, 17
     PUSHBUTTON  "Top ML", idTestButtonTopMiddleLeft, 290, 156, 58, 17

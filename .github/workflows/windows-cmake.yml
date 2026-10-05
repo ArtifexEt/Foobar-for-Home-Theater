@@ -49,8 +49,18 @@ jobs:
       - name: Build
         run: cmake --build build --config Release
 
-      - name: Test DSP processing and channel routing
+      - name: Test DSP processing, channel routing and native dialogs
+        env:
+          SPATIAL_DIALOG_SCREENSHOT_DIR: ${{ github.workspace }}/build/dialog-screenshots
         run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Upload native dialog verification images
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-native-dialog-verification
+          path: build/dialog-screenshots/*.png
+          if-no-files-found: warn
 
       - name: Smoke standalone tools
         shell: pwsh

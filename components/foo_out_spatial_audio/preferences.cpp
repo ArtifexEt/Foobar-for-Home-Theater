@@ -2,10 +2,15 @@
 #include "component_config.h"
 #include "component_version.h"
 #include "preferences_resource.h"
+#include "../shared/dialog_scroll.h"
 
 #include <helpers/atl-misc.h>
 
 using Microsoft::WRL::ComPtr;
+
+#ifndef WM_DPICHANGED_BEFOREPARENT
+#define WM_DPICHANGED_BEFOREPARENT 0x02E2
+#endif
 
 #ifndef WM_DPICHANGED_AFTERPARENT
 #define WM_DPICHANGED_AFTERPARENT 0x02E3
@@ -581,21 +586,22 @@ static const CDialogResizeHelper::Param kMainResizeParams[] = {
     {idTabs, 0.f, 0.f, 1.f, 1.f},
 };
 
-struct PageEnumData { HWND parent = nullptr; int maxBottom = 0; };
+struct SliderBinding {
+    int editId;
+    int sliderId;
+    double minimum;
+    double maximum;
+    double scale;
+    int decimals;
+};
 
-BOOL CALLBACK page_max_bottom_proc(HWND child, LPARAM lp) {
-    auto* data = reinterpret_cast<PageEnumData*>(lp);
-    if (::GetParent(child) != data->parent) return TRUE;
-    RECT r = {}; ::GetWindowRect(child, &r); ::MapWindowPoints(nullptr, data->parent, reinterpret_cast<POINT*>(&r), 2);
-    if (r.bottom > data->maxBottom) data->maxBottom = r.bottom;
-    return TRUE;
-}
-
-static int measure_content_height(HWND pageWnd) {
-    PageEnumData data = {pageWnd, 0};
-    ::EnumChildWindows(pageWnd, page_max_bottom_proc, reinterpret_cast<LPARAM>(&data));
-    return data.maxBottom > 0 ? data.maxBottom + 8 : 0;
-}
+constexpr SliderBinding kSliders[] = {
+    {idTopMiddleWidth, idTopMiddleWidthSlider, 0.1, 10.0, 100.0, 2},
+    {idTopMiddleHeight, idTopMiddleHeightSlider, 0.1, 10.0, 100.0, 2},
+    {idTopMiddleDepth, idTopMiddleDepthSlider, -10.0, 10.0, 100.0, 2},
+    {idDirectionalTestGain, idDirectionalTestGainSlider, -60.0, 0.0, 10.0, 1},
+    {idDirectionalTestFrequency, idDirectionalTestFrequencySlider, 40.0, 2000.0, 1.0, 0},
+};
 
 class preferences_instance : public CDialogImpl<preferences_instance>, public preferences_page_instance {
 public:
@@ -623,6 +629,7 @@ public:
         MESSAGE_HANDLER(WM_SIZE, on_size_message)
         MESSAGE_HANDLER(WM_DPICHANGED, on_dpi_changed_message)
         MESSAGE_HANDLER(WM_DPICHANGED_AFTERPARENT, on_dpi_changed_message)
+        MESSAGE_HANDLER(WM_APP + 26, on_dpi_layout_message)
         MESSAGE_HANDLER(WM_THEMECHANGED, on_theme_changed_message)
         MESSAGE_HANDLER(WM_SETTINGCHANGE, on_theme_changed_message)
         MESSAGE_HANDLER(WM_COMMAND, on_command_message)
@@ -659,7 +666,16 @@ private:
     }
     LRESULT on_erase_message(UINT, WPARAM wp, LPARAM, BOOL&) { return on_erase(m_hWnd, reinterpret_cast<HDC>(wp)); }
     LRESULT on_size_message(UINT, WPARAM, LPARAM, BOOL&) { position_pages(); return TRUE; }
-    LRESULT on_dpi_changed_message(UINT, WPARAM, LPARAM, BOOL&) { update_tooltip_width(); position_pages(); return TRUE; }
+    LRESULT on_dpi_changed_message(UINT, WPARAM, LPARAM, BOOL& handled) {
+        ::PostMessageW(m_hWnd, WM_APP + 26, 0, 0);
+        handled = FALSE;
+        return 0;
+    }
+    LRESULT on_dpi_layout_message(UINT, WPARAM, LPARAM, BOOL&) {
+        update_tooltip_width();
+        position_pages();
+        return 0;
+    }
     LRESULT on_theme_changed_message(UINT, WPARAM, LPARAM, BOOL&) {
         update_tooltip_width(); position_pages();
         ::RedrawWindow(m_hWnd, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
@@ -676,8 +692,6 @@ private:
         if (msg == WM_INITDIALOG) {
             self = reinterpret_cast<preferences_instance*>(lp);
             ::SetWindowLongPtrW(wnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(self));
-            const int ch = measure_content_height(wnd);
-            ::SetPropW(wnd, L"spatial_ch", reinterpret_cast<HANDLE>(static_cast<LONG_PTR>(ch)));
             return FALSE;
         }
         if (self == nullptr) return FALSE;
@@ -688,44 +702,49 @@ private:
         case WM_CTLCOLORSTATIC:
         case WM_CTLCOLORBTN:
         case WM_CTLCOLORDLG: return self->on_control_color(reinterpret_cast<HDC>(wp), reinterpret_cast<HWND>(lp), msg);
-        case WM_SIZE: self->resize_page_contents(wnd); return FALSE;
+        case WM_SIZE:
+            if (auto* scroll = self->page_scroll(wnd)) scroll->resize();
+            return FALSE;
+        case WM_HSCROLL:
+            if (lp != 0) self->on_slider_scroll(reinterpret_cast<HWND>(lp));
+            else if (auto* scroll = self->page_scroll(wnd)) scroll->on_scroll(SB_HORZ, wp);
+            return TRUE;
+        case WM_VSCROLL:
+            if (auto* scroll = self->page_scroll(wnd)) scroll->on_scroll(SB_VERT, wp);
+            return TRUE;
+        case WM_MOUSEWHEEL:
+        case WM_MOUSEHWHEEL:
+            if (auto* scroll = self->page_scroll(wnd)) return scroll->on_mouse_wheel(wp, msg == WM_MOUSEHWHEEL);
+            return FALSE;
+        case WM_DPICHANGED_BEFOREPARENT:
+            if (auto* scroll = self->page_scroll(wnd)) scroll->dpi_changing();
+            return FALSE;
         case WM_DPICHANGED:
         case WM_DPICHANGED_AFTERPARENT:
             self->update_tooltip_width();
-            self->resize_page_contents(wnd);
+            if (auto* scroll = self->page_scroll(wnd)) scroll->dpi_changed();
             ::RedrawWindow(wnd, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
-            return TRUE;
+            return FALSE;
+        case WM_DESTROY:
+            if (auto* scroll = self->page_scroll(wnd)) scroll->detach();
+            return FALSE;
         case WM_NOTIFY: self->on_notify(reinterpret_cast<NMHDR*>(lp)); return TRUE;
         default: break;
         }
         return FALSE;
     }
 
-    void resize_page_contents(HWND pageWnd) {
-        HWND summary = ::GetDlgItem(pageWnd, idEndpointSummary);
-        if (summary == nullptr) return;
-
-        RECT pageRect = {};
-        RECT summaryRect = {};
-        ::GetClientRect(pageWnd, &pageRect);
-        ::GetWindowRect(summary, &summaryRect);
-        ::MapWindowPoints(nullptr, pageWnd, reinterpret_cast<POINT*>(&summaryRect), 2);
-
-        const int summaryLeft = static_cast<int>(summaryRect.left);
-        const int summaryTop = static_cast<int>(summaryRect.top);
-        const int pageRight = static_cast<int>(pageRect.right);
-        const int pageBottom = static_cast<int>(pageRect.bottom);
-        const int margin = std::max(8, summaryLeft);
-        const int width = std::max(80, pageRight - margin * 2);
-        const int height = std::max(60, pageBottom - summaryTop - margin);
-        ::SetWindowPos(summary, nullptr, summaryRect.left, summaryRect.top, width, height,
-            SWP_NOACTIVATE | SWP_NOZORDER);
+    spatial_ui::DialogScroll* page_scroll(HWND pageWnd) {
+        for (size_t i = 0; i < pageWnds_.size(); ++i)
+            if (pageWnds_[i] == pageWnd) return &pageScrolls_[i];
+        return nullptr;
     }
 
     HWND create_page(Page page, int resourceId) {
         HWND pageWnd = CreateDialogParamW(core_api::get_my_instance(), MAKEINTRESOURCEW(resourceId), wnd_, page_dialog_proc, reinterpret_cast<LPARAM>(this));
         if (pageWnd == nullptr) throw std::runtime_error("Could not create output preferences page.");
         pageWnds_[static_cast<size_t>(page)] = pageWnd;
+        pageScrolls_[static_cast<size_t>(page)].attach(pageWnd);
         dark_.AddDialogWithControls(pageWnd);
         return pageWnd;
     }
@@ -738,8 +757,8 @@ private:
         RECT pageRect = {0, 0, tabRect.right - tabRect.left, tabRect.bottom - tabRect.top};
         TabCtrl_AdjustRect(tabs, FALSE, &pageRect);
         const int x = tabRect.left + pageRect.left, y = tabRect.top + pageRect.top;
-        const int width = static_cast<int>(std::max<LONG>(320, pageRect.right - pageRect.left));
-        const int height = static_cast<int>(std::max<LONG>(220, pageRect.bottom - pageRect.top));
+        const int width = static_cast<int>(std::max<LONG>(1, pageRect.right - pageRect.left));
+        const int height = static_cast<int>(std::max<LONG>(1, pageRect.bottom - pageRect.top));
         for (HWND pageWnd : pageWnds_) {
             if (pageWnd != nullptr && ::IsWindow(pageWnd))
                 ::SetWindowPos(pageWnd, HWND_TOP, x, y, width, height, SWP_NOACTIVATE);
@@ -800,8 +819,12 @@ private:
             callback_->on_state_changed();
             return 0;
         }
-        if (code == CBN_SELCHANGE || code == BN_CLICKED || code == EN_CHANGE)
+        if (code == EN_CHANGE && !updatingControls_) {
+            sync_slider_from_edit(id);
             callback_->on_state_changed();
+        } else if (code == CBN_SELCHANGE || code == BN_CLICKED) {
+            callback_->on_state_changed();
+        }
         return 0;
     }
 
@@ -858,6 +881,7 @@ private:
         populate_layout_page();
         populate_test_page();
         populate_about_page();
+        initialize_sliders();
 
         write_to_controls(initial_);
         selectedPage_ = 0;
@@ -992,6 +1016,40 @@ private:
         combo_set_cur_sel(combo, 0);
     }
 
+    void initialize_sliders() {
+        for (const auto& binding : kSliders) {
+            HWND slider = find_dlg_item(wnd_, binding.sliderId);
+            SendMessageW(slider, TBM_SETRANGEMIN, FALSE, static_cast<LPARAM>(std::lround(binding.minimum * binding.scale)));
+            SendMessageW(slider, TBM_SETRANGEMAX, TRUE, static_cast<LPARAM>(std::lround(binding.maximum * binding.scale)));
+            SendMessageW(slider, TBM_SETPAGESIZE, 0, static_cast<LPARAM>(std::max(1.0, binding.scale)));
+        }
+    }
+
+    void sync_slider_from_edit(int editId) {
+        for (const auto& binding : kSliders) {
+            if (binding.editId != editId) continue;
+            const double value = std::clamp(read_double(wnd_, editId, binding.minimum), binding.minimum, binding.maximum);
+            SendMessageW(find_dlg_item(wnd_, binding.sliderId), TBM_SETPOS, TRUE,
+                static_cast<LPARAM>(std::lround(value * binding.scale)));
+            // Keep the edit untouched: typing a partial value must remain possible.
+            break;
+        }
+    }
+
+    void on_slider_scroll(HWND slider) {
+        if (updatingControls_ || slider == nullptr) return;
+        for (const auto& binding : kSliders) {
+            if (binding.sliderId != ::GetDlgCtrlID(slider)) continue;
+            const double value = std::clamp(static_cast<double>(SendMessageW(slider, TBM_GETPOS, 0, 0)) / binding.scale,
+                binding.minimum, binding.maximum);
+            updatingControls_ = true;
+            set_double_text(wnd_, binding.editId, value, binding.decimals);
+            updatingControls_ = false;
+            callback_->on_state_changed();
+            break;
+        }
+    }
+
     TopMiddlePosition read_middle_position() const {
         return sanitize_position({read_double(wnd_, idTopMiddleWidth, 0.8),
             read_double(wnd_, idTopMiddleHeight, 1.4), read_double(wnd_, idTopMiddleDepth, 0.0)});
@@ -1010,7 +1068,8 @@ private:
         return config;
     }
 
-    void write_to_controls(const OutputConfig& config) const {
+    void write_to_controls(const OutputConfig& config) {
+        updatingControls_ = true;
         set_double_text(wnd_, idTopMiddleWidth, config.topMiddlePosition.halfWidth, 2);
         set_double_text(wnd_, idTopMiddleHeight, config.topMiddlePosition.height, 2);
         set_double_text(wnd_, idTopMiddleDepth, config.topMiddlePosition.frontBack, 2);
@@ -1020,6 +1079,8 @@ private:
         set_test_target(config.directionalTestTarget);
         set_double_text(wnd_, idDirectionalTestGain, config.directionalTestGainDb, 1);
         set_double_text(wnd_, idDirectionalTestFrequency, config.directionalTestFrequencyHz, 0);
+        for (const auto& binding : kSliders) sync_slider_from_edit(binding.editId);
+        updatingControls_ = false;
     }
 
     void run_selected_test() const {
@@ -1052,6 +1113,8 @@ private:
     CDialogResizeHelper m_resizer{kMainResizeParams};
     HWND tooltip_ = nullptr;
     std::array<HWND, static_cast<size_t>(Page::Count)> pageWnds_ = {};
+    std::array<spatial_ui::DialogScroll, static_cast<size_t>(Page::Count)> pageScrolls_;
+    bool updatingControls_ = false;
     int selectedPage_ = 0;
     HBRUSH backgroundBrush_ = CreateSolidBrush(kDarkBackground);
     HBRUSH editBrush_       = CreateSolidBrush(kDarkEditBackground);

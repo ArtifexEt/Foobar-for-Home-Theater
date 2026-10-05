@@ -3,6 +3,9 @@
 #include "height_resource.h"
 #include "../shared/spatial_channels.h"
 #include <cstring>
+#ifndef SPATIAL_AUDIO_PORTABLE_TEST
+#include "../shared/dialog_scroll.h"
+#endif
 
 namespace spatial_audio {
 namespace {
@@ -82,6 +85,7 @@ void make_preset(const HeightDspConfig& value, dsp_preset& preset) {
     preset.set_data(text.data(), text.size());
 }
 
+#ifndef SPATIAL_AUDIO_PORTABLE_TEST
 double read_edit(HWND window, int id, double fallback) {
     wchar_t buffer[64] = {};
     GetDlgItemTextW(window, id, buffer, static_cast<int>(_countof(buffer)));
@@ -109,21 +113,61 @@ public:
         COMMAND_HANDLER_EX(IDC_HEIGHT_LAYOUT, CBN_SELCHANGE, on_layout_changed)
         COMMAND_HANDLER_EX(IDOK, BN_CLICKED, on_close)
         COMMAND_HANDLER_EX(IDCANCEL, BN_CLICKED, on_close)
+        COMMAND_HANDLER_EX(IDC_HEIGHT_GAIN, EN_CHANGE, on_edit_changed)
+        COMMAND_HANDLER_EX(IDC_TOP_MIDDLE_GAIN, EN_CHANGE, on_edit_changed)
+        COMMAND_HANDLER_EX(IDC_FRONT_DIFFERENCE, EN_CHANGE, on_edit_changed)
+        COMMAND_HANDLER_EX(IDC_SURROUND_FEED, EN_CHANGE, on_edit_changed)
+        COMMAND_HANDLER_EX(IDC_MID_FEED, EN_CHANGE, on_edit_changed)
+        MESSAGE_HANDLER(WM_HSCROLL, on_scroll)
+        MESSAGE_HANDLER(WM_VSCROLL, on_scroll)
+        MESSAGE_HANDLER(WM_MOUSEWHEEL, on_wheel)
+        MESSAGE_HANDLER(WM_MOUSEHWHEEL, on_wheel)
+        MESSAGE_HANDLER(WM_SIZE, on_size)
+        MESSAGE_HANDLER(WM_DPICHANGED, on_dpi_changed)
+        MESSAGE_HANDLER(WM_APP + 25, on_dpi_layout_ready)
+        MESSAGE_HANDLER(WM_DESTROY, on_destroy)
     END_MSG_MAP()
 
 private:
+    struct SliderBinding {
+        int editId;
+        int sliderId;
+        double minimum;
+        double maximum;
+        double scale;
+        double HeightDspConfig::* value;
+    };
+    static constexpr SliderBinding bindings_[] = {
+        {IDC_HEIGHT_GAIN, IDC_HEIGHT_GAIN_SLIDER, -30.0, 6.0, 10.0, &HeightDspConfig::heightGainDb},
+        {IDC_TOP_MIDDLE_GAIN, IDC_TOP_MIDDLE_GAIN_SLIDER, -30.0, 6.0, 10.0, &HeightDspConfig::topMiddleGainDb},
+        {IDC_FRONT_DIFFERENCE, IDC_FRONT_DIFFERENCE_SLIDER, 0.0, 1.0, 100.0, &HeightDspConfig::frontDifference},
+        {IDC_SURROUND_FEED, IDC_SURROUND_FEED_SLIDER, 0.0, 1.0, 100.0, &HeightDspConfig::surroundFeed},
+        {IDC_MID_FEED, IDC_MID_FEED_SLIDER, 0.0, 0.5, 100.0, &HeightDspConfig::midFeed},
+    };
+
+    void sync_slider(const SliderBinding& binding, double value) {
+        const int position = static_cast<int>(std::round(std::clamp(value, binding.minimum, binding.maximum) * binding.scale));
+        SendDlgItemMessage(binding.sliderId, TBM_SETPOS, TRUE, position);
+    }
+
     BOOL on_init(CWindow, LPARAM) {
         HWND combo = GetDlgItem(IDC_HEIGHT_LAYOUT);
         SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"2 speakers (Top Front)"));
         SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"4 speakers (Top Front + Top Back)"));
         SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"6 speakers (dynamic Top Middle)"));
         SendMessageW(combo, CB_SETCURSEL, config_.layout == HeightLayout::Two ? 0 : (config_.layout == HeightLayout::Six ? 2 : 1), 0);
-        write_edit(m_hWnd, IDC_HEIGHT_GAIN, config_.heightGainDb);
-        write_edit(m_hWnd, IDC_TOP_MIDDLE_GAIN, config_.topMiddleGainDb);
-        write_edit(m_hWnd, IDC_FRONT_DIFFERENCE, config_.frontDifference);
-        write_edit(m_hWnd, IDC_SURROUND_FEED, config_.surroundFeed);
-        write_edit(m_hWnd, IDC_MID_FEED, config_.midFeed);
+        updating_ = true;
+        for (const auto& binding : bindings_) {
+            SendDlgItemMessage(binding.sliderId, TBM_SETRANGEMIN, FALSE, static_cast<LPARAM>(binding.minimum * binding.scale));
+            SendDlgItemMessage(binding.sliderId, TBM_SETRANGEMAX, FALSE, static_cast<LPARAM>(binding.maximum * binding.scale));
+            SendDlgItemMessage(binding.sliderId, TBM_SETPAGESIZE, 0, binding.scale == 10.0 ? 10 : 5);
+            write_edit(m_hWnd, binding.editId, config_.*(binding.value));
+            sync_slider(binding, config_.*(binding.value));
+        }
+        updating_ = false;
         update_middle_controls();
+        scroll_.attach(m_hWnd);
+        fit_work_area();
         return TRUE;
     }
 
@@ -131,6 +175,7 @@ private:
         const bool enabled = SendDlgItemMessage(IDC_HEIGHT_LAYOUT, CB_GETCURSEL) == 2;
         ::EnableWindow(GetDlgItem(IDC_TOP_MIDDLE_GAIN), enabled);
         ::EnableWindow(GetDlgItem(IDC_TOP_MIDDLE_LABEL), enabled);
+        ::EnableWindow(GetDlgItem(IDC_TOP_MIDDLE_GAIN_SLIDER), enabled);
     }
 
     void on_layout_changed(UINT, int, CWindow) {
@@ -141,11 +186,12 @@ private:
         if (id == IDOK) {
             const int selected = static_cast<int>(SendDlgItemMessage(IDC_HEIGHT_LAYOUT, CB_GETCURSEL));
             config_.layout = selected == 0 ? HeightLayout::Two : (selected == 2 ? HeightLayout::Six : HeightLayout::Four);
-            config_.heightGainDb = read_edit(m_hWnd, IDC_HEIGHT_GAIN, config_.heightGainDb);
-            config_.topMiddleGainDb = read_edit(m_hWnd, IDC_TOP_MIDDLE_GAIN, config_.topMiddleGainDb);
-            config_.frontDifference = read_edit(m_hWnd, IDC_FRONT_DIFFERENCE, config_.frontDifference);
-            config_.surroundFeed = read_edit(m_hWnd, IDC_SURROUND_FEED, config_.surroundFeed);
-            config_.midFeed = read_edit(m_hWnd, IDC_MID_FEED, config_.midFeed);
+            for (size_t index = 0; index < _countof(bindings_); ++index) {
+                const auto& binding = bindings_[index];
+                // An untouched field must not round an existing preset to the
+                // displayed precision; typed values also retain their precision.
+                if (edited_[index]) config_.*(binding.value) = read_edit(m_hWnd, binding.editId, config_.*(binding.value));
+            }
             dsp_preset_impl updated;
             make_preset(sanitize(config_), updated);
             callback_.on_preset_changed(updated);
@@ -155,10 +201,88 @@ private:
         EndDialog(id);
     }
 
+    void on_edit_changed(UINT, int id, CWindow) {
+        if (updating_) return;
+        for (size_t index = 0; index < _countof(bindings_); ++index) {
+            const auto& binding = bindings_[index];
+            if (binding.editId != id) continue;
+            edited_[index] = true;
+            sync_slider(binding, read_edit(m_hWnd, id, config_.*(binding.value)));
+            break;
+        }
+    }
+
+    LRESULT on_scroll(UINT message, WPARAM wp, LPARAM lp, BOOL&) {
+        if (lp == 0) {
+            scroll_.on_scroll(message == WM_HSCROLL ? SB_HORZ : SB_VERT, wp);
+            return 0;
+        }
+        for (size_t index = 0; index < _countof(bindings_); ++index) {
+            const auto& binding = bindings_[index];
+            if (GetDlgItem(binding.sliderId) != reinterpret_cast<HWND>(lp)) continue;
+            const int position = static_cast<int>(SendDlgItemMessage(binding.sliderId, TBM_GETPOS));
+            updating_ = true;
+            write_edit(m_hWnd, binding.editId, position / binding.scale);
+            updating_ = false;
+            edited_[index] = true;
+            break;
+        }
+        return 0;
+    }
+
+    LRESULT on_wheel(UINT message, WPARAM wp, LPARAM, BOOL& handled) {
+        handled = scroll_.on_mouse_wheel(wp, message == WM_MOUSEHWHEEL);
+        return 0;
+    }
+
+    LRESULT on_size(UINT, WPARAM, LPARAM, BOOL& handled) {
+        scroll_.resize();
+        handled = FALSE;
+        return 0;
+    }
+
+    LRESULT on_dpi_changed(UINT, WPARAM, LPARAM, BOOL& handled) {
+        // Let the dialog manager scale the controls and fonts before measuring
+        // their new bounds. Applying our scroll offset first would be too early.
+        PostMessage(WM_APP + 25);
+        handled = FALSE;
+        return 0;
+    }
+
+    LRESULT on_dpi_layout_ready(UINT, WPARAM, LPARAM, BOOL&) {
+        scroll_.dpi_changed();
+        fit_work_area();
+        return 0;
+    }
+
+    LRESULT on_destroy(UINT, WPARAM, LPARAM, BOOL& handled) {
+        scroll_.detach();
+        handled = FALSE;
+        return 0;
+    }
+
+    void fit_work_area() {
+        MONITORINFO monitor{};
+        monitor.cbSize = sizeof(monitor);
+        RECT window{};
+        if (!GetMonitorInfoW(MonitorFromWindow(m_hWnd, MONITOR_DEFAULTTONEAREST), &monitor)
+            || !GetWindowRect(&window)) return;
+        const RECT& work = monitor.rcWork;
+        const int width = std::min(window.right - window.left, work.right - work.left);
+        const int height = std::min(window.bottom - window.top, work.bottom - work.top);
+        const int left = std::clamp(window.left, work.left, work.right - width);
+        const int top = std::clamp(window.top, work.top, work.bottom - height);
+        SetWindowPos(nullptr, left, top, width, height, SWP_NOZORDER | SWP_NOACTIVATE);
+    }
+
     const dsp_preset& original_;
     HeightDspConfig config_;
     dsp_preset_edit_callback& callback_;
+    spatial_ui::DialogScroll scroll_;
+    bool updating_ = false;
+    bool edited_[_countof(bindings_)]{};
 };
+#endif // SPATIAL_AUDIO_PORTABLE_TEST
 
 float finite_sample(audio_sample value) {
     return std::isfinite(static_cast<double>(value)) ? static_cast<float>(value) : 0.0f;
@@ -221,8 +345,16 @@ bool height_only_dsp::g_get_default_preset(dsp_preset& out) {
 bool height_only_dsp::g_have_config_popup() { return true; }
 
 void height_only_dsp::g_show_config_popup(const dsp_preset& data, HWND parent, dsp_preset_edit_callback& callback) {
+#ifndef SPATIAL_AUDIO_PORTABLE_TEST
+    INITCOMMONCONTROLSEX controls{sizeof(controls), ICC_BAR_CLASSES};
+    InitCommonControlsEx(&controls);
     height_config_popup popup(data, callback);
     popup.DoModal(parent);
+#else
+    (void)data;
+    (void)parent;
+    (void)callback;
+#endif
 }
 
 bool height_only_dsp::on_chunk(audio_chunk* chunk, abort_callback&) {

@@ -57,6 +57,18 @@ Test stereo, 5.1, and 7.1 material. Check that all expected bed channels remain 
 
 Finally switch back to **7.1.4** or **four ceiling speakers** with output Auto. Confirm the original four-height playback still works and the .6 path no longer requests Top Middle objects. If you use front wides, also check 9.1.4: its two dynamic channels must remain front wides. Reload an old saved profile, restart foobar2000, and verify old layout/gain/delay/mapping settings plus the new saved middle positions.
 
+### Controls, small windows, and listening comparison
+
+- **Spatial Audio DSP > Channels:** Top middle left/right have separate gain and delay sliders, numeric fields, and polarity switches. Start with **0 ms** additional DSP delay; speaker distance compensation belongs in the calibrated AVR setup.
+- **Add Ceiling Speakers:** height gain, Top middle trim, front difference, surround/rear feed, and center feed have sliders paired with numeric fields. The middle trim is enabled for six speakers and affects newly generated middle signals. This DSP has no per-channel delay control.
+- **Spatial Audio Output > Layout:** half-width, height, and front/back position have sliders paired with numeric fields. **Test** also has gain and frequency sliders. Object coordinates do not replace speaker delay calibration.
+
+Shrink the Preferences window and the resizable Add Ceiling Speakers popup. Scrollbars should appear only where content does not fit; check both axes, wheel scrolling, and Tab/Shift+Tab reaching the last middle controls and OK/Cancel. Enlarge the window again: the controls must return into view and unnecessary scrollbars disappear. Repeat at Windows display scaling 100%, 150%, and 200%, and when moving between monitors. Change a value with its slider, type a precise value, apply/save, and reopen to confirm persistence; Cancel in Add Ceiling Speakers must retain the previous preset.
+
+The Windows CI tests instantiate the real dialog resources with the production scroll helper at native, 150%, and 200% **dialog font sizes**. They check overflow, control visibility and scroll reset. They do not replace the above test inside foobar2000 or a physical monitor DPI transition.
+
+For the listening comparison use short percussion and speech, compare .4/.6 at matched perceived loudness, and try reducing Top Middle gain if the image becomes diffuse. Generated middle signals are related to the other ceiling signals; averaging prevents a simple per-channel sum overload but does not preserve total acoustic energy or eliminate room interference. Report a distinct delayed repeat separately from tonal coloration or a broader image.
+
 ### Report results
 
 Include the build version/run URL, Windows version, GPU/HDMI audio driver, AVR model/firmware, connection path (direct HDMI or TV/eARC), physical speaker assignments, chosen DSP chain/layout, Windows spatial format, probe text, object coordinates, and each left/right test result. Say whether other ceiling speakers also played, and whether the symptom occurs in one-shot tests, music, or both. An AVR Atmos badge is useful context but not a routing measurement. If possible, include a short recording or the AVR's channel activity display. PS5 success is a useful comparison; it does not establish that the two software paths use the same rendering method.
@@ -104,6 +116,18 @@ Wyjście pozostaw na **Auto**. Za końcowym DSP przestrzennym nie umieszczaj pro
 Sprawdź kolejno stereo, 5.1 i 7.1: kanały dolne, obie środkowe wysokości, rozróżnienie lewej/prawej strony, brak przesterowania i przerw. Pełny DSP powinien wysyłać odpowiednio 12/14/16 kanałów PCM dla 5.1.6/7.1.6/9.1.6. Sprawdź również materiał 7.1.4: jego istniejące wysokości mają pozostać, a środkowa para powstać z nich.
 
 Na koniec wróć do **7.1.4** albo **czterech głośników sufitowych** i wyjścia Auto. Potwierdź działanie wcześniejszego układu bez żądania obiektów Top Middle. Jeśli używasz front-wide, sprawdź także 9.1.4: dwa obiekty nadal mają reprezentować szerokie kanały przednie. Wczytaj stary profil, uruchom ponownie foobar2000 i sprawdź zachowanie układu, poziomów, opóźnień, mapowania oraz nowych zapisanych pozycji.
+
+### Suwaki, małe okna i porównanie odsłuchowe
+
+- **Spatial Audio DSP > Channels:** Top middle left/right mają osobne suwaki poziomu i opóźnienia, pola liczbowe oraz przełączniki polaryzacji. Zacznij od **0 ms** dodatkowego opóźnienia DSP; korektę odległości głośników ustaw w skalibrowanym amplitunerze.
+- **Add Ceiling Speakers:** poziom wysokości, Top middle trim, front difference, surround/rear feed i center feed mają suwaki połączone z polami liczbowymi. Środkowa korekta jest aktywna przy sześciu głośnikach i dotyczy nowo tworzonego sygnału. Ten DSP nie ma osobnej regulacji opóźnień kanałów.
+- **Spatial Audio Output > Layout:** half-width, height i front/back mają suwaki i pola liczbowe. Na stronie **Test** suwaki regulują też poziom i częstotliwość tonu. Pozycja obiektu nie zastępuje kalibracji opóźnienia głośnika.
+
+Zmniejsz okno Preferencji oraz okno Add Ceiling Speakers, którego rozmiar można teraz zmieniać. Paski przewijania powinny pojawić się tylko tam, gdzie zawartość się nie mieści. Sprawdź obie osie, kółko myszy oraz Tab/Shift+Tab: ostatnie kontrolki Top Middle i przyciski OK/Cancel muszą być dostępne. Powiększ okno: zawartość powinna wrócić na miejsce, a zbędne paski zniknąć. Powtórz przy skalowaniu Windows 100%, 150% i 200% oraz po przeniesieniu między monitorami. Zmień wartość suwakiem, wpisz dokładną liczbę, zapisz i ponownie otwórz ustawienia. Cancel w Add Ceiling Speakers ma zachować poprzedni preset.
+
+Testy Windows CI tworzą rzeczywiste okna z zasobów komponentów i używają produkcyjnego mechanizmu przewijania przy bazowym, 150% i 200% **rozmiarze czcionki okna**. Sprawdzają przepełnienie, dostępność kontrolek i powrót po powiększeniu. Nie zastępują testu wewnątrz foobar2000 ani rzeczywistej zmiany DPI monitora.
+
+Do porównania odsłuchowego użyj krótkich uderzeń perkusji i mowy. Wyrównaj odczuwaną głośność .4/.6; jeśli lokalizacja się rozmywa, zmniejsz poziom Top Middle. Sygnał środków jest powiązany z pozostałymi wysokościami. Uśrednianie ogranicza poziom pojedynczego kanału, ale nie zachowuje całkowitej energii akustycznej i nie usuwa interferencji w pokoju. Zgłoś osobno wyraźne opóźnione powtórzenie, zmianę barwy i poszerzenie sceny.
 
 ### Informacje do zgłoszenia
 
