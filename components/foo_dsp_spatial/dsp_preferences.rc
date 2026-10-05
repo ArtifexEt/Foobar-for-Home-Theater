@@ -24,31 +24,31 @@ FONT 8, "MS Shell Dlg", 400, 0, 1
     LTEXT       "Mode", IDC_STATIC, 11, 30, 65, 13
     COMBOBOX    idUpmixMode, 109, 28, 120, 74, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT       "Master gain (dB)", IDC_STATIC, 11, 49, 95, 13
-    EDITTEXT    idMasterGain, 109, 49, 37, 13, ES_AUTOHSCROLL
+    EDITTEXT    idMasterGain, 109, 49, 37, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idMasterGainSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 150, 49, 125, 13
     LTEXT       "Headroom (dB)", IDC_STATIC, 11, 68, 95, 13
-    EDITTEXT    idHeadroom, 109, 68, 37, 13, ES_AUTOHSCROLL
+    EDITTEXT    idHeadroom, 109, 68, 37, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idHeadroomSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 150, 68, 125, 13
     LTEXT       "Center gain (dB)", IDC_STATIC, 11, 87, 95, 13
-    EDITTEXT    idCenterGain, 109, 87, 37, 13, ES_AUTOHSCROLL
+    EDITTEXT    idCenterGain, 109, 87, 37, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idCenterGainSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 150, 87, 125, 13
     LTEXT       "Surround gain (dB)", IDC_STATIC, 11, 106, 95, 13
-    EDITTEXT    idSurroundGain, 109, 106, 37, 13, ES_AUTOHSCROLL
+    EDITTEXT    idSurroundGain, 109, 106, 37, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idSurroundGainSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 150, 106, 125, 13
     LTEXT       "Rear gain (dB)", IDC_STATIC, 11, 125, 95, 13
-    EDITTEXT    idRearGain, 109, 125, 37, 13, ES_AUTOHSCROLL
+    EDITTEXT    idRearGain, 109, 125, 37, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idRearGainSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 150, 125, 125, 13
     LTEXT       "Height gain (dB)", IDC_STATIC, 11, 144, 95, 13
-    EDITTEXT    idHeightGain, 109, 144, 37, 13, ES_AUTOHSCROLL
+    EDITTEXT    idHeightGain, 109, 144, 37, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idHeightGainSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 150, 144, 125, 13
     LTEXT       "Side amount", IDC_STATIC, 11, 163, 95, 13
-    EDITTEXT    idSideAmount, 109, 163, 37, 13, ES_AUTOHSCROLL
+    EDITTEXT    idSideAmount, 109, 163, 37, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idSideAmountSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 150, 163, 125, 13
     LTEXT       "Height from mid", IDC_STATIC, 11, 182, 95, 13
-    EDITTEXT    idHeightFromMid, 109, 182, 37, 13, ES_AUTOHSCROLL
+    EDITTEXT    idHeightFromMid, 109, 182, 37, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idHeightFromMidSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 150, 182, 125, 13
     LTEXT       "Decorrelate", IDC_STATIC, 11, 201, 95, 13
-    EDITTEXT    idDecorrelation, 109, 201, 37, 13, ES_AUTOHSCROLL
+    EDITTEXT    idDecorrelation, 109, 201, 37, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idDecorrelationSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 150, 201, 125, 13
     PUSHBUTTON  "Copy profile", idCopyProfileButton, 11, 220, 85, 14
     PUSHBUTTON  "Paste profile", idPasteProfileButton, 100, 220, 85, 14
@@ -65,99 +65,99 @@ FONT 8, "MS Shell Dlg", 400, 0, 1
     LTEXT       "Delay ms", IDC_STATIC, 164, 9, 76, 13
     LTEXT       "Inv", IDC_STATIC, 243, 9, 20, 13
     LTEXT       "Front left", IDC_STATIC, 11, 26, 72, 13
-    EDITTEXT    idChannelGainEditFrontLeft, 86, 26, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelGainEditFrontLeft, 86, 26, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelGainSliderFrontLeft, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 118, 26, 44, 13
-    EDITTEXT    idChannelDelayEditFrontLeft, 164, 26, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelDelayEditFrontLeft, 164, 26, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelDelaySliderFrontLeft, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 196, 26, 44, 13
     CONTROL     "", idChannelInvertFrontLeft, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 243, 26, 14, 13
     LTEXT       "Front right", IDC_STATIC, 11, 43, 72, 13
-    EDITTEXT    idChannelGainEditFrontRight, 86, 43, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelGainEditFrontRight, 86, 43, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelGainSliderFrontRight, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 118, 43, 44, 13
-    EDITTEXT    idChannelDelayEditFrontRight, 164, 43, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelDelayEditFrontRight, 164, 43, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelDelaySliderFrontRight, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 196, 43, 44, 13
     CONTROL     "", idChannelInvertFrontRight, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 243, 43, 14, 13
     LTEXT       "Front center", IDC_STATIC, 11, 60, 72, 13
-    EDITTEXT    idChannelGainEditFrontCenter, 86, 60, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelGainEditFrontCenter, 86, 60, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelGainSliderFrontCenter, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 118, 60, 44, 13
-    EDITTEXT    idChannelDelayEditFrontCenter, 164, 60, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelDelayEditFrontCenter, 164, 60, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelDelaySliderFrontCenter, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 196, 60, 44, 13
     CONTROL     "", idChannelInvertFrontCenter, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 243, 60, 14, 13
     LTEXT       "LFE", IDC_STATIC, 11, 77, 72, 13
-    EDITTEXT    idChannelGainEditLfe, 86, 77, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelGainEditLfe, 86, 77, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelGainSliderLfe, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 118, 77, 44, 13
-    EDITTEXT    idChannelDelayEditLfe, 164, 77, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelDelayEditLfe, 164, 77, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelDelaySliderLfe, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 196, 77, 44, 13
     CONTROL     "", idChannelInvertLfe, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 243, 77, 14, 13
     LTEXT       "Side left", IDC_STATIC, 11, 94, 72, 13
-    EDITTEXT    idChannelGainEditSideLeft, 86, 94, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelGainEditSideLeft, 86, 94, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelGainSliderSideLeft, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 118, 94, 44, 13
-    EDITTEXT    idChannelDelayEditSideLeft, 164, 94, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelDelayEditSideLeft, 164, 94, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelDelaySliderSideLeft, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 196, 94, 44, 13
     CONTROL     "", idChannelInvertSideLeft, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 243, 94, 14, 13
     LTEXT       "Side right", IDC_STATIC, 11, 111, 72, 13
-    EDITTEXT    idChannelGainEditSideRight, 86, 111, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelGainEditSideRight, 86, 111, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelGainSliderSideRight, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 118, 111, 44, 13
-    EDITTEXT    idChannelDelayEditSideRight, 164, 111, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelDelayEditSideRight, 164, 111, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelDelaySliderSideRight, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 196, 111, 44, 13
     CONTROL     "", idChannelInvertSideRight, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 243, 111, 14, 13
     LTEXT       "Back left", IDC_STATIC, 11, 128, 72, 13
-    EDITTEXT    idChannelGainEditBackLeft, 86, 128, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelGainEditBackLeft, 86, 128, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelGainSliderBackLeft, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 118, 128, 44, 13
-    EDITTEXT    idChannelDelayEditBackLeft, 164, 128, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelDelayEditBackLeft, 164, 128, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelDelaySliderBackLeft, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 196, 128, 44, 13
     CONTROL     "", idChannelInvertBackLeft, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 243, 128, 14, 13
     LTEXT       "Back right", IDC_STATIC, 11, 145, 72, 13
-    EDITTEXT    idChannelGainEditBackRight, 86, 145, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelGainEditBackRight, 86, 145, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelGainSliderBackRight, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 118, 145, 44, 13
-    EDITTEXT    idChannelDelayEditBackRight, 164, 145, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelDelayEditBackRight, 164, 145, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelDelaySliderBackRight, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 196, 145, 44, 13
     CONTROL     "", idChannelInvertBackRight, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 243, 145, 14, 13
     LTEXT       "Top front left", IDC_STATIC, 11, 162, 72, 13
-    EDITTEXT    idChannelGainEditTopFrontLeft, 86, 162, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelGainEditTopFrontLeft, 86, 162, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelGainSliderTopFrontLeft, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 118, 162, 44, 13
-    EDITTEXT    idChannelDelayEditTopFrontLeft, 164, 162, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelDelayEditTopFrontLeft, 164, 162, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelDelaySliderTopFrontLeft, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 196, 162, 44, 13
     CONTROL     "", idChannelInvertTopFrontLeft, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 243, 162, 14, 13
     LTEXT       "Top front right", IDC_STATIC, 11, 179, 72, 13
-    EDITTEXT    idChannelGainEditTopFrontRight, 86, 179, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelGainEditTopFrontRight, 86, 179, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelGainSliderTopFrontRight, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 118, 179, 44, 13
-    EDITTEXT    idChannelDelayEditTopFrontRight, 164, 179, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelDelayEditTopFrontRight, 164, 179, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelDelaySliderTopFrontRight, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 196, 179, 44, 13
     CONTROL     "", idChannelInvertTopFrontRight, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 243, 179, 14, 13
     LTEXT       "Top back left", IDC_STATIC, 11, 196, 72, 13
-    EDITTEXT    idChannelGainEditTopBackLeft, 86, 196, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelGainEditTopBackLeft, 86, 196, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelGainSliderTopBackLeft, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 118, 196, 44, 13
-    EDITTEXT    idChannelDelayEditTopBackLeft, 164, 196, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelDelayEditTopBackLeft, 164, 196, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelDelaySliderTopBackLeft, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 196, 196, 44, 13
     CONTROL     "", idChannelInvertTopBackLeft, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 243, 196, 14, 13
     LTEXT       "Top back right", IDC_STATIC, 11, 213, 72, 13
-    EDITTEXT    idChannelGainEditTopBackRight, 86, 213, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelGainEditTopBackRight, 86, 213, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelGainSliderTopBackRight, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 118, 213, 44, 13
-    EDITTEXT    idChannelDelayEditTopBackRight, 164, 213, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelDelayEditTopBackRight, 164, 213, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelDelaySliderTopBackRight, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 196, 213, 44, 13
     CONTROL     "", idChannelInvertTopBackRight, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 243, 213, 14, 13
     LTEXT       "Front wide left", IDC_STATIC, 11, 230, 72, 13
-    EDITTEXT    idChannelGainEditFrontWideLeft, 86, 230, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelGainEditFrontWideLeft, 86, 230, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelGainSliderFrontWideLeft, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 118, 230, 44, 13
-    EDITTEXT    idChannelDelayEditFrontWideLeft, 164, 230, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelDelayEditFrontWideLeft, 164, 230, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelDelaySliderFrontWideLeft, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 196, 230, 44, 13
     CONTROL     "", idChannelInvertFrontWideLeft, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 243, 230, 14, 13
     LTEXT       "Front wide right", IDC_STATIC, 11, 247, 72, 13
-    EDITTEXT    idChannelGainEditFrontWideRight, 86, 247, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelGainEditFrontWideRight, 86, 247, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelGainSliderFrontWideRight, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 118, 247, 44, 13
-    EDITTEXT    idChannelDelayEditFrontWideRight, 164, 247, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelDelayEditFrontWideRight, 164, 247, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelDelaySliderFrontWideRight, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 196, 247, 44, 13
     CONTROL     "", idChannelInvertFrontWideRight, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 243, 247, 14, 13
     LTEXT       "Top middle left", IDC_STATIC, 11, 264, 72, 13
-    EDITTEXT    idChannelGainEditTopMiddleLeft, 86, 264, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelGainEditTopMiddleLeft, 86, 264, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelGainSliderTopMiddleLeft, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 118, 264, 44, 13
-    EDITTEXT    idChannelDelayEditTopMiddleLeft, 164, 264, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelDelayEditTopMiddleLeft, 164, 264, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelDelaySliderTopMiddleLeft, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 196, 264, 44, 13
     CONTROL     "", idChannelInvertTopMiddleLeft, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 243, 264, 14, 13
     LTEXT       "Top middle right", IDC_STATIC, 11, 281, 72, 13
-    EDITTEXT    idChannelGainEditTopMiddleRight, 86, 281, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelGainEditTopMiddleRight, 86, 281, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelGainSliderTopMiddleRight, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 118, 281, 44, 13
-    EDITTEXT    idChannelDelayEditTopMiddleRight, 164, 281, 30, 13, ES_AUTOHSCROLL
+    EDITTEXT    idChannelDelayEditTopMiddleRight, 164, 281, 30, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idChannelDelaySliderTopMiddleRight, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 196, 281, 44, 13
     CONTROL     "", idChannelInvertTopMiddleRight, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 243, 281, 14, 13
 }
@@ -188,10 +188,10 @@ FONT 8, "MS Shell Dlg", 400, 0, 1
 {
     CONTROL     "Enable LFE extraction", idEnableLfe, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 11, 11, 130, 13
     LTEXT       "LFE gain (dB)", IDC_STATIC, 11, 30, 95, 13
-    EDITTEXT    idLfeGain, 109, 30, 37, 13, ES_AUTOHSCROLL
+    EDITTEXT    idLfeGain, 109, 30, 37, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idLfeGainSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 150, 30, 125, 13
     LTEXT       "LFE low-pass (Hz)", IDC_STATIC, 11, 49, 95, 13
-    EDITTEXT    idLfeLowpass, 109, 49, 37, 13, ES_AUTOHSCROLL
+    EDITTEXT    idLfeLowpass, 109, 49, 37, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idLfeLowpassSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 150, 49, 125, 13
 }
 
@@ -204,7 +204,7 @@ FONT 8, "MS Shell Dlg", 400, 0, 1
     LTEXT       "Limiter mode", IDC_STATIC, 70, 11, 65, 13
     COMBOBOX    idLimiterMode, 138, 9, 138, 74, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT       "Limiter ceiling (dB)", IDC_STATIC, 11, 30, 95, 13
-    EDITTEXT    idLimiterCeiling, 109, 30, 37, 13, ES_AUTOHSCROLL
+    EDITTEXT    idLimiterCeiling, 109, 30, 37, 13, ES_AUTOHSCROLL | WS_BORDER | WS_TABSTOP
     CONTROL     "", idLimiterCeilingSlider, "msctls_trackbar32", WS_TABSTOP | TBS_HORZ | TBS_NOTICKS, 150, 30, 125, 13
 }
 

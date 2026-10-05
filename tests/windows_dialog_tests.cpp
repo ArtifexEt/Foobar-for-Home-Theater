@@ -240,6 +240,15 @@ void test_page(HWND owner, const Page& page, int fontPercent) {
     int contentWidth = 0, contentHeight = 0, targetWidth = 0, targetHeight = 0;
     for (HWND child = GetWindow(dialog.window, GW_CHILD); child; child = GetWindow(child, GW_HWNDNEXT)) {
         const RECT bounds = control_rect(dialog.window, child);
+        wchar_t className[32]{};
+        GetClassNameW(child, className, 32);
+        if (std::wstring(className) == L"Edit") {
+            const auto style = GetWindowLongPtrW(child, GWL_STYLE);
+            const auto extendedStyle = GetWindowLongPtrW(child, GWL_EXSTYLE);
+            require((style & WS_TABSTOP) != 0, "Numeric/report edit is not keyboard focusable");
+            require((style & WS_BORDER) != 0 || (extendedStyle & WS_EX_CLIENTEDGE) != 0,
+                "Edit field has no visible boundary");
+        }
         contentWidth = std::max(contentWidth, static_cast<int>(bounds.right));
         contentHeight = std::max(contentHeight, static_cast<int>(bounds.bottom));
     }
