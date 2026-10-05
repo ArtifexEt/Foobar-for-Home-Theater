@@ -388,7 +388,7 @@ void run_directional_test_worker(int target, bool preferDynamicObject, double ga
         throw_if_failed(stream->Start(), "Start spatial stream");
 
         FB2K_console_formatter() << "foo_out_spatial_audio test: " << targetDef->key
-            << " on " << narrow(endpointName.c_str()) << (useDynamicObject ? " (dynamic)" : " (static)");
+            << " on " << narrow(endpointName.c_str()).c_str() << (useDynamicObject ? " (dynamic)" : " (static)");
         double phase = 0.0;
         double renderedSeconds = 0.0;
         const double durationSeconds = 1.4;
