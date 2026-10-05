@@ -184,6 +184,43 @@ struct Page {
     bool screenshot = false;
 };
 
+class CaptureVisibility {
+public:
+    explicit CaptureVisibility(HWND dialog) {
+        // WM_PRINT's PRF_CHILDREN visits visible children. Native single-line
+        // Edit controls additionally depend on ancestor visibility. Show only
+        // the harness, outside the desktop and without activating it.
+        for (HWND window = dialog; window; window = GetParent(window)) {
+            State state{window};
+            GetWindowRect(window, &state.bounds);
+            const auto style = GetWindowLongPtrW(window, GWL_STYLE);
+            state.visible = (style & WS_VISIBLE) != 0;
+            state.topLevel = (style & WS_CHILD) == 0;
+            windows_.push_back(state);
+        }
+        for (auto it = windows_.rbegin(); it != windows_.rend(); ++it) {
+            if (it->topLevel)
+                SetWindowPos(it->window, nullptr, -20000, -20000, 0, 0,
+                    SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER);
+            ShowWindow(it->window, SW_SHOWNOACTIVATE);
+        }
+        RedrawWindow(dialog, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_FRAME | RDW_ALLCHILDREN | RDW_UPDATENOW);
+    }
+
+    ~CaptureVisibility() {
+        for (const auto& state : windows_) {
+            if (!state.visible) ShowWindow(state.window, SW_HIDE);
+            if (state.topLevel)
+                SetWindowPos(state.window, nullptr, state.bounds.left, state.bounds.top, 0, 0,
+                    SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER);
+        }
+    }
+
+private:
+    struct State { HWND window; RECT bounds{}; bool visible = false; bool topLevel = false; };
+    std::vector<State> windows_;
+};
+
 void save_screenshot(HWND dialog, int resource, int percent, const wchar_t* viewport) {
     wchar_t outputDirectory[32768]{};
     const DWORD length = GetEnvironmentVariableW(L"SPATIAL_DIALOG_SCREENSHOT_DIR", outputDirectory, 32768);
@@ -192,6 +229,14 @@ void save_screenshot(HWND dialog, int resource, int percent, const wchar_t* view
     std::filesystem::create_directories(outputDirectory);
     const auto path = std::filesystem::path(outputDirectory) /
         (L"dialog-" + std::to_wstring(resource) + L"-font-" + std::to_wstring(percent) + L"-" + viewport + L".png");
+    CaptureVisibility visibility(dialog);
+    require(IsWindowVisible(dialog) != FALSE, "Screenshot dialog has hidden ancestors");
+    for (HWND child = GetWindow(dialog, GW_CHILD); child; child = GetWindow(child, GW_HWNDNEXT)) {
+        wchar_t className[32]{};
+        GetClassNameW(child, className, 32);
+        if (std::wstring(className) == L"Edit")
+            require(IsWindowVisible(child) != FALSE, "Screenshot edit has hidden ancestors");
+    }
     RECT windowBounds{};
     require(GetWindowRect(dialog, &windowBounds) != FALSE, "Screenshot window bounds unavailable");
     const RECT bounds{0, 0, windowBounds.right - windowBounds.left, windowBounds.bottom - windowBounds.top};
@@ -201,7 +246,7 @@ void save_screenshot(HWND dialog, int resource, int percent, const wchar_t* view
     require(screen != nullptr && canvas != nullptr && bitmap != nullptr, "Screenshot bitmap allocation failed");
     const HGDIOBJ previous = SelectObject(canvas, bitmap);
     FillRect(canvas, &bounds, GetSysColorBrush(COLOR_3DFACE));
-    // Capture the whole hidden window, including scrollbar and edit borders;
+    // Capture the whole offscreen window, including scrollbar and edit borders;
     // no desktop capture is involved. This is the native resource test harness.
     SendMessageW(dialog, WM_PRINT, reinterpret_cast<WPARAM>(canvas),
         PRF_NONCLIENT | PRF_CLIENT | PRF_ERASEBKGND | PRF_CHILDREN);
