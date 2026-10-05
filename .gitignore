@@ -17,3 +17,12 @@ CMakeUserPresets.json
 *.swp
 ._*
 .DS_Store
+
+# Generated SDK copies, distribution packages, and release staging files.
+/external/
+/dist/
+/components/*/bin/
+/*.fb2k-component
+/foo_*.zip
+/Foobar-for-Home-Theater-windows-x64.zip
+/release-notes.md

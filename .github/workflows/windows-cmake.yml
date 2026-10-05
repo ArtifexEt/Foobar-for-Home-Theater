@@ -51,14 +51,15 @@ jobs:
 
       - name: Test DSP processing, channel routing and native dialogs
         env:
-          SPATIAL_DIALOG_SCREENSHOT_DIR: ${{ github.workspace }}/build/dialog-screenshots
+          SPATIAL_DIALOG_SCREENSHOT_DIR: ${{ github.event_name == 'pull_request' && format('{0}/build/dialog-screenshots', github.workspace) || '' }}
         run: ctest --test-dir build -C Release --output-on-failure
 
       - name: Upload native dialog verification images
-        if: always()
+        if: always() && github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: Windows-native-dialog-verification
+          retention-days: 30
           path: build/dialog-screenshots/*.png
           if-no-files-found: warn
 
@@ -130,13 +131,13 @@ jobs:
           Copy-Item build/Release/StereoSpatialPlayer.exe dist/
           Copy-Item config/*.ini dist/config/
           Copy-Item README.md dist/
-          Copy-Item docs/TESTING_SIX_HEIGHTS.md dist/docs/
+          Copy-Item docs/SIX_HEIGHT_SETUP.md dist/docs/
           @(
             "Examples:",
             "  .\SpatialAudioDiagnostics.exe --list-devices",
-            "  .\SpatialAudioDiagnostics.exe --device korytarz --probe --config .\config\spatial_audio_profile.ini",
-            "  .\SpatialAudioDiagnostics.exe --device korytarz --static-test --config .\config\spatial_audio_profile.ini",
-            "  .\StereoSpatialPlayer.exe --device korytarz --wav C:\path\to\stereo-48k.wav --mode bed --config .\config\spatial_audio_profile.ini"
+            "  .\SpatialAudioDiagnostics.exe --device `"YOUR AVR NAME`" --probe --config .\config\spatial_audio_profile.ini",
+            "  .\SpatialAudioDiagnostics.exe --device `"YOUR AVR NAME`" --static-test --config .\config\spatial_audio_profile.ini",
+            "  .\StereoSpatialPlayer.exe --device `"YOUR AVR NAME`" --wav C:\path\to\stereo-48k.wav --mode bed --config .\config\spatial_audio_profile.ini"
           ) | Set-Content -Path dist/DIAGNOSTICS.txt -Encoding utf8
           Compress-Archive -Path external/foobar2000-sdk/foobar2000/foo_out_spatial_audio/bin/x64/Release/foo_out_spatial_audio.dll -DestinationPath foo_out_spatial_audio.zip -Force
           Compress-Archive -Path external/foobar2000-sdk/foobar2000/foo_dsp_spatial/bin/x64/Release/foo_dsp_spatial.dll -DestinationPath foo_dsp_spatial.zip -Force
@@ -162,8 +163,8 @@ jobs:
             $archive = [IO.Compression.ZipFile]::OpenRead((Resolve-Path $component.Archive))
             try {
               $names = @($archive.Entries | ForEach-Object { $_.FullName.Replace('\', '/') })
-              if ($names -notcontains $component.Dll) {
-                throw "$($component.Archive) does not contain $($component.Dll) at archive root."
+              if ($names.Count -ne 1 -or $names[0] -ne $component.Dll) {
+                throw "$($component.Archive) must contain only $($component.Dll) at archive root."
               }
             } finally {
               $archive.Dispose()
@@ -173,8 +174,8 @@ jobs:
           $bundle = [IO.Compression.ZipFile]::OpenRead((Resolve-Path "Foobar-for-Home-Theater-windows-x64.zip"))
           try {
             $bundleNames = @($bundle.Entries | ForEach-Object { $_.FullName.Replace('\', '/') })
-            if ($bundleNames -notcontains "docs/TESTING_SIX_HEIGHTS.md") {
-              throw "Main Windows ZIP does not contain the six-height testing guide."
+            if ($bundleNames -notcontains "docs/SIX_HEIGHT_SETUP.md") {
+              throw "Main Windows ZIP does not contain the six-height setup guide."
             }
             foreach ($profile in Get-ChildItem config/*.ini) {
               if ($bundleNames -notcontains "config/$($profile.Name)") {
@@ -187,14 +188,32 @@ jobs:
                 throw "Main Windows ZIP does not contain $expected."
               }
             }
+
+            # The same clean distribution is used by PR builds and main releases.
+            # Regression-test executables, UI captures and temporary files must
+            # never become release assets, even if the build directory grows.
+            $expectedFiles = @(
+              "SpatialAudioDiagnostics.exe", "StereoSpatialPlayer.exe",
+              "README.md", "DIAGNOSTICS.txt", "docs/SIX_HEIGHT_SETUP.md"
+            )
+            $expectedFiles += @(Get-ChildItem config/*.ini | ForEach-Object { "config/$($_.Name)" })
+            $expectedFiles += @($components | ForEach-Object { "components/$($_.Archive)" })
+            $actualFiles = @($bundle.Entries | Where-Object { $_.Name -ne "" } | ForEach-Object { $_.FullName.Replace('\', '/') })
+            $difference = @(Compare-Object ($expectedFiles | Sort-Object) ($actualFiles | Sort-Object))
+            if ($difference.Count -ne 0) {
+              throw "Unexpected or missing distribution files: $($difference | Out-String)"
+            }
           } finally {
             $bundle.Dispose()
           }
 
-      - name: Upload workflow artifact
+      - name: Upload development or manual build
+        # A push to main publishes the verified files as a normal release below.
+        if: github.event_name != 'push' || github.ref != 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
           name: Foobar-for-Home-Theater-windows-x64
+          retention-days: 30
           path: |
             Foobar-for-Home-Theater-windows-x64.zip
             foo_out_spatial_audio.fb2k-component
@@ -212,6 +231,9 @@ jobs:
           $dspAsset = "foo_dsp_spatial.fb2k-component"
           $heightDspAsset = "foo_dsp_height.fb2k-component"
 
+          if ($env:COMPONENT_VERSION -notmatch '^0\.5\.\d+(-r\d+)?$') {
+            throw "Main releases require a stable component version: $env:COMPONENT_VERSION"
+          }
           $tag = $env:RELEASE_TAG
           $title = "Foobar for Home Theater $tag"
 
@@ -261,7 +283,7 @@ jobs:
             "- ``foo_dsp_spatial.fb2k-component`` - foobar2000 spatial upmix DSP component",
             "- ``foo_dsp_height.fb2k-component`` - chain-friendly DSP that adds only ceiling speakers",
             "- ``foo_out_spatial_audio.fb2k-component`` - foobar2000 Windows Spatial Audio output component",
-            "- ``Foobar-for-Home-Theater-windows-x64.zip`` - all foobar2000 components plus standalone diagnostics and test tools",
+            "- ``Foobar-for-Home-Theater-windows-x64.zip`` - all foobar2000 components plus standalone playback and diagnostics",
             "",
             "## $changesHeader",
             $changes

@@ -1,18 +1,20 @@
-# Six-height test build: 5.1.6 / 7.1.6 / 9.1.6
+# Six-height setup and validation: 5.1.6 / 7.1.6 / 9.1.6
 
 ## English
 
-### What this build does
+### Scope and rendering model
+
+These components process **foobar2000 audio** and generate their own diagnostic tones. They do not change the Windows mixer or audio from other players or games, including Resident Evil 2 and Cyberpunk 2077. Launching a game cannot validate this DSP. Use the output plugin’s one-shot tests, music played through foobar2000, or the bundled standalone diagnostics.
 
 Top Front and Top Back use four static Spatial Audio channels. Top Middle left/right use two stationary dynamic objects. The full DSP offers `5.1.6`, `7.1.6`, and `9.1.6`; `Add Ceiling Speakers` offers `6 speakers (dynamic Top Middle)` while preserving the incoming bed. A 9.1.6 stream also needs two front-wide objects.
 
-The build changes audio played by foobar2000 through these components. It does not change the Windows mixer, other players, or games. This is synthesized PCM with positioned objects, not an Atmos movie decoder or a recovery of the original objects from a flattened mix.
+The DSP synthesizes missing heights from PCM. The output component submits the resulting channels as static and positioned dynamic objects. The DSP does not decode an Atmos movie or recover the original objects from a flattened mix.
 
-This is a **test build**. Automated tests verify PCM processing, masks, profile compatibility, and routing decisions. No physical 7.1.6 AVR result is claimed. Microsoft exposes arbitrary dynamic positions, and the AVR renderer decides which physical speakers reproduce those positions. A successful test command or an Atmos indicator alone is insufficient evidence of discrete Top Middle routing. [Microsoft Spatial Sound](https://learn.microsoft.com/en-us/windows/win32/coreaudio/spatial-sound) · [Dolby home-theater rendering](https://professional.dolby.com/siteassets/tv/home/dolby-atmos/dolby-atmos-for-home-theater.pdf)
+Automated tests verify PCM processing, masks, profile compatibility, and routing decisions. Physical speaker routing must be checked with your endpoint and AVR; software tests do not establish that result. Microsoft exposes arbitrary dynamic positions, and the AVR renderer decides which physical speakers reproduce those positions. A successful test command or an Atmos indicator alone is insufficient evidence of discrete Top Middle routing. [Microsoft Spatial Sound](https://learn.microsoft.com/en-us/windows/win32/coreaudio/spatial-sound) · [Dolby home-theater rendering](https://professional.dolby.com/siteassets/tv/home/dolby-atmos/dolby-atmos-for-home-theater.pdf)
 
 ### Install and choose the endpoint
 
-1. Download **Artifacts > Foobar-for-Home-Theater-windows-x64** from the successful GitHub Actions run for this branch/PR. Extract the artifact and the Windows ZIP inside it.
+1. Download and extract the latest Windows ZIP from [GitHub Releases](https://github.com/ArtifexEt/Foobar-for-Home-Theater/releases/latest). It includes the components, standalone diagnostics, and configuration profiles used below.
 2. Save your existing DSP/output profiles and keep the previous component installers for comparison or rollback. Install **all three matching components** from `components/`: `foo_dsp_spatial`, `foo_dsp_height`, and `foo_out_spatial_audio`. Restart 64-bit foobar2000 2.x.
 3. Configure the AVR for your actual 5.1.6, 7.1.6, or 9.1.6 room, with Top Front, Top Middle, and Top Back/Rear pairs assigned correctly. Select the HDMI/eARC endpoint and enable **Dolby Atmos for home theater** in Windows.
 4. Make that endpoint the **Windows default audio device**. Preferences **Probe endpoint** and all one-shot tests use the default multimedia device. Select the same device under foobar2000 **Playback > Output**; choosing a named foobar2000 device alone does not retarget the Preferences tests.
@@ -71,21 +73,23 @@ For the listening comparison use short percussion and speech, compare .4/.6 at m
 
 ### Report results
 
-Include the build version/run URL, Windows version, GPU/HDMI audio driver, AVR model/firmware, connection path (direct HDMI or TV/eARC), physical speaker assignments, chosen DSP chain/layout, Windows spatial format, probe text, object coordinates, and each left/right test result. Say whether other ceiling speakers also played, and whether the symptom occurs in one-shot tests, music, or both. An AVR Atmos badge is useful context but not a routing measurement. If possible, include a short recording or the AVR's channel activity display. PS5 success is a useful comparison; it does not establish that the two software paths use the same rendering method.
+Include the component version (and build run URL for a source build), Windows version, GPU/HDMI audio driver, AVR model/firmware, connection path (direct HDMI or TV/eARC), physical speaker assignments, chosen DSP chain/layout, Windows spatial format, probe text, object coordinates, and each left/right test result. Say whether other ceiling speakers also played, and whether the symptom occurs in one-shot tests, music, or both. An AVR Atmos badge is useful context but not a routing measurement. If possible, include a short recording or the AVR's channel activity display. PS5 success is a useful comparison; it does not establish that the two software paths use the same rendering method.
 
 ## Polski
 
-### Co sprawdza ta wersja
+### Zakres działania i model renderowania
+
+Te komponenty przetwarzają **dźwięk foobar2000** i generują własne sygnały diagnostyczne. Nie zmieniają miksera Windows ani dźwięku innych odtwarzaczy i gier, w tym Resident Evil 2 i Cyberpunk 2077. Uruchomienie gry nie sprawdza działania tego DSP. Użyj testów kierunkowych wtyczki wyjściowej, muzyki odtwarzanej w foobar2000 lub dołączonego narzędzia diagnostycznego.
 
 Top Front i Top Back korzystają z czterech statycznych kanałów Windows Spatial Audio. Lewy i prawy Top Middle są dwoma nieruchomymi obiektami dynamicznymi. Pełny DSP obsługuje `5.1.6`, `7.1.6` i `9.1.6`, a `Add Ceiling Speakers` ma opcję `6 speakers (dynamic Top Middle)`, zachowującą istniejące kanały. Układ 9.1.6 potrzebuje dodatkowo dwóch obiektów front-wide.
 
-Zmiana dotyczy odtwarzania przez te komponenty w foobar2000. Nie zmienia dźwięku innych programów ani gier. Powstające kanały są syntezą z PCM, a nie odtworzeniem oryginalnych obiektów Atmos z filmu.
+DSP tworzy brakujące kanały wysokości z PCM. Komponent wyjściowy wysyła powstałe kanały jako obiekty statyczne i obiekty dynamiczne z określoną pozycją. DSP nie dekoduje filmu Atmos ani nie odzyskuje oryginalnych obiektów ze spłaszczonego miksu.
 
-To **wersja testowa**. Testy automatyczne sprawdzają przetwarzanie PCM, maski kanałów, zgodność profili i decyzje routingu. Nie potwierdzają działania na fizycznym amplitunerze 7.1.6. O tym, które głośniki zagrają dla danej pozycji obiektu, decyduje renderer amplitunera. Sam brak błędu lub napis Atmos na wyświetlaczu nie dowodzi poprawnego użycia środkowej pary.
+Testy automatyczne sprawdzają przetwarzanie PCM, maski kanałów, zgodność profili i decyzje routingu. Fizyczny routing trzeba sprawdzić na własnym urządzeniu wyjściowym i amplitunerze; testy oprogramowania nie potwierdzają tego wyniku. O tym, które głośniki zagrają dla danej pozycji obiektu, decyduje renderer amplitunera. Sam brak błędu lub napis Atmos na wyświetlaczu nie dowodzi poprawnego użycia środkowej pary.
 
 ### Instalacja i wybór urządzenia
 
-1. Pobierz **Artifacts > Foobar-for-Home-Theater-windows-x64** z zakończonego powodzeniem uruchomienia GitHub Actions dla tej gałęzi/PR. Rozpakuj artefakt i znajdujący się w nim ZIP Windows.
+1. Pobierz i rozpakuj najnowszą paczkę Windows ZIP z [GitHub Releases](https://github.com/ArtifexEt/Foobar-for-Home-Theater/releases/latest). Zawiera komponenty, narzędzia diagnostyczne i profile konfiguracji używane poniżej.
 2. Zapisz obecne profile i zachowaj poprzednie instalatory. Zainstaluj **wszystkie trzy komponenty z tej samej paczki**: `foo_dsp_spatial`, `foo_dsp_height`, `foo_out_spatial_audio`. Uruchom ponownie 64-bitowy foobar2000 2.x.
 3. Ustaw rzeczywisty układ głośników w amplitunerze: Top Front, Top Middle i Top Back/Rear. W Windows włącz **Dolby Atmos for home theater** dla właściwego wyjścia HDMI/eARC.
 4. Ustaw amplituner jako **domyślne urządzenie audio Windows** i wybierz to samo urządzenie w **Playback > Output** w foobar2000. Przycisk **Probe endpoint** i testy w Preferencjach korzystają z domyślnego urządzenia multimedialnego Windows, nawet gdy normalne odtwarzanie ma wybrane inne wyjście po nazwie.
@@ -123,7 +127,7 @@ Na koniec wróć do **7.1.4** albo **czterech głośników sufitowych** i wyjśc
 - **Add Ceiling Speakers:** poziom wysokości, Top middle trim, front difference, surround/rear feed i center feed mają suwaki połączone z polami liczbowymi. Środkowa korekta jest aktywna przy sześciu głośnikach i dotyczy nowo tworzonego sygnału. Ten DSP nie ma osobnej regulacji opóźnień kanałów.
 - **Spatial Audio Output > Layout:** half-width, height i front/back mają suwaki i pola liczbowe. Na stronie **Test** suwaki regulują też poziom i częstotliwość tonu. Pozycja obiektu nie zastępuje kalibracji opóźnienia głośnika.
 
-Zmniejsz okno Preferencji oraz okno Add Ceiling Speakers, którego rozmiar można teraz zmieniać. Paski przewijania powinny pojawić się tylko tam, gdzie zawartość się nie mieści. Sprawdź obie osie, kółko myszy oraz Tab/Shift+Tab: ostatnie kontrolki Top Middle i przyciski OK/Cancel muszą być dostępne. Powiększ okno: zawartość powinna wrócić na miejsce, a zbędne paski zniknąć. Powtórz przy skalowaniu Windows 100%, 150% i 200% oraz po przeniesieniu między monitorami. Zmień wartość suwakiem, wpisz dokładną liczbę, zapisz i ponownie otwórz ustawienia. Cancel w Add Ceiling Speakers ma zachować poprzedni preset.
+Zmniejsz okno Preferencji oraz okno Add Ceiling Speakers z możliwością zmiany rozmiaru. Paski przewijania powinny pojawić się tylko tam, gdzie zawartość się nie mieści. Sprawdź obie osie, kółko myszy oraz Tab/Shift+Tab: ostatnie kontrolki Top Middle i przyciski OK/Cancel muszą być dostępne. Powiększ okno: zawartość powinna wrócić na miejsce, a zbędne paski zniknąć. Powtórz przy skalowaniu Windows 100%, 150% i 200% oraz po przeniesieniu między monitorami. Zmień wartość suwakiem, wpisz dokładną liczbę, zapisz i ponownie otwórz ustawienia. Cancel w Add Ceiling Speakers ma zachować poprzedni preset.
 
 Testy Windows CI tworzą rzeczywiste okna z zasobów komponentów i używają produkcyjnego mechanizmu przewijania przy bazowym, 150% i 200% **rozmiarze czcionki okna**. Sprawdzają przepełnienie, dostępność kontrolek i powrót po powiększeniu. Nie zastępują testu wewnątrz foobar2000 ani rzeczywistej zmiany DPI monitora.
 
@@ -131,4 +135,4 @@ Do porównania odsłuchowego użyj krótkich uderzeń perkusji i mowy. Wyrównaj
 
 ### Informacje do zgłoszenia
 
-Podaj wersję kompilacji/link do uruchomienia, wersję Windows i sterownika HDMI/GPU, model i firmware amplitunera, połączenie bezpośrednie HDMI lub przez TV/eARC, przypisania głośników, łańcuch DSP, wybrany układ, format przestrzenny Windows, pełny raport probe, współrzędne i wyniki osobno Top ML/Top MR. Napisz, które inne głośniki grały oraz czy problem dotyczy testów, muzyki, czy obu. Dołącz ewentualny błąd konsoli. Pomocne są nagranie lub wskaźniki aktywnych kanałów amplitunera. Działanie PS5 jest przydatnym porównaniem, ale nie dowodzi identycznego sposobu renderowania w Windows.
+Podaj wersję komponentów (oraz link do uruchomienia dla kompilacji ze źródeł), wersję Windows i sterownika HDMI/GPU, model i firmware amplitunera, połączenie bezpośrednie HDMI lub przez TV/eARC, przypisania głośników, łańcuch DSP, wybrany układ, format przestrzenny Windows, pełny raport probe, współrzędne i wyniki osobno Top ML/Top MR. Napisz, które inne głośniki grały oraz czy problem dotyczy testów, muzyki, czy obu. Dołącz ewentualny błąd konsoli. Pomocne są nagranie lub wskaźniki aktywnych kanałów amplitunera. Działanie PS5 jest przydatnym porównaniem, ale nie dowodzi identycznego sposobu renderowania w Windows.
