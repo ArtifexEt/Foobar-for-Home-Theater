@@ -73,7 +73,7 @@ jobs:
           $env:CL = "/I`"$wtlInclude`" $env:CL"
 
           # Matching private PCM transport definitions used by all components.
-          Copy-Item -Recurse components/shared external/foobar2000-sdk/foobar2000/
+          Copy-Item components/shared/*.h external/foobar2000-sdk/foobar2000/shared/
 
           # Build output component
           Copy-Item -Recurse components/foo_out_spatial_audio external/foobar2000-sdk/foobar2000/
