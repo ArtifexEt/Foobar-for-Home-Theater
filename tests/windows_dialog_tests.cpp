@@ -104,6 +104,15 @@ struct Dialog {
     HWND window{};
 
     static INT_PTR CALLBACK procedure(HWND window, UINT message, WPARAM wp, LPARAM lp) {
+        if (message == WM_GETMINMAXINFO) {
+            // The hidden harness must be able to grow a font-scaled popup
+            // beyond the CI desktop. Otherwise Windows clamps WS_THICKFRAME
+            // windows to the monitor's tracking limit and the "content fits"
+            // phase is never reached. Production sizing remains unchanged.
+            auto* limits = reinterpret_cast<MINMAXINFO*>(lp);
+            limits->ptMaxTrackSize = {32767, 32767};
+            return TRUE;
+        }
         auto* self = reinterpret_cast<Dialog*>(GetWindowLongPtrW(window, GWLP_USERDATA));
         if (message == WM_INITDIALOG) {
             self = reinterpret_cast<Dialog*>(lp);
@@ -153,6 +162,10 @@ void resize_client(HWND window, int width, int height) {
             outer.bottom - outer.top + height - current.bottom,
             SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOZORDER) != FALSE, "Dialog resize failed");
     }
+    const RECT actual = client(window);
+    require(actual.right == width && actual.bottom == height,
+        "Requested client " + std::to_string(width) + "x" + std::to_string(height)
+        + ", actual " + std::to_string(actual.right) + "x" + std::to_string(actual.bottom));
 }
 
 void require_slider(HWND dialog, int id) {
@@ -179,16 +192,19 @@ void save_screenshot(HWND dialog, int resource, int percent, const wchar_t* view
     std::filesystem::create_directories(outputDirectory);
     const auto path = std::filesystem::path(outputDirectory) /
         (L"dialog-" + std::to_wstring(resource) + L"-font-" + std::to_wstring(percent) + L"-" + viewport + L".png");
-    const RECT bounds = client(dialog);
-    HDC screen = GetDC(dialog);
+    RECT windowBounds{};
+    require(GetWindowRect(dialog, &windowBounds) != FALSE, "Screenshot window bounds unavailable");
+    const RECT bounds{0, 0, windowBounds.right - windowBounds.left, windowBounds.bottom - windowBounds.top};
+    HDC screen = GetWindowDC(dialog);
     HDC canvas = CreateCompatibleDC(screen);
     HBITMAP bitmap = CreateCompatibleBitmap(screen, bounds.right, bounds.bottom);
     require(screen != nullptr && canvas != nullptr && bitmap != nullptr, "Screenshot bitmap allocation failed");
     const HGDIOBJ previous = SelectObject(canvas, bitmap);
     FillRect(canvas, &bounds, GetSysColorBrush(COLOR_3DFACE));
-    // WM_PRINT also renders children of a hidden dialog; no desktop capture is
-    // involved. This is an image of the native resource test harness.
-    SendMessageW(dialog, WM_PRINT, reinterpret_cast<WPARAM>(canvas), PRF_CLIENT | PRF_ERASEBKGND | PRF_CHILDREN);
+    // Capture the whole hidden window, including scrollbar and edit borders;
+    // no desktop capture is involved. This is the native resource test harness.
+    SendMessageW(dialog, WM_PRINT, reinterpret_cast<WPARAM>(canvas),
+        PRF_NONCLIENT | PRF_CLIENT | PRF_ERASEBKGND | PRF_CHILDREN);
     UINT encoderCount = 0, encoderBytes = 0;
     require(Gdiplus::GetImageEncodersSize(&encoderCount, &encoderBytes) == Gdiplus::Ok, "Cannot enumerate image encoders");
     std::vector<unsigned char> encoderStorage(encoderBytes);
