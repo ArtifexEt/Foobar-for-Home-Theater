@@ -146,3 +146,18 @@
 #define idChannelInvertTopBackRight     4411
 #define idChannelInvertFrontWideLeft    4412
 #define idChannelInvertFrontWideRight   4413
+
+#define idChannelGainEditTopMiddleLeft 4014
+#define idChannelGainEditTopMiddleRight 4015
+
+#define idChannelGainSliderTopMiddleLeft 4114
+#define idChannelGainSliderTopMiddleRight 4115
+
+#define idChannelDelayEditTopMiddleLeft 4214
+#define idChannelDelayEditTopMiddleRight 4215
+
+#define idChannelDelaySliderTopMiddleLeft 4314
+#define idChannelDelaySliderTopMiddleRight 4315
+
+#define idChannelInvertTopMiddleLeft 4414
+#define idChannelInvertTopMiddleRight 4415

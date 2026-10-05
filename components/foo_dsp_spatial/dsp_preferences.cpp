@@ -2,8 +2,13 @@
 #include "component_version.h"
 #include "dsp_config.h"
 #include "dsp_preferences_resource.h"
+#include "../shared/dialog_scroll.h"
 
 #include <helpers/atl-misc.h>
+
+#ifndef WM_DPICHANGED_BEFOREPARENT
+#define WM_DPICHANGED_BEFOREPARENT 0x02E2
+#endif
 
 #ifndef WM_DPICHANGED_AFTERPARENT
 #define WM_DPICHANGED_AFTERPARENT 0x02E3
@@ -40,6 +45,8 @@ const MappingOption kMappingOptions[] = {
     {target_top_back_right,  L"Top back right"},
     {target_front_wide_left, L"Front wide left"},
     {target_front_wide_right,L"Front wide right"},
+    {target_top_middle_left, L"Top middle left"},
+    {target_top_middle_right,L"Top middle right"},
     {target_disabled,        L"Disabled"},
 };
 
@@ -64,9 +71,12 @@ const LayoutOption kLayoutOptions[] = {
     {DspOutputLayout::FivePointOneTwo,   L"Surround + height (5.1.2)"},
     {DspOutputLayout::FivePointOneFour,  L"Surround + height (5.1.4)"},
     {DspOutputLayout::SevenPointOneFour, L"Surround + height (7.1.4)"},
+    {DspOutputLayout::FivePointOneSix,   L"5.1.6 (dynamic Top Middle)"},
+    {DspOutputLayout::SevenPointOneSix,  L"7.1.6 (dynamic Top Middle)"},
     {DspOutputLayout::NinePointOne,      L"Front wide (9.1)"},
     {DspOutputLayout::NinePointOneTwo,   L"Front wide + height (9.1.2)"},
     {DspOutputLayout::NinePointOneFour,  L"Front wide + height (9.1.4)"},
+    {DspOutputLayout::NinePointOneSix,   L"9.1.6 (dynamic Top Middle)"},
 };
 
 struct SliderBinding {
@@ -77,30 +87,6 @@ struct SliderBinding {
     double scale;
     int decimals;
 };
-
-struct PageEnumData { HWND parent = nullptr; int maxBottom = 0; };
-
-static BOOL CALLBACK page_max_bottom_proc(HWND child, LPARAM lp) {
-    auto* data = reinterpret_cast<PageEnumData*>(lp);
-    if (::GetParent(child) != data->parent) return TRUE;
-    RECT r = {};
-    ::GetWindowRect(child, &r);
-    ::MapWindowPoints(nullptr, data->parent, reinterpret_cast<POINT*>(&r), 2);
-    wchar_t cls[16] = {};
-    if (::GetClassNameW(child, cls, _countof(cls)) > 0 && _wcsicmp(cls, L"ComboBox") == 0) {
-        COMBOBOXINFO cbi = {}; cbi.cbSize = sizeof(cbi);
-        if (::GetComboBoxInfo(child, &cbi))
-            r.bottom = r.top + std::max(cbi.rcItem.bottom, cbi.rcButton.bottom);
-    }
-    if (r.bottom > data->maxBottom) data->maxBottom = r.bottom;
-    return TRUE;
-}
-
-static int measure_content_height(HWND pageWnd) {
-    PageEnumData data = {pageWnd, 0};
-    ::EnumChildWindows(pageWnd, page_max_bottom_proc, reinterpret_cast<LPARAM>(&data));
-    return data.maxBottom > 0 ? data.maxBottom + 8 : 0;
-}
 
 struct ComboHeightData { HWND parent = nullptr; int selectionHeight = 0; int listHeight = 0; };
 
@@ -343,6 +329,7 @@ public:
         MESSAGE_HANDLER(WM_SIZE, on_size_message)
         MESSAGE_HANDLER(WM_DPICHANGED, on_dpi_changed_message)
         MESSAGE_HANDLER(WM_DPICHANGED_AFTERPARENT, on_dpi_changed_message)
+        MESSAGE_HANDLER(WM_APP + 26, on_dpi_applied_message)
         MESSAGE_HANDLER(WM_THEMECHANGED, on_theme_changed_message)
         MESSAGE_HANDLER(WM_SETTINGCHANGE, on_theme_changed_message)
         MESSAGE_HANDLER(WM_COMMAND, on_command_message)
@@ -380,7 +367,16 @@ private:
     }
     LRESULT on_erase_message(UINT, WPARAM wp, LPARAM, BOOL&) { return on_erase(m_hWnd, reinterpret_cast<HDC>(wp)); }
     LRESULT on_size_message(UINT, WPARAM, LPARAM, BOOL&) { position_pages(); return TRUE; }
-    LRESULT on_dpi_changed_message(UINT, WPARAM, LPARAM, BOOL&) { update_tooltip_width(); position_pages(); return TRUE; }
+    LRESULT on_dpi_changed_message(UINT, WPARAM, LPARAM, BOOL& handled) {
+        ::PostMessageW(m_hWnd, WM_APP + 26, 0, 0);
+        handled = FALSE;
+        return 0;
+    }
+    LRESULT on_dpi_applied_message(UINT, WPARAM, LPARAM, BOOL&) {
+        update_tooltip_width();
+        position_pages();
+        return 0;
+    }
     LRESULT on_theme_changed_message(UINT, WPARAM, LPARAM, BOOL&) {
         update_tooltip_width(); position_pages();
         ::RedrawWindow(m_hWnd, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
@@ -398,8 +394,6 @@ private:
         if (msg == WM_INITDIALOG) {
             self = reinterpret_cast<dsp_preferences_instance*>(lp);
             ::SetWindowLongPtrW(wnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(self));
-            const int ch = measure_content_height(wnd);
-            ::SetPropW(wnd, L"dsp_ch", reinterpret_cast<HANDLE>(static_cast<LONG_PTR>(ch)));
             return FALSE;
         }
         if (self == nullptr) return FALSE;
@@ -410,15 +404,33 @@ private:
         case WM_CTLCOLORSTATIC:
         case WM_CTLCOLORBTN:
         case WM_CTLCOLORDLG: return self->on_control_color(reinterpret_cast<HDC>(wp), reinterpret_cast<HWND>(lp), msg);
-        case WM_HSCROLL: self->on_scroll(reinterpret_cast<HWND>(lp)); return TRUE;
-        case WM_SIZE: self->on_page_size(wnd, static_cast<int>(HIWORD(lp))); return FALSE;
-        case WM_VSCROLL: self->on_page_vscroll(wnd, wp); return TRUE;
-        case WM_MOUSEWHEEL: self->on_page_mousewheel(wnd, wp); return TRUE;
+        case WM_HSCROLL:
+            if (lp != 0) self->on_scroll(reinterpret_cast<HWND>(lp));
+            else if (auto* scroll = self->page_scroll(wnd)) scroll->on_scroll(SB_HORZ, wp);
+            return TRUE;
+        case WM_SIZE:
+            if (auto* scroll = self->page_scroll(wnd)) scroll->resize();
+            return FALSE;
+        case WM_VSCROLL:
+            if (auto* scroll = self->page_scroll(wnd)) scroll->on_scroll(SB_VERT, wp);
+            return TRUE;
+        case WM_MOUSEWHEEL:
+        case WM_MOUSEHWHEEL:
+            if (auto* scroll = self->page_scroll(wnd))
+                return scroll->on_mouse_wheel(wp, msg == WM_MOUSEHWHEEL) ? TRUE : FALSE;
+            return FALSE;
+        case WM_DPICHANGED_BEFOREPARENT:
+            if (auto* scroll = self->page_scroll(wnd)) scroll->dpi_changing();
+            return FALSE;
         case WM_DPICHANGED:
         case WM_DPICHANGED_AFTERPARENT:
+            if (auto* scroll = self->page_scroll(wnd)) scroll->dpi_changed();
             self->update_tooltip_width();
             ::RedrawWindow(wnd, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
-            return TRUE;
+            return FALSE;
+        case WM_DESTROY:
+            if (auto* scroll = self->page_scroll(wnd)) scroll->detach();
+            return FALSE;
         case WM_NOTIFY: self->on_notify(reinterpret_cast<NMHDR*>(lp)); return TRUE;
         default: break;
         }
@@ -431,56 +443,16 @@ private:
         HWND pageWnd = CreateDialogParamW(core_api::get_my_instance(), MAKEINTRESOURCEW(resourceId), wnd_, page_dialog_proc, reinterpret_cast<LPARAM>(this));
         if (pageWnd == nullptr) throw std::runtime_error("Could not create DSP preferences page.");
         pageWnds_[page_index(page)] = pageWnd;
+        pageScroll_[page_index(page)].attach(pageWnd);
         dark_.AddDialogWithControls(pageWnd);
         return pageWnd;
     }
 
-    void on_page_size(HWND pageWnd, int windowHeight) {
-        const int contentH = static_cast<int>(reinterpret_cast<LONG_PTR>(::GetPropW(pageWnd, L"dsp_ch")));
-        if (contentH <= 0) return;
-        SCROLLINFO si = {}; si.cbSize = sizeof(si); si.fMask = SIF_ALL;
-        ::GetScrollInfo(pageWnd, SB_VERT, &si);
-        const int prevPos = si.nPos;
-        si.nMin = 0; si.nMax = contentH - 1; si.nPage = static_cast<UINT>(std::max(1, windowHeight));
-        si.fMask = SIF_RANGE | SIF_PAGE;
-        ::SetScrollInfo(pageWnd, SB_VERT, &si, TRUE);
-        ::GetScrollInfo(pageWnd, SB_VERT, &si);
-        if (si.nPos != prevPos)
-            ::ScrollWindowEx(pageWnd, 0, prevPos - si.nPos, nullptr, nullptr, nullptr, nullptr, SW_SCROLLCHILDREN | SW_INVALIDATE | SW_ERASE);
-    }
-
-    void on_page_vscroll(HWND pageWnd, WPARAM wp) {
-        SCROLLINFO si = {}; si.cbSize = sizeof(si); si.fMask = SIF_ALL;
-        ::GetScrollInfo(pageWnd, SB_VERT, &si);
-        const int prevPos = si.nPos;
-        switch (LOWORD(wp)) {
-        case SB_LINEUP:     si.nPos -= 20; break;
-        case SB_LINEDOWN:   si.nPos += 20; break;
-        case SB_PAGEUP:     si.nPos -= static_cast<int>(si.nPage); break;
-        case SB_PAGEDOWN:   si.nPos += static_cast<int>(si.nPage); break;
-        case SB_TOP:        si.nPos = si.nMin; break;
-        case SB_BOTTOM:     si.nPos = si.nMax; break;
-        case SB_THUMBTRACK: si.nPos = si.nTrackPos; break;
-        default: break;
+    spatial_ui::DialogScroll* page_scroll(HWND pageWnd) {
+        for (size_t i = 0; i < pageWnds_.size(); ++i) {
+            if (pageWnds_[i] == pageWnd) return &pageScroll_[i];
         }
-        si.fMask = SIF_POS;
-        ::SetScrollInfo(pageWnd, SB_VERT, &si, TRUE);
-        ::GetScrollInfo(pageWnd, SB_VERT, &si);
-        if (si.nPos != prevPos)
-            ::ScrollWindowEx(pageWnd, 0, prevPos - si.nPos, nullptr, nullptr, nullptr, nullptr, SW_SCROLLCHILDREN | SW_INVALIDATE | SW_ERASE);
-    }
-
-    void on_page_mousewheel(HWND pageWnd, WPARAM wp) {
-        const int delta = GET_WHEEL_DELTA_WPARAM(wp);
-        SCROLLINFO si = {}; si.cbSize = sizeof(si); si.fMask = SIF_ALL;
-        ::GetScrollInfo(pageWnd, SB_VERT, &si);
-        const int prevPos = si.nPos;
-        si.nPos -= (delta / WHEEL_DELTA) * 40;
-        si.fMask = SIF_POS;
-        ::SetScrollInfo(pageWnd, SB_VERT, &si, TRUE);
-        ::GetScrollInfo(pageWnd, SB_VERT, &si);
-        if (si.nPos != prevPos)
-            ::ScrollWindowEx(pageWnd, 0, prevPos - si.nPos, nullptr, nullptr, nullptr, nullptr, SW_SCROLLCHILDREN | SW_INVALIDATE | SW_ERASE);
+        return nullptr;
     }
 
     void normalize_combo_heights() {
@@ -495,9 +467,7 @@ private:
             if (pageWnd == nullptr) continue;
             ComboHeightData data = {pageWnd, targetH, targetH};
             ::EnumChildWindows(pageWnd, set_combo_height_proc, reinterpret_cast<LPARAM>(&data));
-            const int newH = measure_content_height(pageWnd);
-            if (newH > 0)
-                ::SetPropW(pageWnd, L"dsp_ch", reinterpret_cast<HANDLE>(static_cast<LONG_PTR>(newH)));
+            if (auto* scroll = page_scroll(pageWnd)) scroll->resize();
         }
     }
 
@@ -526,8 +496,10 @@ private:
         const int x = tabRect.left + pageRect.left, y = tabRect.top + pageRect.top;
         const int width = pageRect.right - pageRect.left, height = pageRect.bottom - pageRect.top;
         for (HWND pageWnd : pageWnds_) {
-            if (pageWnd != nullptr && ::IsWindow(pageWnd))
-                ::SetWindowPos(pageWnd, HWND_TOP, x, y, width, height, SWP_NOACTIVATE);
+            if (pageWnd != nullptr && ::IsWindow(pageWnd)) {
+                ::SetWindowPos(pageWnd, HWND_TOP, x, y, (std::max)(1, width), (std::max)(1, height), SWP_NOACTIVATE);
+                if (auto* scroll = page_scroll(pageWnd)) scroll->resize();
+            }
         }
     }
 
@@ -685,7 +657,7 @@ private:
         HWND layoutCombo = find_dlg_item(wnd_, idLayoutMode);
         for (const auto& option : kLayoutOptions)
             add_combo_item(layoutCombo, option.label, static_cast<LPARAM>(option.layout));
-        add_tooltip(layoutCombo, L"Controls how many channels the DSP produces. Output Auto follows this bed.");
+        add_tooltip(layoutCombo, L"Output Auto follows this bed. Six-height layouts require matching Spatial Audio Output components: two dynamic objects for Top Middle, plus two for Front Wide in 9.1.6.");
 
         HWND upmixCombo = find_dlg_item(wnd_, idUpmixMode);
         for (const auto& option : kUpmixOptions)
@@ -930,6 +902,7 @@ private:
     CDialogResizeHelper m_resizer{kMainResizeParams};
     HWND tooltip_ = nullptr;
     std::array<HWND, static_cast<size_t>(Page::Count)> pageWnds_ = {};
+    std::array<spatial_ui::DialogScroll, static_cast<size_t>(Page::Count)> pageScroll_;
     std::vector<SliderBinding> sliders_;
     int selectedPage_ = 0;
     bool updatingControls_ = false;

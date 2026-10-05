@@ -98,6 +98,8 @@ unsigned target_channel_flag(size_t target) {
         audio_chunk::channel_top_back_right,
         audio_chunk::channel_front_center_left,
         audio_chunk::channel_front_center_right,
+        spatial_channels::top_middle_left,
+        spatial_channels::top_middle_right,
     };
     return target < target_count ? flags[target] : 0;
 }
@@ -139,6 +141,7 @@ unsigned fallback_channel_mask(unsigned channels) {
 
 unsigned normalized_channel_mask(unsigned channels, unsigned mask) {
     if (channels == 0 || channels > 32) return 0;
+    if ((mask & spatial_channels::top_middle_pair) != 0 && spatial_channels::count(mask) != channels) return 0;
     if (mask != 0 && audio_chunk::g_count_channels(mask) == channels) return mask;
     return fallback_channel_mask(channels);
 }
@@ -384,6 +387,7 @@ void spatial_audio_output::open(audio_chunk::spec_t const& spec) {
     sampleRate_     = spec.sampleRate;
     reset_queue(static_cast<size_t>(std::max(0.2, bufferLength_) * static_cast<double>(sampleRate_)));
     const unsigned detectedChannelMask = normalized_channel_mask(spec.chanCount, spec.chanMask);
+    if (detectedChannelMask == 0) throw exception_output_unsupported_stream_format();
     const AudioObjectType detectedBedMask = object_mask_from_channel_mask(detectedChannelMask);
     start_stream(sampleRate_, detectedBedMask, detectedChannelMask);
 }
@@ -407,13 +411,14 @@ void spatial_audio_output::write(const audio_chunk& data) {
 
     std::vector<AudioFrame> converted(toCopy);
     const unsigned sourceMask = normalized_channel_mask(channels, mask);
+    if (sourceMask == 0) throw exception_output_unsupported_stream_format();
     const bool useMaskedChannelOrder = sourceMask != 0
         && audio_chunk::g_count_channels(sourceMask) == channels;
     std::array<unsigned, target_count> sourceIndices;
     sourceIndices.fill(static_cast<unsigned>(-1));
     if (useMaskedChannelOrder) {
         for (size_t ch = 0; ch < target_count; ++ch)
-            sourceIndices[ch] = audio_chunk::g_channel_index_from_flag(sourceMask, target_channel_flag(ch));
+            sourceIndices[ch] = spatial_channels::index(sourceMask, target_channel_flag(ch));
     }
     const bool hasSidePair = (sourceMask & audio_chunk::channels_side_left_right)
         == audio_chunk::channels_side_left_right;
@@ -438,10 +443,6 @@ void spatial_audio_output::write(const audio_chunk& data) {
             } else if (hasSidePair && !hasBackPair) {
                 frame[target_back_left] = frame[target_side_left];
                 frame[target_back_right] = frame[target_side_right];
-            }
-        } else if (channels == target_count) {
-            for (size_t ch = 0; ch < target_count; ++ch) {
-                frame[ch] = static_cast<float>(samples[i * channels + ch]);
             }
         } else if (channels >= 2) {
             frame[0] = static_cast<float>(samples[i * channels + 0]);
@@ -591,8 +592,18 @@ void spatial_audio_output::render_loop(uint32_t sampleRate, AudioObjectType audi
         OutputConfig streamConfig = current_config();
         const AudioObjectType requestedMask = requested_static_mask(streamConfig, nativeMask, audioBedMask);
         const std::vector<int> dynamicTargets = requested_dynamic_targets(streamConfig, audioChannelMask);
+        const bool hasTopMiddle = (dynamic_channel_mask(streamConfig.layoutMode, audioChannelMask)
+            & spatial_channels::top_middle_pair) != 0;
+        if (dynamic_input_status(streamConfig.layoutMode, audioChannelMask) == DynamicInputStatus::MissingTopMiddle)
+            throw std::runtime_error("Six-height output requires both Top Middle PCM channels. Select a .6 layout in Spatial Audio DSP or Six in Add Ceiling Speakers, and use matching component versions.");
+        if (dynamic_input_status(streamConfig.layoutMode, audioChannelMask) == DynamicInputStatus::MissingFrontWide)
+            throw std::runtime_error("The selected six-height layout also requires Front Wide input channels. Choose the matching DSP layout or Auto output.");
         if (dynamicTargets.size() > maxDynamicObjectCount)
-            throw std::runtime_error("Endpoint does not expose enough dynamic Spatial Audio objects for the requested 9.x layout.");
+            throw std::runtime_error("Endpoint does not expose enough dynamic Spatial Audio objects for the requested layout (Top Middle needs two). Enable Dolby Atmos for home theater on the selected HDMI device.");
+        // Never silently turn a six-height stream into fewer heights.
+        const auto requiredStaticMask = streamConfig.layoutMode == LayoutMode::Auto ? audioBedMask : requestedMask;
+        if (hasTopMiddle && (static_cast<uint32_t>(requiredStaticMask) & ~static_cast<uint32_t>(nativeMask)) != 0)
+            throw std::runtime_error("Endpoint is missing static channels required by the six-height input/layout. Use Probe endpoint and select a compatible Spatial Audio device.");
 
         AudioObjectType activeMask = AudioObjectType_None;
         std::vector<ChannelState> channels;
@@ -610,7 +621,7 @@ void spatial_audio_output::render_loop(uint32_t sampleRate, AudioObjectType audi
         SpatialAudioObjectRenderStreamActivationParams streamParams = {};
         streamParams.ObjectFormat          = const_cast<WAVEFORMATEX*>(&format);
         streamParams.StaticObjectTypeMask  = activeMask;
-        streamParams.MinDynamicObjectCount = 0;
+        streamParams.MinDynamicObjectCount = static_cast<UINT32>(dynamicTargets.size());
         streamParams.MaxDynamicObjectCount = static_cast<UINT32>(dynamicTargets.size());
         streamParams.Category    = AudioCategory_Media;
         streamParams.EventHandle = spatialEvent_;
@@ -636,8 +647,14 @@ void spatial_audio_output::render_loop(uint32_t sampleRate, AudioObjectType audi
         std::vector<DynamicChannelState> dynamicChannels;
         for (const int target : dynamicTargets) {
             float x = 0.0f, y = 0.0f, z = -1.0f;
-            if (!target_coordinates(target, x, y, z)) continue;
+            if (!target_coordinates(target, x, y, z, streamConfig.topMiddlePosition)) continue;
             dynamicChannels.push_back({target, x, y, z, {}});
+        }
+        if (hasTopMiddle) {
+            const auto position = sanitize_position(streamConfig.topMiddlePosition);
+            FB2K_console_formatter() << "foo_out_spatial_audio: Top Middle L/R dynamic model enabled; dynamic objects="
+                << static_cast<unsigned>(dynamicTargets.size()) << "; position +/-" << position.halfWidth
+                << ", " << position.height << ", " << position.frontBack << " m.";
         }
         uint64_t observedQueueGeneration = 0;
         bool playbackPrimed = false;
@@ -741,22 +758,27 @@ void spatial_audio_output::render_loop(uint32_t sampleRate, AudioObjectType audi
                 throw_if_failed(dynamicTestObject->SetVolume(1.0f), "Set dynamic test volume");
             }
 
+            const auto pendingDynamicCount = static_cast<UINT32>(std::count_if(dynamicChannels.begin(), dynamicChannels.end(),
+                [](const DynamicChannelState& channel) { return !channel.object; }));
+            if (pendingDynamicCount > availableDynamicObjects)
+                throw std::runtime_error("Required dynamic Spatial Audio objects are no longer available. Playback stopped; Top Middle was not silently folded into other channels.");
             for (auto& channel : dynamicChannels) {
                 if (!channel.object) {
-                    throw_if_failed(stream->ActivateSpatialAudioObject(AudioObjectType_Dynamic, channel.object.GetAddressOf()), "Activate front wide dynamic object");
+                    throw_if_failed(stream->ActivateSpatialAudioObject(AudioObjectType_Dynamic, channel.object.GetAddressOf()), "Activate required dynamic channel");
                 }
 
                 BYTE* byteBuffer = nullptr;
                 UINT32 bufferLength = 0;
-                throw_if_failed(channel.object->GetBuffer(&byteBuffer, &bufferLength), "Get front wide dynamic buffer");
+                throw_if_failed(channel.object->GetBuffer(&byteBuffer, &bufferLength), "Get dynamic channel buffer");
                 auto* samples = reinterpret_cast<float*>(byteBuffer);
                 const UINT32 framesToWrite = std::min(frameCount, bufferLength / static_cast<UINT32>(sizeof(float)));
                 for (UINT32 i = 0; i < framesToWrite; ++i) {
                     const double value = !paused ? static_cast<double>(input[i][static_cast<size_t>(channel.target)]) * vol : 0.0;
                     samples[i] = clamp_sample(value);
                 }
-                throw_if_failed(channel.object->SetPosition(channel.x, channel.y, channel.z), "Set front wide dynamic position");
-                throw_if_failed(channel.object->SetVolume(1.0f), "Set front wide dynamic volume");
+                target_coordinates(channel.target, channel.x, channel.y, channel.z, frameConfig.topMiddlePosition);
+                throw_if_failed(channel.object->SetPosition(channel.x, channel.y, channel.z), "Set dynamic channel position");
+                throw_if_failed(channel.object->SetVolume(1.0f), "Set dynamic channel volume");
             }
 
             throw_if_failed(stream->EndUpdatingAudioObjects(), "End updating audio objects");
@@ -876,6 +898,8 @@ int spatial_audio_output::target_from_key(const std::string& key) {
     if (key == "top_back_right")  return target_top_back_right;
     if (key == "front_wide_left") return target_front_wide_left;
     if (key == "front_wide_right")return target_front_wide_right;
+    if (key == "top_middle_left") return target_top_middle_left;
+    if (key == "top_middle_right")return target_top_middle_right;
     return target_disabled;
 }
 
@@ -919,6 +943,7 @@ AudioObjectType spatial_audio_output::requested_static_mask(const OutputConfig& 
         include(AudioObjectType_TopFrontLeft);include(AudioObjectType_TopFrontRight);
         break;
     case LayoutMode::FivePointOneFour:
+    case LayoutMode::FivePointOneSix:
         include(AudioObjectType_FrontLeft);  include(AudioObjectType_FrontRight);
         include(AudioObjectType_FrontCenter);include(AudioObjectType_LowFrequency);
         include(AudioObjectType_SideLeft);   include(AudioObjectType_SideRight);
@@ -926,6 +951,7 @@ AudioObjectType spatial_audio_output::requested_static_mask(const OutputConfig& 
         include(AudioObjectType_TopBackLeft); include(AudioObjectType_TopBackRight);
         break;
     case LayoutMode::SevenPointOneFour:
+    case LayoutMode::SevenPointOneSix:
         include(AudioObjectType_FrontLeft);  include(AudioObjectType_FrontRight);
         include(AudioObjectType_FrontCenter);include(AudioObjectType_LowFrequency);
         include(AudioObjectType_SideLeft);   include(AudioObjectType_SideRight);
@@ -947,6 +973,7 @@ AudioObjectType spatial_audio_output::requested_static_mask(const OutputConfig& 
         include(AudioObjectType_TopFrontLeft);include(AudioObjectType_TopFrontRight);
         break;
     case LayoutMode::NinePointOneFour:
+    case LayoutMode::NinePointOneSix:
     default:
         include(AudioObjectType_FrontLeft);  include(AudioObjectType_FrontRight);
         include(AudioObjectType_FrontCenter);include(AudioObjectType_LowFrequency);
@@ -960,25 +987,17 @@ AudioObjectType spatial_audio_output::requested_static_mask(const OutputConfig& 
 }
 
 std::vector<int> spatial_audio_output::requested_dynamic_targets(const OutputConfig& config, unsigned audioChannelMask) {
-    switch (config.layoutMode) {
-    case LayoutMode::NinePointOne:
-    case LayoutMode::NinePointOneTwo:
-    case LayoutMode::NinePointOneFour:
-        return {target_front_wide_left, target_front_wide_right};
-    case LayoutMode::Auto: {
-        std::vector<int> targets;
-        if ((audioChannelMask & audio_chunk::channel_front_center_left) != 0)
-            targets.push_back(target_front_wide_left);
-        if ((audioChannelMask & audio_chunk::channel_front_center_right) != 0)
-            targets.push_back(target_front_wide_right);
-        return targets;
-    }
-    default:
-        return {};
-    }
+    const unsigned mask = dynamic_channel_mask(config.layoutMode, audioChannelMask);
+    std::vector<int> targets;
+    if (mask & audio_chunk::channel_front_center_left) targets.push_back(target_front_wide_left);
+    if (mask & audio_chunk::channel_front_center_right) targets.push_back(target_front_wide_right);
+    if (mask & spatial_channels::top_middle_left) targets.push_back(target_top_middle_left);
+    if (mask & spatial_channels::top_middle_right) targets.push_back(target_top_middle_right);
+    return targets;
 }
 
-bool spatial_audio_output::target_coordinates(int target, float& x, float& y, float& z) {
+bool spatial_audio_output::target_coordinates(int target, float& x, float& y, float& z, const TopMiddlePosition& rawPosition) {
+    const auto position = sanitize_position(rawPosition);
     switch (target) {
     case target_front_left:       x = -1.0f; y = 0.0f; z = -1.2f; return true;
     case target_front_right:      x =  1.0f; y = 0.0f; z = -1.2f; return true;
@@ -992,6 +1011,8 @@ bool spatial_audio_output::target_coordinates(int target, float& x, float& y, fl
     case target_top_front_right:  x =  0.8f; y = 1.4f; z = -0.9f; return true;
     case target_top_back_left:    x = -0.8f; y = 1.4f; z =  0.9f; return true;
     case target_top_back_right:   x =  0.8f; y = 1.4f; z =  0.9f; return true;
+    case target_top_middle_left:  x = -static_cast<float>(position.halfWidth); y = static_cast<float>(position.height); z = static_cast<float>(position.frontBack); return true;
+    case target_top_middle_right: x =  static_cast<float>(position.halfWidth); y = static_cast<float>(position.height); z = static_cast<float>(position.frontBack); return true;
     case target_front_wide_left:  x = -1.2f; y = 0.0f; z = -0.65f; return true;
     case target_front_wide_right: x =  1.2f; y = 0.0f; z = -0.65f; return true;
     default: return false;

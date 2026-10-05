@@ -3,11 +3,12 @@
 
 namespace spatial_audio {
 
-enum class HeightLayout : uint32_t { Two = 2, Four = 4 };
+enum class HeightLayout : uint32_t { Two = 2, Four = 4, Six = 6 };
 
 struct HeightDspConfig {
     HeightLayout layout = HeightLayout::Four;
     double heightGainDb = -10.0;
+    double topMiddleGainDb = 0.0;
     double frontDifference = 0.35;
     double surroundFeed = 0.45;
     double midFeed = 0.08;

@@ -34,3 +34,14 @@
 #define idTestButtonTopFrontRight       1409
 #define idTestButtonTopBackLeft         1410
 #define idTestButtonTopBackRight        1411
+
+#define idTopMiddleWidth                1040
+#define idTopMiddleHeight               1041
+#define idTopMiddleDepth                1042
+#define idTopMiddleWidthSlider          1043
+#define idTopMiddleHeightSlider         1044
+#define idTopMiddleDepthSlider          1045
+#define idDirectionalTestGainSlider     1046
+#define idDirectionalTestFrequencySlider 1047
+#define idTestButtonTopMiddleLeft        1414
+#define idTestButtonTopMiddleRight       1415

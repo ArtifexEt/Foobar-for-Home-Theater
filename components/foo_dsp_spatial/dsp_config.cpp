@@ -34,6 +34,8 @@ static constexpr GUID guid_cfg_channel_gain_top_back_left    = { 0x5e37467a, 0xe
 static constexpr GUID guid_cfg_channel_gain_top_back_right   = { 0x906a45bc, 0x2bd3, 0x43fe, { 0xa2, 0x11, 0x3c, 0xec, 0x48, 0xcc, 0xd2, 0x3e } };
 static constexpr GUID guid_cfg_channel_gain_front_wide_left  = { 0x8781ee1e, 0x2de3, 0x4aae, { 0x88, 0xb1, 0x55, 0xe1, 0xe6, 0x10, 0xa4, 0x7b } };
 static constexpr GUID guid_cfg_channel_gain_front_wide_right = { 0xdfb1a355, 0x5048, 0x4982, { 0x9e, 0x74, 0xb5, 0x21, 0xb0, 0xe7, 0x4b, 0x0f } };
+static constexpr GUID guid_cfg_channel_gain_top_middle_left = { 0xafd16e8e, 0x2b83, 0x4b51, { 0x8a, 0x14, 0x8e, 0xef, 0x6f, 0x60, 0x9c, 0xf6 } };
+static constexpr GUID guid_cfg_channel_gain_top_middle_right = { 0x54da27ac, 0x6e03, 0x48f6, { 0xae, 0xf3, 0x4f, 0x2f, 0xb3, 0x06, 0x0b, 0x47 } };
 static constexpr GUID guid_cfg_channel_delay_front_left      = { 0x32e21083, 0x84b6, 0x4829, { 0xaf, 0xd0, 0xde, 0xe3, 0xa1, 0xb1, 0xfd, 0x10 } };
 static constexpr GUID guid_cfg_channel_delay_front_right     = { 0xbeaafbde, 0x5b95, 0x4ac6, { 0x9c, 0xba, 0xaa, 0xb9, 0x4a, 0x0f, 0xce, 0x39 } };
 static constexpr GUID guid_cfg_channel_delay_front_center    = { 0xfbad6922, 0x63b0, 0x4563, { 0xa0, 0xe8, 0x11, 0xb9, 0xe4, 0x49, 0x77, 0xda } };
@@ -48,6 +50,8 @@ static constexpr GUID guid_cfg_channel_delay_top_back_left   = { 0x7b76d1b2, 0x1
 static constexpr GUID guid_cfg_channel_delay_top_back_right  = { 0x285552a0, 0x3c67, 0x4b5b, { 0xad, 0x96, 0x3a, 0x55, 0x33, 0x2b, 0x50, 0x00 } };
 static constexpr GUID guid_cfg_channel_delay_front_wide_left = { 0x8eda49bc, 0xbe76, 0x49d3, { 0xb4, 0x7a, 0x7a, 0x78, 0x55, 0xde, 0x2c, 0x3f } };
 static constexpr GUID guid_cfg_channel_delay_front_wide_right= { 0xc1e0b4fe, 0x151e, 0x40ab, { 0x9d, 0xec, 0x74, 0xed, 0x7d, 0x57, 0x6e, 0x9d } };
+static constexpr GUID guid_cfg_channel_delay_top_middle_left = { 0xd4117c4c, 0x117e, 0x4d08, { 0xac, 0x74, 0xe8, 0x94, 0x1a, 0x29, 0x70, 0x8b } };
+static constexpr GUID guid_cfg_channel_delay_top_middle_right = { 0x7233e64f, 0xc81e, 0x485c, { 0x97, 0x07, 0x77, 0x29, 0x6f, 0xc8, 0x72, 0x21 } };
 static constexpr GUID guid_cfg_channel_invert_mask           = { 0xd60c8a95, 0xefea, 0x4a88, { 0xb2, 0xd5, 0x59, 0xd6, 0x77, 0x94, 0x7d, 0xda } };
 static constexpr GUID guid_cfg_map51_front_left              = { 0x4eb609d7, 0xb273, 0x4dde, { 0x8d, 0xf9, 0x15, 0x93, 0x02, 0xac, 0x74, 0xda } };
 static constexpr GUID guid_cfg_map51_front_right             = { 0xe8f17fbd, 0x3591, 0x4709, { 0x84, 0x0d, 0xb7, 0x11, 0x2b, 0x33, 0x65, 0x44 } };
@@ -87,6 +91,8 @@ static cfg_float cfg_channel_gain_top_back_left(guid_cfg_channel_gain_top_back_l
 static cfg_float cfg_channel_gain_top_back_right(guid_cfg_channel_gain_top_back_right, 0.0);
 static cfg_float cfg_channel_gain_front_wide_left(guid_cfg_channel_gain_front_wide_left, 0.0);
 static cfg_float cfg_channel_gain_front_wide_right(guid_cfg_channel_gain_front_wide_right, 0.0);
+static cfg_float cfg_channel_gain_top_middle_left(guid_cfg_channel_gain_top_middle_left, 0.0);
+static cfg_float cfg_channel_gain_top_middle_right(guid_cfg_channel_gain_top_middle_right, 0.0);
 static cfg_float cfg_channel_delay_front_left(guid_cfg_channel_delay_front_left, 0.0);
 static cfg_float cfg_channel_delay_front_right(guid_cfg_channel_delay_front_right, 0.0);
 static cfg_float cfg_channel_delay_front_center(guid_cfg_channel_delay_front_center, 0.0);
@@ -101,6 +107,8 @@ static cfg_float cfg_channel_delay_top_back_left(guid_cfg_channel_delay_top_back
 static cfg_float cfg_channel_delay_top_back_right(guid_cfg_channel_delay_top_back_right, 0.0);
 static cfg_float cfg_channel_delay_front_wide_left(guid_cfg_channel_delay_front_wide_left, 0.0);
 static cfg_float cfg_channel_delay_front_wide_right(guid_cfg_channel_delay_front_wide_right, 0.0);
+static cfg_float cfg_channel_delay_top_middle_left(guid_cfg_channel_delay_top_middle_left, 0.0);
+static cfg_float cfg_channel_delay_top_middle_right(guid_cfg_channel_delay_top_middle_right, 0.0);
 static cfg_int   cfg_channel_invert_mask(guid_cfg_channel_invert_mask, 0);
 static cfg_int   cfg_map51_front_left(guid_cfg_map51_front_left, target_front_left);
 static cfg_int   cfg_map51_front_right(guid_cfg_map51_front_right, target_front_right);
@@ -124,6 +132,8 @@ static cfg_float* const channel_gain_cfgs[target_count] = {
     &cfg_channel_gain_top_back_right,
     &cfg_channel_gain_front_wide_left,
     &cfg_channel_gain_front_wide_right,
+    &cfg_channel_gain_top_middle_left,
+    &cfg_channel_gain_top_middle_right,
 };
 
 static cfg_float* const channel_delay_cfgs[target_count] = {
@@ -141,6 +151,8 @@ static cfg_float* const channel_delay_cfgs[target_count] = {
     &cfg_channel_delay_top_back_right,
     &cfg_channel_delay_front_wide_left,
     &cfg_channel_delay_front_wide_right,
+    &cfg_channel_delay_top_middle_left,
+    &cfg_channel_delay_top_middle_right,
 };
 
 static LimiterMode limiter_mode_from_int(int value) {
@@ -164,6 +176,9 @@ static DspOutputLayout output_layout_from_int(int value) {
     case static_cast<int>(DspOutputLayout::NinePointOne): return DspOutputLayout::NinePointOne;
     case static_cast<int>(DspOutputLayout::NinePointOneTwo): return DspOutputLayout::NinePointOneTwo;
     case static_cast<int>(DspOutputLayout::NinePointOneFour): return DspOutputLayout::NinePointOneFour;
+    case static_cast<int>(DspOutputLayout::SevenPointOneSix): return DspOutputLayout::SevenPointOneSix;
+    case static_cast<int>(DspOutputLayout::FivePointOneSix): return DspOutputLayout::FivePointOneSix;
+    case static_cast<int>(DspOutputLayout::NinePointOneSix): return DspOutputLayout::NinePointOneSix;
     default: return DspOutputLayout::SevenPointOneFour;
     }
 }

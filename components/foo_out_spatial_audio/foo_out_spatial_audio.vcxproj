@@ -98,6 +98,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="component_config.h" />
+    <ClInclude Include="output_routing.h" />
     <ClInclude Include="component_version.h" />
     <ClInclude Include="preferences_resource.h" />
     <ClInclude Include="spatial_output.h" />

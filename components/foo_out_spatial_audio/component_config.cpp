@@ -11,6 +11,13 @@ static constexpr GUID guid_cfg_directional_test_target   = { 0x7fef32d8, 0x03e5,
 static constexpr GUID guid_cfg_directional_test_gain     = { 0xb0e4807b, 0xb7fd, 0x4b71, { 0x89, 0x7b, 0xa6, 0x26, 0x31, 0x19, 0x6e, 0x4b } };
 static constexpr GUID guid_cfg_directional_test_frequency= { 0x8e136568, 0x5de0, 0x4ef9, { 0xb8, 0x5e, 0x47, 0xec, 0x43, 0x28, 0x01, 0xbf } };
 
+static constexpr GUID guid_cfg_top_middle_width = { 0x6e28d122, 0x10db, 0x49f9, { 0xb6, 0x31, 0x86, 0x71, 0x15, 0xaf, 0x62, 0x0a } };
+static constexpr GUID guid_cfg_top_middle_height = { 0x4262453a, 0x637a, 0x4c61, { 0xa0, 0x8a, 0x79, 0x84, 0xa8, 0xdd, 0x15, 0xc4 } };
+static constexpr GUID guid_cfg_top_middle_depth = { 0xd68152e1, 0x4f4b, 0x434e, { 0x88, 0xd4, 0xe6, 0x4d, 0x74, 0xf5, 0x13, 0x41 } };
+static cfg_float cfg_top_middle_width(guid_cfg_top_middle_width, 0.8);
+static cfg_float cfg_top_middle_height(guid_cfg_top_middle_height, 1.4);
+static cfg_float cfg_top_middle_depth(guid_cfg_top_middle_depth, 0.0);
+
 static cfg_int   cfg_layout_mode(guid_cfg_layout_mode, static_cast<int>(LayoutMode::Auto));
 static cfg_int   cfg_sample_rate_mode(guid_cfg_sample_rate_mode, static_cast<int>(SampleRateMode::Fixed48000));
 static cfg_bool  cfg_directional_test_enabled(guid_cfg_directional_test_enabled, false);
@@ -30,6 +37,9 @@ static LayoutMode layout_from_int(int value) {
     case static_cast<int>(LayoutMode::NinePointOne): return LayoutMode::NinePointOne;
     case static_cast<int>(LayoutMode::NinePointOneTwo): return LayoutMode::NinePointOneTwo;
     case static_cast<int>(LayoutMode::NinePointOneFour): return LayoutMode::NinePointOneFour;
+    case static_cast<int>(LayoutMode::SevenPointOneSix): return LayoutMode::SevenPointOneSix;
+    case static_cast<int>(LayoutMode::FivePointOneSix): return LayoutMode::FivePointOneSix;
+    case static_cast<int>(LayoutMode::NinePointOneSix): return LayoutMode::NinePointOneSix;
     default: return LayoutMode::Auto;
     }
 }
@@ -105,6 +115,7 @@ OutputConfig DefaultConfig() {
 
 OutputConfig ReadConfig() {
     OutputConfig config;
+    config.topMiddlePosition = sanitize_position({cfg_top_middle_width.get(), cfg_top_middle_height.get(), cfg_top_middle_depth.get()});
     config.layoutMode    = layout_from_int(static_cast<int>(cfg_layout_mode.get()));
     config.sampleRateMode= sample_rate_mode_from_int(static_cast<int>(cfg_sample_rate_mode.get()));
     config.directionalTestEnabled          = false;
@@ -116,6 +127,10 @@ OutputConfig ReadConfig() {
 }
 
 void WriteConfig(const OutputConfig& config) {
+    const auto position = sanitize_position(config.topMiddlePosition);
+    cfg_top_middle_width = position.halfWidth;
+    cfg_top_middle_height = position.height;
+    cfg_top_middle_depth = position.frontBack;
     cfg_layout_mode      = static_cast<int>(config.layoutMode);
     cfg_sample_rate_mode = static_cast<int>(config.sampleRateMode);
     cfg_directional_test_enabled          = false;
@@ -130,6 +145,10 @@ std::string SerializeConfig(const OutputConfig& config) {
     output << std::setprecision(10);
     output << "[foo_out_spatial_audio]\n";
     output << "version=1\n";
+    const auto position = sanitize_position(config.topMiddlePosition);
+    output << "top_middle_half_width=" << position.halfWidth << "\n";
+    output << "top_middle_height=" << position.height << "\n";
+    output << "top_middle_front_back=" << position.frontBack << "\n";
     output << "layout_mode=" << static_cast<int>(config.layoutMode) << "\n";
     output << "sample_rate_mode=" << static_cast<int>(config.sampleRateMode) << "\n";
     output << "directional_test_enabled=0\n";
@@ -158,6 +177,10 @@ bool DeserializeConfig(const std::string& text, OutputConfig& config) {
     read_double_key(values, "directional_test_gain_db", next.directionalTestGainDb);
     read_double_key(values, "directional_test_frequency_hz", next.directionalTestFrequencyHz);
 
+    read_double_key(values, "top_middle_half_width", next.topMiddlePosition.halfWidth);
+    read_double_key(values, "top_middle_height", next.topMiddlePosition.height);
+    read_double_key(values, "top_middle_front_back", next.topMiddlePosition.frontBack);
+    next.topMiddlePosition = sanitize_position(next.topMiddlePosition);
     config = next;
     return true;
 }

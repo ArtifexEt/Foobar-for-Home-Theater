@@ -1,5 +1,6 @@
 #pragma once
 #include "stdafx.h"
+#include "../shared/spatial_channels.h"
 
 namespace spatial_audio {
 
@@ -14,9 +15,12 @@ enum class DspOutputLayout {
     NinePointOne = 5,
     NinePointOneTwo = 6,
     NinePointOneFour = 7,
+    SevenPointOneSix = 8,
+    FivePointOneSix = 9,
+    NinePointOneSix = 10,
 };
 
-static constexpr size_t target_count = 14;
+static constexpr size_t target_count = 16;
 
 enum ChannelTarget {
     target_disabled = -1,
@@ -26,6 +30,7 @@ enum ChannelTarget {
     target_top_front_left = 8, target_top_front_right = 9,
     target_top_back_left = 10, target_top_back_right = 11,
     target_front_wide_left = 12, target_front_wide_right = 13,
+    target_top_middle_left = 14, target_top_middle_right = 15,
 };
 
 struct DspConfig {
@@ -67,7 +72,8 @@ static const char* const kTargetKeys[target_count] = {
     "front_left","front_right","front_center","low_frequency",
     "side_left","side_right","back_left","back_right",
     "top_front_left","top_front_right","top_back_left","top_back_right",
-    "front_wide_left","front_wide_right"
+    "front_wide_left","front_wide_right",
+    "top_middle_left","top_middle_right"
 };
 
 static constexpr std::array<int, 12> kOutputChannelTargets = {

@@ -99,6 +99,7 @@
   <ItemGroup>
     <ClInclude Include="component_version.h" />
     <ClInclude Include="dsp_config.h" />
+    <ClInclude Include="height_synthesis.h" />
     <ClInclude Include="dsp_preferences_resource.h" />
     <ClInclude Include="spatial_dsp.h" />
     <ClInclude Include="stdafx.h" />
